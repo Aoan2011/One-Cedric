@@ -1,0 +1,133 @@
+Metadata-Version: 2.4
+Name: one-cedric
+Version: 0.17.0
+Summary: Claude Code 风格的本地文件助手（Ollama / DeepSeek / OpenAI 兼容）
+Author: you
+License-Expression: GPL-3.0-or-later
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: requests>=2.28
+Requires-Dist: rich>=13.0
+Requires-Dist: readchar>=4.0
+Requires-Dist: alive-progress>=3.1
+Provides-Extra: yaml
+Requires-Dist: pyyaml>=6.0; extra == "yaml"
+Provides-Extra: pdf
+Requires-Dist: pypdf>=4.0; extra == "pdf"
+Provides-Extra: schema
+Requires-Dist: jsonschema>=4.0; extra == "schema"
+Provides-Extra: metrics
+Requires-Dist: psutil>=5.9; extra == "metrics"
+Provides-Extra: search
+Requires-Dist: beautifulsoup4>=4.12; extra == "search"
+Requires-Dist: lxml>=5.0; extra == "search"
+Provides-Extra: extract
+Requires-Dist: trafilatura>=1.8; extra == "extract"
+Requires-Dist: readability-lxml>=0.8.1; extra == "extract"
+Provides-Extra: computer
+Requires-Dist: pyautogui>=0.9.54; extra == "computer"
+Requires-Dist: Pillow>=10.0; extra == "computer"
+Requires-Dist: pygetwindow>=0.0.9; extra == "computer"
+Requires-Dist: pyperclip>=1.8; extra == "computer"
+Provides-Extra: computer-full
+Requires-Dist: pyautogui>=0.9.54; extra == "computer-full"
+Requires-Dist: Pillow>=10.0; extra == "computer-full"
+Requires-Dist: pygetwindow>=0.0.9; extra == "computer-full"
+Requires-Dist: pyperclip>=1.8; extra == "computer-full"
+Requires-Dist: mss>=9.0; extra == "computer-full"
+Provides-Extra: office
+Requires-Dist: python-docx>=1.1; extra == "office"
+Requires-Dist: python-pptx>=0.6.23; extra == "office"
+Requires-Dist: openpyxl>=3.1; extra == "office"
+Requires-Dist: pypdf>=4.0; extra == "office"
+Requires-Dist: msoffcrypto-tool>=5.0; extra == "office"
+Provides-Extra: office-ocr
+Requires-Dist: pdf2image>=1.17; extra == "office-ocr"
+Requires-Dist: pytesseract>=0.3.10; extra == "office-ocr"
+Requires-Dist: Pillow>=10.0; extra == "office-ocr"
+Provides-Extra: office-win
+Requires-Dist: pywin32>=306; extra == "office-win"
+Provides-Extra: sysops
+Requires-Dist: pycaw>=20240210; sys_platform == "win32" and extra == "sysops"
+Requires-Dist: comtypes>=1.2.0; sys_platform == "win32" and extra == "sysops"
+Provides-Extra: gateway
+Requires-Dist: fastapi>=0.110; extra == "gateway"
+Requires-Dist: uvicorn>=0.29; extra == "gateway"
+Provides-Extra: all
+Requires-Dist: pyyaml>=6.0; extra == "all"
+Requires-Dist: pypdf>=4.0; extra == "all"
+Requires-Dist: jsonschema>=4.0; extra == "all"
+Requires-Dist: psutil>=5.9; extra == "all"
+Requires-Dist: beautifulsoup4>=4.12; extra == "all"
+Requires-Dist: lxml>=5.0; extra == "all"
+Requires-Dist: trafilatura>=1.8; extra == "all"
+Requires-Dist: readability-lxml>=0.8.1; extra == "all"
+Requires-Dist: python-docx>=1.1; extra == "all"
+Requires-Dist: python-pptx>=0.6.23; extra == "all"
+Requires-Dist: openpyxl>=3.1; extra == "all"
+Requires-Dist: msoffcrypto-tool>=5.0; extra == "all"
+Requires-Dist: fastapi>=0.110; extra == "all"
+Requires-Dist: uvicorn>=0.29; extra == "all"
+
+# One Cedric
+
+Claude Code / OpenCode-inspired local agent for working with files and tools.
+
+## Install
+
+```powershell
+python -m pip install -e ".[all,gateway]"
+one-cedric
+```
+
+The terminal menu uses the arrow keys and Enter. CLI Chat contains New session,
+My sessions, and Chat settings. A new session asks for its access mode and
+action-confirmation preference. The WebUI is available from Gateway.
+
+## Tool execution
+
+Python tools run with the current user's operating-system permissions. Cedric
+shows the code and asks for approval before each CLI execution, even when
+auto-confirm is enabled. The subprocess timeout still applies. Only run code
+you trust.
+
+Downloads with a known size use `alive-progress`; other tools show their name,
+elapsed time, and a compact moving track. Tool results are displayed in framed
+cards in the terminal and expandable output panels in the WebUI.
+
+## MCP servers, hooks, and custom tools
+
+Integrations are stored in `~/.one-cedric/integrations.json` and can be managed
+from the MCP servers, Hooks, and Tools screens. MCP servers use the standard
+stdio transport. A server entry has this shape:
+
+```json
+{
+  "mcp_servers": {
+    "example": {
+      "command": "uvx",
+      "args": ["some-mcp-server"],
+      "env": {},
+      "enabled": true
+    }
+  },
+  "hooks": [],
+  "custom_tools": {}
+}
+```
+
+Use the MCP screen's test action to start a server and discover its tools.
+MCP tools require confirmation before execution. Hook commands receive a JSON
+object on stdin; supported events are `before_tool` and `after_tool`. Hook
+failures are reported rather than ignored.
+
+The Tools screen can generate a command-backed custom tool with the configured
+model. Generated scripts are saved under `~/.one-cedric/custom_tools/` and are
+enabled immediately. They run as the current user; generated custom tools
+require confirmation by default. Review generated code before use.
+
+## Accessibility
+
+The terminal UI supports reduced motion with
+`ONE_CEDRIC_REDUCED_MOTION=1`. The WebUI supports dark/light themes, larger
+text, keyboard focus indicators, and reduced-motion preferences.

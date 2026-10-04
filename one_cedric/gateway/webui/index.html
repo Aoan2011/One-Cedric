@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Cedric</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+<script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+</head>
+<body>
+
+<!-- ══ 背景层 ══ -->
+<div class="app-bg" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <canvas class="particle-canvas"></canvas>
+  <div class="grain"></div>
+</div>
+
+<div id="app" v-cloak>
+
+  <!-- ══ 顶栏 ══ -->
+  <header class="topbar">
+    <button class="icon-btn" @click="toggleSidebar"
+            :title="t('topbar.toggleSidebar')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+
+    <div class="brand">
+      <span class="brand-mark">◆</span>
+      <span class="brand-name">One Cedric</span>
+    </div>
+
+    <div class="topbar-mid">
+      <span class="pill pill-model" :title="t('topbar.model') + ': ' + model">
+        {{ model }}
+      </span>
+      <span v-if="currentSession && currentSession.title"
+            class="pill pill-dim">
+        {{ currentSession.title }}
+      </span>
+      <span v-if="settings.think_level && settings.think_level !== 'medium'"
+            class="pill pill-think"
+            :class="'pill-think-' + settings.think_level">
+        ⚡ {{ settings.think_level }}
+      </span>
+    </div>
+
+    <div class="topbar-actions">
+      <div class="stat-pill" v-if="gatewayStats.requests > 0"
+           :title="t('topbar.stats', {req: gatewayStats.requests, err: gatewayStats.errors})">
+        <span class="stat-dot" :class="gatewayOnline ? 'ok' : 'err'"></span>
+        <span>{{ gatewayStats.requests }}</span>
+      </div>
+
+      <button class="icon-btn" @click="openSearch"
+              :title="t('topbar.search')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="toggleTheme"
+              :title="theme === 'dark' ? t('topbar.themeLight') : t('topbar.themeDark')">
+        <svg v-if="theme === 'dark'" width="18" height="18"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg v-else width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+
+      <button class="lang-btn" @click="toggleLang"
+              :title="t('topbar.switchLang')">
+        {{ lang === 'zh' ? 'EN' : '中' }}
+      </button>
+
+      <button v-if="canNotify" class="icon-btn"
+              @click="toggleNotifications"
+              :title="notifyEnabled ? t('topbar.notifyOff') : t('topbar.notifyOn')">
+        <svg v-if="notifyEnabled" width="18" height="18"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <svg v-else width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"
+             opacity="0.45">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          <line x1="2" y1="2" x2="22" y2="22" stroke-dasharray="3 2"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="newSession"
+              :title="t('topbar.newSession')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="showSettings = true"
+              :title="t('topbar.settings')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="showHelp = true"
+              :title="t('topbar.help')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ══ 主区 ══ -->
+  <div class="main">
+    <!-- 侧栏 -->
+    <aside class="sidebar" :class="{ open: sidebarOpen }">
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab"
+                :class="{ active: sidebarTab === 'sessions' }"
+                @click="sidebarTab = 'sessions'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span class="tab-label">{{ t('sidebar.sessions') }}</span>
+        </button>
+        <button class="sidebar-tab"
+                :class="{ active: sidebarTab === 'asks' }"
+                @click="sidebarTab = 'asks'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span class="tab-label">{{ t('sidebar.asks') }}</span>
+          <span v-if="askCount" class="tab-badge">{{ askCount }}</span>
+        </button>
+        <button class="sidebar-tab"
+                :class="{ active: sidebarTab === 'tools' }"
+                @click="sidebarTab = 'tools'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          <span class="tab-label">{{ t('sidebar.tools') }}</span>
+          <span v-if="tools.length" class="tab-badge tab-badge-dim">
+            {{ tools.filter(x=>x.enabled).length }}
+          </span>
+        </button>
+        <button class="sidebar-tab"
+                :class="{ active: sidebarTab === 'outline' }"
+                @click="sidebarTab = 'outline'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"/>
+            <line x1="8" y1="12" x2="21" y2="12"/>
+            <line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/>
+            <line x1="3" y1="12" x2="3.01" y2="12"/>
+            <line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+          <span class="tab-label">{{ t('sidebar.outline') }}</span>
+        </button>
+        <button class="sidebar-tab"
+                :class="{ active: sidebarTab === 'pinned' }"
+                @click="sidebarTab = 'pinned'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span class="tab-label">{{ t('sidebar.pinned') }}</span>
+          <span v-if="pinnedMessages.length" class="tab-badge">
+            {{ pinnedMessages.length }}
+          </span>
+        </button>
+      </div>
+
+      <!-- 会话面板 -->
+      <div v-show="sidebarTab === 'sessions'" class="sidebar-pane">
+        <div class="sidebar-head">
+          <span class="sidebar-title">{{ t('sidebar.sessions') }}</span>
+          <button class="icon-btn sm" @click="newSession"
+                  :title="t('sidebar.new')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="session-list">
+          <div v-for="s in sessions" :key="s.id"
+               class="session-item"
+               :class="{ active: s.id === currentSessionId }"
+               @click="switchSession(s.id)">
+            <div class="session-title">
+              {{ s.title || t('sidebar.untitled') }}
+            </div>
+            <div class="session-meta">
+              <span>{{ s.messages.length }} {{ t('sidebar.msgs') }}</span>
+              <span class="dot-sep">·</span>
+              <span>{{ fmtTime(s.updatedAt) }}</span>
+            </div>
+            <button class="session-del" @click.stop="deleteSession(s.id)"
+                    :title="t('sidebar.delete')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div v-if="sessions.length === 0" class="empty-hint">
+            {{ t('sidebar.empty') }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 问答面板 -->
+      <div v-show="sidebarTab === 'asks'" class="sidebar-pane">
+        <div class="sidebar-head">
+          <span class="sidebar-title">{{ t('sidebar.asks') }}</span>
+          <div class="head-actions">
+            <button class="icon-btn sm" @click="exportAsks('md')"
+                    :title="t('sidebar.exportMd')">MD</button>
+            <button class="icon-btn sm" @click="exportAsks('json')"
+                    :title="t('sidebar.exportJson')">{ }</button>
+            <button class="icon-btn sm" @click="exportAsks('csv')"
+                    :title="t('sidebar.exportCsv')">CSV</button>
+          </div>
+        </div>
+        <div class="ask-thread-list">
+          <div v-if="!askThreads.length" class="empty-hint">
+            {{ t('sidebar.asksEmpty') }}
+          </div>
+          <div v-for="(th, i) in askThreads" :key="th.id"
+               class="ask-thread">
+            <button class="ask-thread-head"
+                    @click="toggleAskThread(th.id)">
+              <span class="chevron"
+                    :class="{ open: isAskThreadExpanded(th.id) }">▶</span>
+              <span class="ask-thread-title">
+                Thread {{ askThreads.length - i }}
+                <span v-if="th.header" class="ask-thread-sub">
+                  · {{ th.header }}
+                </span>
+              </span>
+              <span class="ask-thread-count">{{ th.records.length }}</span>
+            </button>
+            <div v-show="isAskThreadExpanded(th.id)" class="ask-thread-body">
+              <div v-for="rec in th.records" :key="rec.id"
+                   class="ask-record">
+                <div class="ask-record-time">{{ fmtTime(rec.ts) }}</div>
+                <div v-for="q in rec.questions" :key="q.key"
+                     class="ask-record-item">
+                  <div class="ask-record-q">{{ q.question }}</div>
+                  <div class="ask-record-a">
+                    <span class="answer-mark">→</span>
+                    <span>{{ q.answer || t('sidebar.unanswered') }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 工具面板 -->
+      <div v-show="sidebarTab === 'tools'" class="sidebar-pane">
+        <div class="sidebar-head">
+          <span class="sidebar-title">{{ t('sidebar.tools') }}</span>
+          <span class="sidebar-count">
+            {{ tools.filter(x=>x.enabled).length }}/{{ tools.length }}
+          </span>
+        </div>
+        <div class="tools-filter">
+          <input class="tools-search" v-model="toolsFilter"
+                 :placeholder="t('sidebar.searchTools')">
+          <div class="tools-cat">
+            <button class="cat-chip"
+                    :class="{ active: toolsCategory === 'all' }"
+                    @click="toolsCategory = 'all'">
+              {{ t('sidebar.catAll') }}
+            </button>
+            <button class="cat-chip"
+                    :class="{ active: toolsCategory === 'on' }"
+                    @click="toolsCategory = 'on'">
+              {{ t('sidebar.catOn') }}
+            </button>
+            <button class="cat-chip"
+                    :class="{ active: toolsCategory === 'off' }"
+                    @click="toolsCategory = 'off'">
+              {{ t('sidebar.catOff') }}
+            </button>
+          </div>
+        </div>
+        <div class="tools-panel-list">
+          <div v-for="tool in filteredTools" :key="tool.name"
+               class="tool-panel-item">
+            <label class="tool-toggle-row">
+              <input type="checkbox" :checked="tool.enabled"
+                     @change="toggleTool(tool)">
+              <span class="tool-panel-name">{{ tool.name }}</span>
+            </label>
+            <div v-if="tool.description" class="tool-panel-desc">
+              {{ tool.description }}
+            </div>
+          </div>
+          <div v-if="filteredTools.length === 0" class="empty-hint">
+            {{ t('sidebar.noTools') }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 大纲面板 -->
+      <div v-show="sidebarTab === 'outline'" class="sidebar-pane">
+        <div class="sidebar-head">
+          <span class="sidebar-title">{{ t('sidebar.outline') }}</span>
+          <div class="head-actions">
+            <button class="icon-btn sm" @click="showTreeModal = true"
+                    :title="t('sidebar.treeView')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="6" cy="6" r="2"/>
+                <circle cx="6" cy="18" r="2"/>
+                <circle cx="18" cy="12" r="2"/>
+                <line x1="6" y1="8" x2="6" y2="16"/>
+                <line x1="8" y1="6" x2="16" y2="12"/>
+                <line x1="8" y1="18" x2="16" y2="12"/>
+              </svg>
+            </button>
+            <span class="sidebar-count">
+              <template v-if="outlineFilter">
+                {{ outlineMatchCount }} / {{ outlineCount }}
+              </template>
+              <template v-else>{{ outlineCount }}</template>
+            </span>
+          </div>
+        </div>
+        <div class="outline-filter">
+          <input class="outline-search" v-model="outlineFilter"
+                 :placeholder="t('sidebar.searchOutline')">
+          <button v-if="outlineFilter" class="outline-search-clear"
+                  @click="outlineFilter = ''">×</button>
+        </div>
+        <div class="outline-list">
+          <div v-if="!outlineGroups.length" class="empty-hint">
+            {{ t('sidebar.noOutline') }}
+          </div>
+          <div v-for="(g, gi) in filteredOutlineGroups" :key="g.id"
+               class="outline-group">
+            <div class="outline-group-head">
+              <button class="outline-group-toggle"
+                      @click="toggleOutlineGroup(g.id)">
+                <span class="chevron"
+                      :class="{ open: isOutlineExpanded(g.id) }">▶</span>
+                <span class="outline-group-num">{{ gi + 1 }}</span>
+                <span class="outline-group-title">
+                  {{ g.title || t('sidebar.emptyMsg') }}
+                </span>
+              </button>
+            </div>
+            <div v-show="isOutlineExpanded(g.id)" class="outline-group-body">
+              <button v-for="(item, i) in (g._matchedItems || g.items)"
+                      :key="i"
+                      type="button"
+                      class="outline-item"
+                      :class="'outline-level-' + item.level"
+                      @click="jumpToMessage(g.msgId)">
+                <span class="outline-text">{{ item.text }}</span>
+              </button>
+              <div v-if="!g.items.length" class="outline-empty">
+                {{ t('sidebar.noHeading') }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 收藏面板 -->
+      <div v-show="sidebarTab === 'pinned'" class="sidebar-pane">
+        <div class="sidebar-head">
+          <span class="sidebar-title">{{ t('sidebar.pinned') }}</span>
+          <button v-if="pinnedMessages.length" class="icon-btn sm"
+                  @click="clearPins" :title="t('sidebar.clearPins')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            </svg>
+          </button>
+        </div>
+        <div class="pinned-list">
+          <div v-if="!pinnedMessages.length" class="empty-hint">
+            {{ t('sidebar.pinsEmpty') }}
+          </div>
+          <button v-for="p in pinnedMessages" :key="p.msgId"
+                  class="pinned-item"
+                  :class="'pinned-' + p.role"
+                  @click="jumpToPinned(p)">
+            <div class="pinned-role">
+              {{ p.role === 'user' ? t('sidebar.me') : t('sidebar.assistant') }}
+            </div>
+            <div class="pinned-snippet">
+              {{ p.snippet || t('sidebar.emptyMsg') }}
+            </div>
+            <div class="pinned-time">{{ fmtTime(p.ts) }}</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-foot">
+        <div class="status-line">
+          <span class="stat-dot"
+                :class="gatewayOnline ? 'ok' : 'err'"></span>
+          <span>
+            {{ gatewayOnline ? t('sidebar.connected') : t('sidebar.disconnected') }}
+          </span>
+          <span v-if="gatewayOnline && gatewayStats.uptime" class="dim">
+            · {{ gatewayStats.uptime }}s
+          </span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 聊天区 -->
+    <main class="chat-area" @click="onChatClick"
+          @contextmenu.prevent="onChatRightClick">
+      <div class="messages" ref="messagesEl" @scroll="onMessagesScroll">
+
+        <div v-if="searchActive" class="search-banner">
+          <span>
+            {{ t('search.banner', {q: appliedSearch}) }}
+            <b>{{ matchedMessageCount }}</b>
+            {{ t('search.matches') }}
+          </span>
+          <button class="ghost-btn sm" @click="clearSearch">
+            {{ t('search.clear') }}
+          </button>
+        </div>
+
+        <div v-if="messages.length === 0" class="welcome">
+          <div class="welcome-mark">◆</div>
+          <h1>One Cedric</h1>
+          <p class="welcome-sub">{{ t('welcome.sub') }}</p>
+          <div class="suggestions">
+            <button v-for="s in suggestions" :key="s"
+                    class="suggestion" @click="send(s)">{{ s }}</button>
+          </div>
+        </div>
+
+        <div v-for="(m, i) in filteredMessages" :key="m._id"
+             :class="['msg', 'msg-' + m.role,
+                      { 'msg-dimmed': searchActive && !isMatch(m) }]"
+             :data-msg-id="m._id"
+             :data-time="m.role === 'user' ? '' : ''">
+
+          <!-- 用户消息 -->
+          <template v-if="m.role === 'user'">
+            <div class="msg-bubble user-bubble">
+              <div class="msg-content" v-html="renderMarkdown(m.content)"></div>
+              <div class="bubble-actions">
+                <button class="ghost-btn pin-btn"
+                        :class="{ pinned: isPinned(m._id) }"
+                        @click="togglePin(m._id)"
+                        :title="isPinned(m._id) ? t('msg.unpin') : t('msg.pin')">
+                  <svg width="14" height="14" viewBox="0 0 24 24"
+                       :fill="isPinned(m._id) ? 'currentColor' : 'none'"
+                       stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                </button>
+                <button class="ghost-btn"
+                        @click="copyText(m.content, t('toast.copied'))"
+                        :title="t('msg.copy')">
+                  <svg width="14" height="14" viewBox="0 0 24 24"
+                       fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+                <button v-if="i === lastUserIndexInAll && !streaming"
+                        class="ghost-btn" @click="editMessage(messages.indexOf(m))"
+                        :title="t('msg.edit')">
+                  <svg width="14" height="14" viewBox="0 0 24 24"
+                       fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- 助手消息 -->
+          <template v-else-if="m.role === 'assistant'">
+            <div class="assistant-mark">◆</div>
+            <div class="assistant-body">
+
+              <div v-if="m.reasoning" class="reasoning-block">
+                <button class="reasoning-head"
+                        @click="m._expanded = !m._expanded">
+                  <span class="chevron"
+                        :class="{ open: m._expanded }">▶</span>
+                  <span class="reasoning-title">{{ t('msg.reasoning') }}</span>
+                  <span class="reasoning-count">
+                    {{ t('msg.chars', {n: m.reasoning.length}) }}
+                  </span>
+                </button>
+                <div v-show="m._expanded" class="reasoning-body">
+                  {{ m.reasoning }}
+                </div>
+              </div>
+
+              <div v-if="(m.toolCalls || []).length" class="tool-list">
+                <div v-for="(tc, j) in m.toolCalls" :key="j"
+                     class="tool-row" :class="'tool-' + (tc.status || 'ok')">
+                  <span class="tool-dot"
+                        :class="'dot-' + (tc.status || 'ok')"></span>
+                  <span class="tool-name">{{ tc.name }}</span>
+                  <span v-if="tc.target" class="tool-target">{{ tc.target }}</span>
+                  <span v-if="tc.summary" class="tool-summary">{{ tc.summary }}</span>
+                  <span v-if="tc.duration != null" class="tool-duration">
+                    {{ Number(tc.duration).toFixed(1) }}s
+                  </span>
+                  <div v-if="tc.status === 'running' && tc.progress != null"
+                       class="tool-progress">
+                    <div class="tool-progress-track">
+                      <div class="tool-progress-fill"
+                           :style="{ width: tc.progress + '%' }"></div>
+                    </div>
+                    <span>{{ tc.progressText || (Math.round(tc.progress) + '%') }}</span>
+                  </div>
+                  <details v-if="tc.output" class="tool-output">
+                    <summary>{{ lang === 'zh' ? '查看工具输出' : 'View tool output' }}</summary>
+                    <pre>{{ tc.output }}</pre>
+                  </details>
+                </div>
+              </div>
+
+              <div v-if="m.content" class="msg-content"
+                   v-html="renderMarkdown(m.content)"></div>
+              <div v-else-if="m.streaming" class="typing">
+                <span></span><span></span><span></span>
+              </div>
+
+              <div class="msg-meta-row"
+                   v-if="!m.streaming && (m.meta || m.content)">
+                <span v-if="m.meta" class="msg-meta">{{ m.meta }}</span>
+
+                <div v-if="getSiblingInfo(m._id).total > 1"
+                     class="sibling-nav">
+                  <button class="sibling-btn"
+                          @click="switchSibling(m._id, -1)"
+                          :title="t('msg.prev')">‹</button>
+                  <span class="sibling-count">
+                    {{ getSiblingInfo(m._id).index + 1 }} /
+                    {{ getSiblingInfo(m._id).total }}
+                  </span>
+                  <button class="sibling-btn"
+                          @click="switchSibling(m._id, 1)"
+                          :title="t('msg.next')">›</button>
+                </div>
+
+                <div class="bubble-actions assistant-actions" v-if="m.content">
+                  <button class="ghost-btn pin-btn"
+                          :class="{ pinned: isPinned(m._id) }"
+                          @click="togglePin(m._id)"
+                          :title="isPinned(m._id) ? t('msg.unpin') : t('msg.pin')">
+                    <svg width="14" height="14" viewBox="0 0 24 24"
+                         :fill="isPinned(m._id) ? 'currentColor' : 'none'"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                  </button>
+                  <button class="ghost-btn"
+                          @click="copyText(m.content, t('toast.copied'))"
+                          :title="t('msg.copy')">
+                    <svg width="14" height="14" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                  </button>
+                  <button v-if="i === filteredMessages.length - 1"
+                          class="ghost-btn" @click="regenerate"
+                          :title="t('msg.regenerate')">
+                    <svg width="14" height="14" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="23 4 23 10 17 10"/>
+                      <polyline points="1 20 1 14 7 14"/>
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- 错误 -->
+          <template v-else-if="m.role === 'error'">
+            <div class="msg-error">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span>{{ m.content }}</span>
+              <button class="ghost-btn retry-btn" @click="regenerate"
+                      :title="t('msg.retry')">{{ t('msg.retry') }}</button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <transition name="fade">
+        <button v-if="showScrollBtn" class="scroll-btn"
+                @click="scrollToBottom(true)"
+                :title="t('msg.scrollBottom')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <polyline points="19 12 12 19 5 12"/>
+          </svg>
+        </button>
+      </transition>
+
+      <!-- 输入区 -->
+      <div class="input-area">
+        <!-- 命令/文件补全 -->
+        <transition name="fade">
+          <div v-if="popover.show" class="composer-popover">
+            <div class="popover-head">
+              <span v-if="popover.kind === 'slash'">
+                {{ t('popover.commands') }}
+              </span>
+              <span v-else-if="popover.kind === 'file'">
+                {{ t('popover.files') }}
+              </span>
+              <span class="popover-count">
+                {{ popover.items.length }} {{ t('popover.items') }}
+              </span>
+            </div>
+            <div class="popover-list" ref="popoverListEl">
+              <button v-for="(item, i) in popover.items"
+                      :key="item.key || i"
+                      type="button"
+                      class="popover-item"
+                      :class="{ active: i === popover.selected }"
+                      @mouseenter="popover.selected = i; _scrollPopoverSelectedIntoView()"
+                      @mousedown.prevent="selectPopoverItem(i)">
+                <span class="popover-main">{{ item.main }}</span>
+                <span v-if="item.sub" class="popover-sub">{{ item.sub }}</span>
+              </button>
+              <div v-if="popover.items.length === 0" class="popover-empty">
+                {{ popover.kind === 'file'
+                    ? t('popover.noFiles')
+                    : t('popover.noCommands') }}
+              </div>
+            </div>
+          </div>
+        </transition>
+
+        <!-- 文件预览卡片 -->
+        <transition name="fade">
+          <div v-if="filePreview.show" class="file-preview">
+            <div class="file-preview-head">
+              <span class="file-preview-path">{{ filePreview.path }}</span>
+              <span class="file-preview-meta">
+                {{ filePreview.size }} B
+                <template v-if="!filePreview.binary && filePreview.total_lines">
+                  · {{ filePreview.total_lines }} {{ t('file.lines') }}
+                </template>
+              </span>
+            </div>
+            <div v-if="filePreview.loading" class="file-preview-loading">
+              {{ t('file.loading') }}
+            </div>
+            <div v-else-if="filePreview.binary" class="file-preview-binary">
+              ⚠ {{ t('file.binary') }}（{{ filePreview.kind }}）
+            </div>
+            <pre v-else
+                 class="file-preview-body has-line-numbers"
+                 :data-line-numbers="previewLineNumbers"><code
+                 class="hljs" v-html="previewHighlighted"></code></pre>
+            <div v-if="filePreview.truncated && !filePreview.binary"
+                 class="file-preview-foot">
+              {{ t('file.onlyFirst', {n: (filePreview.lines || []).length}) }}
+            </div>
+          </div>
+        </transition>
+
+        <div class="input-wrapper" :class="{ 'is-streaming': streaming }">
+          <textarea v-model="input"
+                    ref="inputEl"
+                    @keydown="onComposerKeydown"
+                    @input="autoResize"
+                    @paste="onPaste"
+                    :disabled="streaming"
+                    :placeholder="t('input.placeholder')"
+                    rows="1"></textarea>
+          <div class="input-bar">
+            <div class="input-left">
+              <label class="switch">
+                <input type="checkbox" v-model="autoApprove">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+                <span class="switch-label">{{ t('input.autoApprove') }}</span>
+              </label>
+              <span v-if="input.length > 0" class="char-count">
+                {{ input.length }}
+              </span>
+              <span v-if="streaming && streamSpeed > 0" class="stream-speed">
+                {{ streamSpeed.toFixed(1) }} tok/s
+              </span>
+            </div>
+            <div class="input-right">
+              <button v-if="!streaming" class="send-btn" @click="send()"
+                      :disabled="!input.trim()">
+                {{ t('input.send') }} <span class="kbd-inline">↵</span>
+              </button>
+              <button v-else class="stop-btn" @click="stopStream">
+                <span class="stop-icon"></span> {{ t('input.stop') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ══ 搜索弹层 ══ -->
+  <transition name="fade">
+    <div v-if="showSearch" class="modal-mask" @click.self="closeSearch">
+      <div class="search-modal">
+        <div class="search-row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input class="search-input"
+                 ref="searchInputEl"
+                 v-model="searchQuery"
+                 :placeholder="t('search.placeholder')"
+                 @keydown.enter="applySearch"
+                 @keydown.esc="closeSearch">
+          <button class="ghost-btn" @click="closeSearch">✕</button>
+        </div>
+        <div class="search-options">
+          <button class="search-opt-btn"
+                  :class="{ active: searchRegexMode }"
+                  @click="searchRegexMode = !searchRegexMode"
+                  :title="t('search.regexTitle')">.*</button>
+          <button class="search-opt-btn"
+                  :class="{ active: searchCaseSensitive }"
+                  @click="searchCaseSensitive = !searchCaseSensitive"
+                  :title="t('search.caseTitle')">Aa</button>
+          <span v-if="searchError" class="search-error">
+            {{ searchError }}
+          </span>
+        </div>
+        <div class="search-hint">
+          {{ t('search.hint', {n: matchedMessageCount}) }}
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 设置抽屉 ══ -->
+  <transition name="drawer">
+    <div v-if="showSettings" class="drawer-mask"
+         @click.self="showSettings = false">
+      <div class="drawer">
+        <div class="drawer-head">
+          <h2>{{ t('settings.title') }}</h2>
+          <button class="icon-btn" @click="showSettings = false">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="field">
+            <label>{{ t('settings.model') }}</label>
+            <input v-model="settings.model" placeholder="qwen2.5:7b">
+          </div>
+          <div class="field">
+            <label>{{ t('settings.host') }}</label>
+            <input v-model="settings.host"
+                   placeholder="http://localhost:11434">
+          </div>
+          <div class="field">
+            <label>{{ t('settings.apiKey') }}</label>
+            <input v-model="settings.api_key" type="password"
+                   :placeholder="t('settings.apiKeyHint')">
+          </div>
+          <div class="field">
+            <label>{{ t('settings.temperature') }}</label>
+            <input v-model.number="settings.temperature"
+                   type="number" step="0.1" min="0" max="2">
+          </div>
+          <div class="field">
+            <label>{{ t('settings.thinkLevel') }}</label>
+            <select v-model="settings.think_level">
+              <option value="minimal">{{ t('settings.think.minimal') }}</option>
+              <option value="low">{{ t('settings.think.low') }}</option>
+              <option value="medium">{{ t('settings.think.medium') }}</option>
+              <option value="max">{{ t('settings.think.max') }}</option>
+              <option value="xhigh">{{ t('settings.think.xhigh') }}</option>
+              <option value="ultra">{{ t('settings.think.ultra') }}</option>
+            </select>
+          </div>
+          <div class="field row">
+            <label>{{ t('settings.showReasoning') }}</label>
+            <label class="switch">
+              <input type="checkbox" v-model="settings.show_reasoning">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+          <div class="field">
+            <label>{{ t('settings.acrylic') }}</label>
+            <div class="seg-control">
+              <button :class="{ active: acrylicStrength === 'off' }"
+                      @click="setAcrylicStrength('off')">
+                {{ t('settings.acrylicOff') }}
+              </button>
+              <button :class="{ active: acrylicStrength === 'low' }"
+                      @click="setAcrylicStrength('low')">
+                {{ t('settings.acrylicLow') }}
+              </button>
+              <button :class="{ active: acrylicStrength === 'medium' }"
+                      @click="setAcrylicStrength('medium')">
+                {{ t('settings.acrylicMedium') }}
+              </button>
+              <button :class="{ active: acrylicStrength === 'high' }"
+                      @click="setAcrylicStrength('high')">
+                {{ t('settings.acrylicHigh') }}
+              </button>
+            </div>
+          </div>
+          <div class="field">
+            <label>{{ t('settings.particleColor') }}</label>
+            <div class="hue-row">
+              <div class="hue-item">
+                <input type="range" min="0" max="360"
+                       v-model.number="particleHue1"
+                       @input="onHueInput"
+                       class="hue-slider"
+                       :style="{ background: hueGradient }">
+                <span class="hue-label"
+                      :style="{ color: `hsl(${particleHue1}, 80%, 65%)` }">
+                  {{ particleHue1 }}°
+                </span>
+              </div>
+              <div class="hue-item">
+                <input type="range" min="0" max="360"
+                       v-model.number="particleHue2"
+                       @input="onHueInput"
+                       class="hue-slider"
+                       :style="{ background: hueGradient }">
+                <span class="hue-label"
+                      :style="{ color: `hsl(${particleHue2}, 80%, 65%)` }">
+                  {{ particleHue2 }}°
+                </span>
+              </div>
+            </div>
+            <div class="hue-presets">
+              <button class="hue-preset" @click="setHuePreset(220, 270)"
+                      :style="{ background: 'linear-gradient(90deg, hsl(220,80%,60%), hsl(270,80%,60%))' }"
+                      title="蓝紫"></button>
+              <button class="hue-preset" @click="setHuePreset(180, 220)"
+                      :style="{ background: 'linear-gradient(90deg, hsl(180,80%,60%), hsl(220,80%,60%))' }"
+                      title="青蓝"></button>
+              <button class="hue-preset" @click="setHuePreset(280, 330)"
+                      :style="{ background: 'linear-gradient(90deg, hsl(280,80%,60%), hsl(330,80%,60%))' }"
+                      title="紫粉"></button>
+              <button class="hue-preset" @click="setHuePreset(340, 30)"
+                      :style="{ background: 'linear-gradient(90deg, hsl(340,80%,60%), hsl(30,80%,60%))' }"
+                      title="粉橙"></button>
+              <button class="hue-preset" @click="setHuePreset(140, 200)"
+                      :style="{ background: 'linear-gradient(90deg, hsl(140,80%,60%), hsl(200,80%,60%))' }"
+                      title="绿青"></button>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <h3 class="section-title">{{ t('settings.customCmds') }}</h3>
+          <div class="custom-cmd-list">
+            <div v-for="(c, i) in customCommands" :key="i"
+                 class="custom-cmd-item">
+              <div class="custom-cmd-row">
+                <span class="custom-cmd-slash">/</span>
+                <input class="custom-cmd-name" v-model="c.name"
+                       @blur="saveCustomCommands" maxlength="20"
+                       placeholder="name">
+                <button class="ghost-btn danger-text sm"
+                        @click="removeCustomCommand(i)"
+                        :title="t('settings.delete')">✕</button>
+              </div>
+              <textarea class="custom-cmd-template"
+                        v-model="c.template"
+                        @blur="saveCustomCommands"
+                        rows="2"
+                        :placeholder="t('settings.cmdPlaceholder')"></textarea>
+              <div v-if="parseTemplateParams(c.template).length"
+                   class="custom-cmd-hint">
+                <span class="hint-badge">{{ t('settings.params') }}</span>
+                <span class="hint-text">
+                  {{ t('settings.detected',
+                       {n: parseTemplateParams(c.template).length}) }}
+                  <code v-for="p in parseTemplateParams(c.template)"
+                        :key="p" class="param-chip">{{ '{' + p + '}' }}</code>
+                </span>
+              </div>
+              <div v-else-if="c.template" class="custom-cmd-hint hint-noparam">
+                <span class="hint-badge hint-badge-warn">
+                  {{ t('settings.noParam') }}
+                </span>
+                <span class="hint-text">{{ t('settings.noParamDesc') }}</span>
+              </div>
+            </div>
+            <button class="custom-cmd-add" @click="addCustomCommand">
+              ＋ {{ t('settings.addCmd') }}
+            </button>
+            <div v-if="customCmdError" class="custom-cmd-error">
+              {{ customCmdError }}
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <h3 class="section-title">{{ t('settings.data') }}</h3>
+          <div class="field row">
+            <label>{{ t('settings.exportSession') }}</label>
+            <div class="head-actions">
+              <button class="ghost-btn danger-text"
+                      @click="exportSession('md')">MD</button>
+              <button class="ghost-btn danger-text"
+                      @click="exportSession('json')">JSON</button>
+            </div>
+          </div>
+          <div class="field row">
+            <label>{{ t('settings.exportAll') }}</label>
+            <button class="ghost-btn danger-text"
+                    @click="exportAllSessions">
+              {{ t('settings.export') }}
+            </button>
+          </div>
+          <div class="field row">
+            <label>{{ t('settings.importSessions') }}</label>
+            <button class="ghost-btn danger-text"
+                    @click="importSessionsFromFile">
+              {{ t('settings.import') }}
+            </button>
+          </div>
+          <div class="field row">
+            <label>{{ t('settings.clearMessages') }}</label>
+            <button class="ghost-btn danger-text" @click="clearMessages">
+              {{ t('settings.clear') }}
+            </button>
+          </div>
+          <div class="field row">
+            <label>{{ t('settings.clearAllSessions') }}</label>
+            <button class="ghost-btn danger-text" @click="clearAllSessions">
+              {{ t('settings.delete') }}
+            </button>
+          </div>
+        </div>
+        <div class="drawer-foot">
+          <button class="btn-primary" @click="saveSettings">
+            {{ t('settings.done') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 帮助弹层 ══ -->
+  <transition name="fade">
+    <div v-if="showHelp" class="modal-mask" @click.self="showHelp = false">
+      <div class="help-modal">
+        <div class="drawer-head">
+          <h2>{{ t('help.title') }}</h2>
+          <button class="icon-btn" @click="showHelp = false">✕</button>
+        </div>
+        <div class="help-body">
+          <div class="help-row">
+            <span>{{ t('help.send') }}</span>
+            <span class="kbd">Enter</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.newline') }}</span>
+            <span class="kbd">Shift + Enter</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.historyUp') }}</span>
+            <span class="kbd">↑</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.historyDown') }}</span>
+            <span class="kbd">↓</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.search') }}</span>
+            <span class="kbd">Ctrl + F</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.newSession') }}</span>
+            <span class="kbd">Ctrl + K</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.toggleSidebar') }}</span>
+            <span class="kbd">Ctrl + B</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.theme') }}</span>
+            <span class="kbd">Ctrl + J</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.openSettings') }}</span>
+            <span class="kbd">Ctrl + ,</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.cmdPalette') }}</span>
+            <span class="kbd">Ctrl + /</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.closeLayer') }}</span>
+            <span class="kbd">Esc</span>
+          </div>
+          <div class="help-row">
+            <span>{{ t('help.thisHelp') }}</span>
+            <span class="kbd">?</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ ask_user 模态框 ══ -->
+  <transition name="fade">
+    <div v-if="askUser" class="modal-mask ask-mask"
+         @click.self="cancelAsk">
+      <div class="ask-modal">
+        <div class="ask-head">
+          <span class="ask-icon">❓</span>
+          <span class="ask-title">
+            {{ askUser.header || (askUser.questions.length > 1
+                ? t('ask.multiTitle', {n: askUser.questions.length})
+                : t('ask.title')) }}
+          </span>
+        </div>
+        <div class="ask-body">
+          <div v-for="(q, qi) in visibleAskQuestions" :key="q.key"
+               class="ask-question-block">
+            <div class="ask-question-label"
+                 v-if="visibleAskQuestions.length > 1">
+              Q{{ qi + 1 }}
+            </div>
+            <div class="ask-question"
+                 v-html="renderMarkdown(q.question)"></div>
+            <div v-if="q.options.length" class="ask-options">
+              <button v-for="(opt, oi) in q.options" :key="oi"
+                      class="ask-option"
+                      :class="{ selected: q.selected === oi }"
+                      @click="selectAskOption(qi, oi)">
+                <span class="ask-option-num">{{ oi + 1 }}</span>
+                <span class="ask-option-text">{{ opt }}</span>
+                <span v-if="q.default && opt === q.default"
+                      class="ask-option-badge">
+                  {{ t('ask.recommended') }}
+                </span>
+              </button>
+            </div>
+            <div v-if="q.allow_custom || !q.options.length"
+                 class="ask-input-wrap">
+              <input class="ask-input"
+                     :placeholder="q.options.length
+                        ? t('ask.customOr')
+                        : t('ask.input')"
+                     :value="q.answer"
+                     @input="onAskInput(qi, $event)"
+                     @keydown.enter="submitAskAnswer">
+            </div>
+            <div v-if="q.default" class="ask-hint">
+              {{ t('ask.enterDefault') }}
+              <code>{{ q.default }}</code>
+            </div>
+          </div>
+          <div v-if="askUser.timeout > 0" class="ask-hint dim"
+               style="margin-top: 16px;">
+            {{ t('ask.timeoutHint', {n: askUser.timeout}) }}
+          </div>
+        </div>
+        <div class="ask-foot">
+          <button class="ghost-btn ask-cancel" @click="cancelAsk">
+            {{ t('ask.cancel') }}
+          </button>
+          <button class="btn-primary" @click="submitAskAnswer">
+            {{ t('ask.submit') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 参数弹窗 ══ -->
+  <transition name="fade">
+    <div v-if="paramDialog.show" class="modal-mask"
+         @click.self="paramDialog.show = false">
+      <div class="param-modal">
+        <div class="drawer-head">
+          <h2>
+            <span class="param-modal-slash">/</span>{{ paramDialog.cmdName }}
+          </h2>
+          <button class="icon-btn"
+                  @click="paramDialog.show = false">✕</button>
+        </div>
+        <div class="param-body">
+          <div v-for="p in paramDialog.params" :key="p.name" class="field">
+            <label>
+              <code class="param-key">{{ '{' + p.name + '}' }}</code>
+            </label>
+            <input v-model="p.value"
+                   :placeholder="t('param.input', {name: p.name})"
+                   @keydown.enter="applyParamDialog">
+          </div>
+          <div class="param-hint">{{ t('param.hint') }}</div>
+        </div>
+        <div class="drawer-foot">
+          <button class="ghost-btn param-cancel"
+                  @click="paramDialog.show = false">
+            {{ t('param.cancel') }}
+          </button>
+          <button class="btn-primary" @click="applyParamDialog">
+            {{ t('param.insert') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 消息树可视化 ══ -->
+  <transition name="fade">
+    <div v-if="showTreeModal" class="modal-mask"
+         @click.self="showTreeModal = false">
+      <div class="tree-modal">
+        <div class="drawer-head">
+          <h2>{{ t('tree.title') }}</h2>
+          <button class="icon-btn"
+                  @click="showTreeModal = false">✕</button>
+        </div>
+        <div class="tree-body">
+          <svg :width="treeLayout.width"
+               :height="treeLayout.height"
+               class="tree-svg"
+               v-if="treeLayout.nodes.length">
+            <path v-for="(e, i) in treeLayout.edges" :key="'e'+i"
+                  :d="'M ' + e.from.x + ' ' + e.from.y +
+                      ' L ' + e.to.x + ' ' + e.to.y"
+                  class="tree-edge"
+                  :class="{ active: e.onPath }"/>
+            <g v-for="n in treeLayout.nodes" :key="n.id"
+               class="tree-node-group"
+               :class="{ active: n.onPath, leaf: n.isLeaf }"
+               @click="treeNodeClick(n.id)">
+              <circle :cx="n.x" :cy="n.y" r="6"
+                      class="tree-node-circle"/>
+              <text :x="n.x + 12" :y="n.y + 4"
+                    class="tree-node-label">
+                {{ (n.node.role === 'user' ? '👤 ' : '◆ ') +
+                   ((n.node.content || '').slice(0, 24) || '(空)') }}
+              </text>
+            </g>
+          </svg>
+          <div v-else class="empty-hint">{{ t('tree.empty') }}</div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 上传队列 ══ -->
+  <transition name="fade">
+    <div v-if="uploadQueue.length" class="upload-panel">
+      <div class="upload-head">
+        <span>
+          {{ t('upload.uploading') }}
+          {{ uploadQueue.filter(x => x.status === 'uploading' ||
+                                       x.status === 'pending').length }}
+          <span v-if="uploadQueue.filter(x => x.status === 'error').length"
+                class="upload-fail-count">
+            · {{ uploadQueue.filter(x => x.status === 'error').length }}
+            {{ t('upload.failed') }}
+          </span>
+        </span>
+        <div class="upload-head-actions">
+          <button v-if="uploadQueue.some(x => x.status === 'error' && x._file)"
+                  class="upload-mini-btn"
+                  @click="retryAllFailed"
+                  :title="t('upload.retryAll')">↻</button>
+          <button v-if="uploadQueue.some(x => x.status === 'uploading' ||
+                                              x.status === 'pending')"
+                  class="upload-mini-btn"
+                  @click="cancelAllUploads"
+                  :title="t('upload.cancelAll')">×</button>
+          <button v-else class="upload-mini-btn"
+                  @click="clearFinishedUploads"
+                  :title="t('upload.clear')">×</button>
+        </div>
+      </div>
+      <div class="upload-list">
+        <div v-for="it in uploadQueue" :key="it.id"
+             class="upload-item" :class="'upload-' + it.status">
+          <div class="upload-row">
+            <span class="upload-name">{{ it.name }}</span>
+            <span class="upload-meta">
+              {{ (it.size / 1024).toFixed(0) }} KB
+              <template v-if="it.status === 'uploading'">
+                · {{ Math.round(it.progress * 100) }}%
+              </template>
+              <template v-else-if="it.status === 'done'"> · ✓</template>
+              <template v-else-if="it.status === 'error'"> · ✗</template>
+              <template v-else-if="it.status === 'cancelled'"> · ⊘</template>
+            </span>
+          </div>
+          <div class="upload-bar">
+            <div class="upload-fill"
+                 :style="{ width: (it.progress * 100) + '%' }"></div>
+          </div>
+          <div v-if="it.error" class="upload-error">{{ it.error }}</div>
+          <div class="upload-item-actions">
+            <button v-if="it.status === 'uploading' ||
+                            it.status === 'pending'"
+                    class="upload-action-btn"
+                    @click="cancelUpload(it.id)">
+              {{ t('upload.cancel') }}
+            </button>
+            <button v-if="it.status === 'error' && it._file"
+                    class="upload-action-btn"
+                    @click="retryUpload(it.id)">
+              {{ t('upload.retry') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 拖拽上传覆盖层 ══ -->
+  <transition name="fade">
+    <div v-if="dragging" class="drop-overlay"
+         @dragover.prevent
+         @drop.prevent="onDrop"
+         @dragleave="onDragLeave">
+      <div class="drop-hint">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <div class="drop-hint-main">{{ t('drop.title') }}</div>
+        <div class="drop-hint-sub">{{ t('drop.sub') }}</div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 粒子进度条 ══ -->
+  <transition name="fade">
+    <div v-if="particleProgress.show" class="particle-progress">
+      <div class="particle-header">
+        <span class="particle-label">{{ particleProgress.label }}</span>
+        <span class="particle-pct">
+          {{ Math.round(particleProgress.percent * 100) }}%
+        </span>
+      </div>
+      <canvas class="particle-canvas-progress"
+              :ref="el => particleProgress.canvasRef = el"></canvas>
+    </div>
+  </transition>
+
+  <!-- ══ 右键菜单 ══ -->
+  <transition name="fade">
+    <div v-if="ctxMenu.show" class="ctx-menu"
+         :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }"
+         @click.stop>
+      <button class="ctx-item" @click="ctxCopy">
+        {{ t('ctx.copy') }}
+      </button>
+      <button class="ctx-item" @click="ctxCopyAll">
+        {{ t('ctx.copyAll') }}
+      </button>
+      <button class="ctx-item" @click="ctxExport">
+        {{ t('ctx.export') }}
+      </button>
+      <div class="ctx-sep"></div>
+      <button class="ctx-item" @click="ctxQuote">
+        {{ t('ctx.quote') }}
+      </button>
+      <button v-if="ctxMenu.role === 'assistant'" class="ctx-item"
+              @click="ctxRegenerate">
+        {{ t('ctx.regenerate') }}
+      </button>
+      <button class="ctx-item" @click="ctxPin">
+        {{ isPinned(ctxMenu.msgId) ? t('ctx.unpin') : t('ctx.pin') }}
+      </button>
+    </div>
+  </transition>
+  <div v-if="ctxMenu.show" class="ctx-overlay"
+       @click="closeCtxMenu" @contextmenu.prevent="closeCtxMenu"></div>
+
+  <!-- ══ Toast ══ -->
+  <div class="toast-stack">
+    <transition-group name="toast">
+      <div v-for="tt in toasts" :key="tt.id" class="toast">{{ tt.text }}</div>
+    </transition-group>
+  </div>
+
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

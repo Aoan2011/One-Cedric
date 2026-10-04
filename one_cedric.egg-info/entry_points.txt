@@ -1,0 +1,2 @@
+[console_scripts]
+one-cedric = one_cedric:main
