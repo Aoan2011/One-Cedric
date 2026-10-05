@@ -12,6 +12,7 @@ from __future__ import annotations
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
+from rich.syntax import Syntax
 from rich.text import Text
 
 from .keys import (
@@ -22,6 +23,82 @@ from ..config import (
     BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C, TOOL_C,
 )
 from .menu import selection_progress
+
+SYNTAX_THEME = "monokai"
+
+
+def _looks_like_code(body: str) -> bool:
+    """启发式判断一段文本是否像代码/diff。"""
+    body = body.lstrip()
+    if body.startswith(("def ", "class ", "import ", "from ", "fn ",
+                        "pub ", "func ", "package ", "function ",
+                        "async def ", "const ", "let ", "var ", "if ")):
+        return True
+    if body.startswith(("---", "+++", "@@", "diff --git")):
+        return True
+    if "\n" in body and any(k in body for k in (" => ", "::", "->", ":= ")):
+        return True
+    return False
+
+
+def _guess_lang(body: str) -> str:
+    low = body.lstrip()
+    if low.startswith(("def ", "class ", "import ", "from ", "async def ")):
+        return "python"
+    if low.startswith(("fn ", "pub fn ", "let mut ", "impl ")):
+        return "rust"
+    if low.startswith(("package ", "func ", "go func", "import (")):
+        return "go"
+    if low.startswith(("fn ", "function ", "const ", "let ", "var ", "async ")):
+        return "javascript"
+    if low.startswith(("def ", "end", "if ", "unless ")):
+        return "ruby"
+    return "text"
+
+
+def _render_body(body) -> object:
+    """body 渲染：代码/diff 自动语法高亮，普通文本原样。"""
+    if body is None or body == "":
+        return Text("")
+    body = str(body)
+    stripped = body.lstrip()
+
+    # diff
+    if stripped.startswith(("--- ", "+++ ", "@@ ", "diff --git")):
+        return Syntax(body, "diff", theme=SYNTAX_THEME,
+                      line_numbers=False, word_wrap=True)
+
+    # markdown 代码块
+    if body.count("```") >= 2:
+        parts: list = []
+        buf: list[str] = []
+        lang = ""
+        for line in body.splitlines():
+            s = line.strip()
+            if s.startswith("```"):
+                if lang:
+                    parts.append(Syntax("\n".join(buf), lang or "text",
+                                        theme=SYNTAX_THEME,
+                                        line_numbers=False,
+                                        word_wrap=True))
+                    buf = []
+                    lang = ""
+                else:
+                    lang = s[3:].strip() or "text"
+                continue
+            buf.append(line)
+        if buf:
+            parts.append(Text("\n".join(buf)))
+        if not parts:
+            parts.append(Text(body))
+        return Group(*parts)
+
+    # 普通代码
+    if _looks_like_code(body):
+        return Syntax(body, _guess_lang(body), theme=SYNTAX_THEME,
+                      line_numbers=False, word_wrap=True)
+
+    return Text(body)
 
 
 def _select_options(console, title: str, body: str,
@@ -47,7 +124,7 @@ def _select_options(console, title: str, body: str,
         if extra_warn:
             content.append(Text(extra_warn, style=f"bold {ERR_C}"))
         if body:
-            content.append(Text(str(body)))
+            content.append(_render_body(body))
 
         for i, (key, label, color, is_def) in enumerate(options):
             marker = "▸ " if i == selected else "  "
@@ -112,7 +189,7 @@ def _fallback_select(console, title, body, options, extra_warn,
     if show_dog:
         console.print("  [bold yellow]▐◉ᴥ◉▌[/]  [dim]需要你的选择[/]")
     if body:
-        console.print(f"  {body}")
+        console.print(_render_body(body))
     console.print()
     default = next((key for key, _, _, is_def in options if is_def),
                    options[0][0])
@@ -241,8 +318,7 @@ def confirm_input(console: Console, title: str, body: str = "",
     console.print()
     console.print(f"  [bold {TOOL_C}]{title}[/]")
     if body:
-        for line in str(body).splitlines():
-            console.print(f"  {line}")
+        console.print(_render_body(body))
     if hint:
         console.print(f"  [dim]{hint}[/]")
     console.print()
@@ -278,7 +354,7 @@ def confirm_dangerous(console: Console, title: str, body: str,
     hold_start = None
 
     def render():
-        content = [Text(str(body))]
+        content = [_render_body(body)]
         if show_dog:
             content.insert(0, Text("▐◉ᴥ◉▌  需要你的选择",
                                    style="bold yellow"))

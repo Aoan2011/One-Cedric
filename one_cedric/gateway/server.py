@@ -1,6 +1,10 @@
-"""Gateway FastAPI 服务实现。"""
-from __future__ import annotations
+"""Gateway FastAPI 服务实现。
 
+注意：不要使用 `from __future__ import annotations`。本文件在嵌套函数中
+定义 FastAPI 端点，注解若被推迟为字符串，`Request` 与 Pydantic 模型等
+仅存在于闭包局部的名称将无法被解析，FastAPI 会把它们误判为查询参数
+（所有端点 422）。
+"""
 import asyncio
 import json
 import threading
@@ -378,6 +382,20 @@ class Gateway:
                 )
             return HTMLResponse(f.read_text(encoding="utf-8"))
 
+        @app.get("/settings")
+        async def settings_page():
+            f = webui_dir / "settings.html"
+            if not f.exists():
+                raise HTTPException(404, "settings.html not found")
+            return HTMLResponse(f.read_text(encoding="utf-8"))
+
+        @app.get("/stats")
+        async def stats_page():
+            f = webui_dir / "stats.html"
+            if not f.exists():
+                raise HTTPException(404, "stats.html not found")
+            return HTMLResponse(f.read_text(encoding="utf-8"))
+
         @app.get("/static/{name}")
         async def static_file(name: str):
             if "/" in name or "\\" in name or ".." in name:
@@ -391,6 +409,7 @@ class Gateway:
                 ".svg": "image/svg+xml",
                 ".png": "image/png",
                 ".ico": "image/x-icon",
+                ".html": "text/html",
             }.get(f.suffix.lower(), "application/octet-stream")
             return FileResponse(str(f), media_type=media)
 

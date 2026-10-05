@@ -1,24 +1,40 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>One Cedric</title>
-<link rel="stylesheet" href="/static/style.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/atom-one-dark.min.css">
-<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
-<script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+<link rel="stylesheet" href="/static/style.css?v=20261005f">
+<link rel="stylesheet" href="/static/hljs-theme.min.css?v=20261005f">
+<!-- 内联兜底：库文件未加载时也保证页面不是黑屏 -->
+<style>
+  html, body { background: #0b0b0d; }
+  #boot-splash { position: fixed; inset: 0; z-index: 9999; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; background: #0b0b0d; color: #e8e6e3;
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #boot-splash .bm { font-size: 38px; color: #d97757;
+    text-shadow: 0 0 18px rgba(217,119,87,.4); }
+  #boot-splash .bn { font-size: 15px; font-weight: 600; }
+  #boot-splash .bs { font-size: 11px; color: #6e6b67;
+    font-family: Consolas, monospace; }
+</style>
+<script src="/static/vue.min.js?v=20261005f"></script>
+<script src="/static/marked.min.js?v=20261005f"></script>
+<script src="/static/highlight.min.js?v=20261005f"></script>
 </head>
 <body>
 
+<!-- ══ 启动加载屏（Vue 挂载后自动淡出；库加载失败时也不会黑屏） ══ -->
+<div id="boot-splash">
+  <div class="bm">◆</div>
+  <div class="bn">One Cedric</div>
+  <div class="bs" id="boot-status">loading…</div>
+</div>
+
 <!-- ══ 背景层 ══ -->
 <div class="app-bg" aria-hidden="true">
-  <div class="blob blob-1"></div>
-  <div class="blob blob-2"></div>
-  <div class="blob blob-3"></div>
   <canvas class="particle-canvas"></canvas>
-  <div class="grain"></div>
 </div>
 
 <div id="app" v-cloak>
@@ -131,15 +147,33 @@
         </svg>
       </button>
 
-      <button class="icon-btn" @click="showSettings = true"
-              :title="t('topbar.settings')">
+      <a class="icon-btn" href="/stats" target="_blank"
+         :title="t('topbar.statsPage')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round"
              stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
-      </button>
+      </a>
+
+      <a class="icon-btn" href="/settings" target="_blank"
+         :title="t('topbar.settingsPage')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <line x1="4" y1="21" x2="4" y2="14"/>
+          <line x1="4" y1="10" x2="4" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="12"/>
+          <line x1="12" y1="8" x2="12" y2="3"/>
+          <line x1="20" y1="21" x2="20" y2="16"/>
+          <line x1="20" y1="12" x2="20" y2="3"/>
+          <line x1="1" y1="14" x2="7" y2="14"/>
+          <line x1="9" y1="8" x2="15" y2="8"/>
+          <line x1="17" y1="16" x2="23" y2="16"/>
+        </svg>
+      </a>
 
       <button class="icon-btn" @click="showHelp = true"
               :title="t('topbar.help')">
@@ -248,7 +282,7 @@
               {{ s.title || t('sidebar.untitled') }}
             </div>
             <div class="session-meta">
-              <span>{{ s.messages.length }} {{ t('sidebar.msgs') }}</span>
+              <span>{{ msgCount(s) }} {{ t('sidebar.msgs') }}</span>
               <span class="dot-sep">·</span>
               <span>{{ fmtTime(s.updatedAt) }}</span>
             </div>
@@ -303,7 +337,7 @@
               <div v-for="rec in th.records" :key="rec.id"
                    class="ask-record">
                 <div class="ask-record-time">{{ fmtTime(rec.ts) }}</div>
-                <div v-for="q in rec.questions" :key="q.key"
+                <div v-for="q in (rec.questions || [])" :key="q.key"
                      class="ask-record-item">
                   <div class="ask-record-q">{{ q.question }}</div>
                   <div class="ask-record-a">
@@ -491,7 +525,7 @@
           </button>
         </div>
 
-        <div v-if="messages.length === 0" class="welcome">
+        <div v-if="filteredMessages.length === 0" class="welcome">
           <div class="welcome-mark">◆</div>
           <h1>One Cedric</h1>
           <p class="welcome-sub">{{ t('welcome.sub') }}</p>
@@ -534,7 +568,7 @@
                   </svg>
                 </button>
                 <button v-if="i === lastUserIndexInAll && !streaming"
-                        class="ghost-btn" @click="editMessage(messages.indexOf(m))"
+                        class="ghost-btn" @click="editMessage(filteredMessages.indexOf(m))"
                         :title="t('msg.edit')">
                   <svg width="14" height="14" viewBox="0 0 24 24"
                        fill="none" stroke="currentColor" stroke-width="2"
@@ -598,9 +632,16 @@
               <div v-else-if="m.streaming" class="typing">
                 <span></span><span></span><span></span>
               </div>
+              <div v-else-if="(m.toolCalls || []).length"
+                   class="msg-empty-hint">
+                {{ lang === 'zh' ? '工具调用已完成（模型未输出文本）' : 'Tool calls done (no text output)' }}
+              </div>
+              <div v-else class="msg-empty-hint">
+                {{ lang === 'zh' ? '(空回复)' : '(empty reply)' }}
+              </div>
 
               <div class="msg-meta-row"
-                   v-if="!m.streaming && (m.meta || m.content)">
+                   v-if="!m.streaming && (m.meta || m.content || (m.toolCalls || []).length)">
                 <span v-if="m.meta" class="msg-meta">{{ m.meta }}</span>
 
                 <div v-if="getSiblingInfo(m._id).total > 1"
@@ -789,6 +830,34 @@
     </main>
   </div>
 
+  <!-- ══ 底部状态栏（opencode 风格） ══ -->
+  <footer class="statusbar">
+    <div class="sb-group sb-left">
+      <span class="stat-dot" :class="gatewayOnline ? 'ok' : 'err'"></span>
+      <span class="sb-item sb-model">{{ model }}</span>
+      <span v-if="cwd" class="sb-item sb-cwd" :title="cwd">{{ cwd }}</span>
+    </div>
+    <div class="sb-group sb-center">
+      <span v-if="streaming" class="sb-item sb-stream">
+        <span class="sb-spinner"></span>
+        {{ streamSpeed.toFixed(1) }} tok/s
+      </span>
+      <span v-else-if="gatewayOnline && gatewayStats.uptime"
+            class="sb-item sb-up">
+        up {{ fmtUptime(gatewayStats.uptime) }}
+      </span>
+      <span v-else class="sb-item sb-idle">ready</span>
+    </div>
+    <div class="sb-group sb-right">
+      <span v-if="sessions.length" class="sb-item">
+        {{ sessions.length }} {{ lang === 'zh' ? '会话' : 'sessions' }}
+      </span>
+      <span class="sb-item sb-hint">
+        ctrl+p <kbd>commands</kbd>
+      </span>
+    </div>
+  </footer>
+
   <!-- ══ 搜索弹层 ══ -->
   <transition name="fade">
     <div v-if="showSearch" class="modal-mask" @click.self="closeSearch">
@@ -823,210 +892,6 @@
         </div>
         <div class="search-hint">
           {{ t('search.hint', {n: matchedMessageCount}) }}
-        </div>
-      </div>
-    </div>
-  </transition>
-
-  <!-- ══ 设置抽屉 ══ -->
-  <transition name="drawer">
-    <div v-if="showSettings" class="drawer-mask"
-         @click.self="showSettings = false">
-      <div class="drawer">
-        <div class="drawer-head">
-          <h2>{{ t('settings.title') }}</h2>
-          <button class="icon-btn" @click="showSettings = false">✕</button>
-        </div>
-        <div class="drawer-body">
-          <div class="field">
-            <label>{{ t('settings.model') }}</label>
-            <input v-model="settings.model" placeholder="qwen2.5:7b">
-          </div>
-          <div class="field">
-            <label>{{ t('settings.host') }}</label>
-            <input v-model="settings.host"
-                   placeholder="http://localhost:11434">
-          </div>
-          <div class="field">
-            <label>{{ t('settings.apiKey') }}</label>
-            <input v-model="settings.api_key" type="password"
-                   :placeholder="t('settings.apiKeyHint')">
-          </div>
-          <div class="field">
-            <label>{{ t('settings.temperature') }}</label>
-            <input v-model.number="settings.temperature"
-                   type="number" step="0.1" min="0" max="2">
-          </div>
-          <div class="field">
-            <label>{{ t('settings.thinkLevel') }}</label>
-            <select v-model="settings.think_level">
-              <option value="minimal">{{ t('settings.think.minimal') }}</option>
-              <option value="low">{{ t('settings.think.low') }}</option>
-              <option value="medium">{{ t('settings.think.medium') }}</option>
-              <option value="max">{{ t('settings.think.max') }}</option>
-              <option value="xhigh">{{ t('settings.think.xhigh') }}</option>
-              <option value="ultra">{{ t('settings.think.ultra') }}</option>
-            </select>
-          </div>
-          <div class="field row">
-            <label>{{ t('settings.showReasoning') }}</label>
-            <label class="switch">
-              <input type="checkbox" v-model="settings.show_reasoning">
-              <span class="switch-track"><span class="switch-thumb"></span></span>
-            </label>
-          </div>
-          <div class="field">
-            <label>{{ t('settings.acrylic') }}</label>
-            <div class="seg-control">
-              <button :class="{ active: acrylicStrength === 'off' }"
-                      @click="setAcrylicStrength('off')">
-                {{ t('settings.acrylicOff') }}
-              </button>
-              <button :class="{ active: acrylicStrength === 'low' }"
-                      @click="setAcrylicStrength('low')">
-                {{ t('settings.acrylicLow') }}
-              </button>
-              <button :class="{ active: acrylicStrength === 'medium' }"
-                      @click="setAcrylicStrength('medium')">
-                {{ t('settings.acrylicMedium') }}
-              </button>
-              <button :class="{ active: acrylicStrength === 'high' }"
-                      @click="setAcrylicStrength('high')">
-                {{ t('settings.acrylicHigh') }}
-              </button>
-            </div>
-          </div>
-          <div class="field">
-            <label>{{ t('settings.particleColor') }}</label>
-            <div class="hue-row">
-              <div class="hue-item">
-                <input type="range" min="0" max="360"
-                       v-model.number="particleHue1"
-                       @input="onHueInput"
-                       class="hue-slider"
-                       :style="{ background: hueGradient }">
-                <span class="hue-label"
-                      :style="{ color: `hsl(${particleHue1}, 80%, 65%)` }">
-                  {{ particleHue1 }}°
-                </span>
-              </div>
-              <div class="hue-item">
-                <input type="range" min="0" max="360"
-                       v-model.number="particleHue2"
-                       @input="onHueInput"
-                       class="hue-slider"
-                       :style="{ background: hueGradient }">
-                <span class="hue-label"
-                      :style="{ color: `hsl(${particleHue2}, 80%, 65%)` }">
-                  {{ particleHue2 }}°
-                </span>
-              </div>
-            </div>
-            <div class="hue-presets">
-              <button class="hue-preset" @click="setHuePreset(220, 270)"
-                      :style="{ background: 'linear-gradient(90deg, hsl(220,80%,60%), hsl(270,80%,60%))' }"
-                      title="蓝紫"></button>
-              <button class="hue-preset" @click="setHuePreset(180, 220)"
-                      :style="{ background: 'linear-gradient(90deg, hsl(180,80%,60%), hsl(220,80%,60%))' }"
-                      title="青蓝"></button>
-              <button class="hue-preset" @click="setHuePreset(280, 330)"
-                      :style="{ background: 'linear-gradient(90deg, hsl(280,80%,60%), hsl(330,80%,60%))' }"
-                      title="紫粉"></button>
-              <button class="hue-preset" @click="setHuePreset(340, 30)"
-                      :style="{ background: 'linear-gradient(90deg, hsl(340,80%,60%), hsl(30,80%,60%))' }"
-                      title="粉橙"></button>
-              <button class="hue-preset" @click="setHuePreset(140, 200)"
-                      :style="{ background: 'linear-gradient(90deg, hsl(140,80%,60%), hsl(200,80%,60%))' }"
-                      title="绿青"></button>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-          <h3 class="section-title">{{ t('settings.customCmds') }}</h3>
-          <div class="custom-cmd-list">
-            <div v-for="(c, i) in customCommands" :key="i"
-                 class="custom-cmd-item">
-              <div class="custom-cmd-row">
-                <span class="custom-cmd-slash">/</span>
-                <input class="custom-cmd-name" v-model="c.name"
-                       @blur="saveCustomCommands" maxlength="20"
-                       placeholder="name">
-                <button class="ghost-btn danger-text sm"
-                        @click="removeCustomCommand(i)"
-                        :title="t('settings.delete')">✕</button>
-              </div>
-              <textarea class="custom-cmd-template"
-                        v-model="c.template"
-                        @blur="saveCustomCommands"
-                        rows="2"
-                        :placeholder="t('settings.cmdPlaceholder')"></textarea>
-              <div v-if="parseTemplateParams(c.template).length"
-                   class="custom-cmd-hint">
-                <span class="hint-badge">{{ t('settings.params') }}</span>
-                <span class="hint-text">
-                  {{ t('settings.detected',
-                       {n: parseTemplateParams(c.template).length}) }}
-                  <code v-for="p in parseTemplateParams(c.template)"
-                        :key="p" class="param-chip">{{ '{' + p + '}' }}</code>
-                </span>
-              </div>
-              <div v-else-if="c.template" class="custom-cmd-hint hint-noparam">
-                <span class="hint-badge hint-badge-warn">
-                  {{ t('settings.noParam') }}
-                </span>
-                <span class="hint-text">{{ t('settings.noParamDesc') }}</span>
-              </div>
-            </div>
-            <button class="custom-cmd-add" @click="addCustomCommand">
-              ＋ {{ t('settings.addCmd') }}
-            </button>
-            <div v-if="customCmdError" class="custom-cmd-error">
-              {{ customCmdError }}
-            </div>
-          </div>
-
-          <div class="divider"></div>
-          <h3 class="section-title">{{ t('settings.data') }}</h3>
-          <div class="field row">
-            <label>{{ t('settings.exportSession') }}</label>
-            <div class="head-actions">
-              <button class="ghost-btn danger-text"
-                      @click="exportSession('md')">MD</button>
-              <button class="ghost-btn danger-text"
-                      @click="exportSession('json')">JSON</button>
-            </div>
-          </div>
-          <div class="field row">
-            <label>{{ t('settings.exportAll') }}</label>
-            <button class="ghost-btn danger-text"
-                    @click="exportAllSessions">
-              {{ t('settings.export') }}
-            </button>
-          </div>
-          <div class="field row">
-            <label>{{ t('settings.importSessions') }}</label>
-            <button class="ghost-btn danger-text"
-                    @click="importSessionsFromFile">
-              {{ t('settings.import') }}
-            </button>
-          </div>
-          <div class="field row">
-            <label>{{ t('settings.clearMessages') }}</label>
-            <button class="ghost-btn danger-text" @click="clearMessages">
-              {{ t('settings.clear') }}
-            </button>
-          </div>
-          <div class="field row">
-            <label>{{ t('settings.clearAllSessions') }}</label>
-            <button class="ghost-btn danger-text" @click="clearAllSessions">
-              {{ t('settings.delete') }}
-            </button>
-          </div>
-        </div>
-        <div class="drawer-foot">
-          <button class="btn-primary" @click="saveSettings">
-            {{ t('settings.done') }}
-          </button>
         </div>
       </div>
     </div>
@@ -1116,8 +981,8 @@
             </div>
             <div class="ask-question"
                  v-html="renderMarkdown(q.question)"></div>
-            <div v-if="q.options.length" class="ask-options">
-              <button v-for="(opt, oi) in q.options" :key="oi"
+            <div v-if="(q.options || []).length" class="ask-options">
+              <button v-for="(opt, oi) in (q.options || [])" :key="oi"
                       class="ask-option"
                       :class="{ selected: q.selected === oi }"
                       @click="selectAskOption(qi, oi)">
@@ -1376,6 +1241,11 @@
 
 </div>
 
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=20261005f"></script>
 </body>
 </html>
+
+
+
+
+

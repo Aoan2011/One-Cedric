@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════ */
+﻿/* ═══════════════════════════════════════════════════════════════ */
 /*  One Cedric WebUI · app.js                                       */
 /* ═══════════════════════════════════════════════════════════════ */
 const { createApp, ref, reactive, computed, onMounted, onUnmounted,
@@ -25,6 +25,8 @@ const I18N = {
     'topbar.switchLang': '切换语言',
     'topbar.newSession': '新会话 (Ctrl+K)',
     'topbar.settings': '设置 (Ctrl+,)',
+    'topbar.settingsPage': '独立设置页',
+    'topbar.statsPage': '独立统计页',
     'topbar.help': '快捷键 (?)',
     'sidebar.title': '会话',
     'sidebar.new': '新会话',
@@ -176,6 +178,72 @@ const I18N = {
     'notify.title': 'One Cedric 完成',
     'notify.titleAsk': 'One Cedric 提问',
     'notify.titleFail': 'One Cedric',
+    'sidebar.sessions': '会话',
+    'sidebar.asks': '问答',
+    'sidebar.tools': '工具',
+    'sidebar.outline': '大纲',
+    'sidebar.pinned': '收藏',
+    'sidebar.asksEmpty': '暂无问答历史',
+    'sidebar.emptyMsg': '（空）',
+    'sidebar.noHeading': '（无标题）',
+    'sidebar.noOutline': '当前会话无内容',
+    'sidebar.noTools': '无匹配工具',
+    'sidebar.pinsEmpty': '暂无收藏',
+    'sidebar.me': '我',
+    'sidebar.assistant': '助手',
+    'sidebar.unanswered': '（未回答）',
+    'sidebar.catAll': '全部',
+    'sidebar.catOn': '已启用',
+    'sidebar.catOff': '已禁用',
+    'sidebar.clearPins': '清空收藏',
+    'sidebar.searchTools': '搜索工具…',
+    'sidebar.searchOutline': '搜索大纲…',
+    'sidebar.exportMd': '导出 MD',
+    'sidebar.exportJson': '导出 JSON',
+    'sidebar.exportCsv': '导出 CSV',
+    'sidebar.treeView': '消息树',
+    'topbar.search': '搜索消息',
+    'topbar.themeLight': '切换到亮色主题',
+    'topbar.themeDark': '切换到深色主题',
+    'topbar.notifyOn': '开启通知',
+    'topbar.notifyOff': '关闭通知',
+    'msg.pin': '收藏',
+    'msg.unpin': '取消收藏',
+    'msg.prev': '上一个分支',
+    'msg.next': '下一个分支',
+    'msg.retry': '重试',
+    'popover.commands': '命令',
+    'popover.files': '文件',
+    'popover.items': '项',
+    'popover.noCommands': '无匹配命令',
+    'popover.noFiles': '无匹配文件',
+    'search.matches': '条匹配',
+    'search.regexTitle': '正则表达式',
+    'search.caseTitle': '区分大小写',
+    'settings.customCmds': '自定义命令',
+    'settings.addCmd': '添加命令',
+    'settings.cmdPlaceholder': '命令模板，如 /sum {path}：总结 {path}',
+    'settings.params': '参数',
+    'settings.noParam': '无参数',
+    'settings.noParamDesc': '该模板没有占位参数，将直接插入',
+    'settings.acrylic': '亚克力强度',
+    'settings.exportSession': '导出当前会话',
+    'file.binary': '二进制文件',
+    'file.lines': '行',
+    'file.loading': '加载中…',
+    'drop.title': '松开鼠标上传文件',
+    'upload.uploading': '上传中',
+    'upload.cancel': '取消',
+    'upload.cancelAll': '全部取消',
+    'upload.retry': '重试',
+    'upload.retryAll': '重试失败项',
+    'upload.clear': '清除',
+    'upload.failed': '个失败',
+    'ctx.pin': '收藏',
+    'ctx.unpin': '取消收藏',
+    'ask.recommended': '推荐',
+    'ask.customOr': '或选择推荐选项',
+    'help.cmdPalette': '命令面板',
   },
   en: {
     'topbar.toggleSidebar': 'Toggle sidebar (Ctrl+B)',
@@ -184,6 +252,8 @@ const I18N = {
     'topbar.switchLang': 'Switch language',
     'topbar.newSession': 'New session (Ctrl+K)',
     'topbar.settings': 'Settings (Ctrl+,)',
+    'topbar.settingsPage': 'Standalone settings page',
+    'topbar.statsPage': 'Standalone stats page',
     'topbar.help': 'Shortcuts (?)',
     'sidebar.title': 'Sessions',
     'sidebar.new': 'New session',
@@ -337,6 +407,72 @@ const I18N = {
     'notify.title': 'One Cedric finished',
     'notify.titleAsk': 'One Cedric asks',
     'notify.titleFail': 'One Cedric',
+    'sidebar.sessions': 'Sessions',
+    'sidebar.asks': 'Q&A',
+    'sidebar.tools': 'Tools',
+    'sidebar.outline': 'Outline',
+    'sidebar.pinned': 'Pinned',
+    'sidebar.asksEmpty': 'No ask history',
+    'sidebar.emptyMsg': '(empty)',
+    'sidebar.noHeading': '(no heading)',
+    'sidebar.noOutline': 'No content in this session',
+    'sidebar.noTools': 'No matching tools',
+    'sidebar.pinsEmpty': 'No pins',
+    'sidebar.me': 'Me',
+    'sidebar.assistant': 'Assistant',
+    'sidebar.unanswered': '(unanswered)',
+    'sidebar.catAll': 'All',
+    'sidebar.catOn': 'On',
+    'sidebar.catOff': 'Off',
+    'sidebar.clearPins': 'Clear pins',
+    'sidebar.searchTools': 'Search tools…',
+    'sidebar.searchOutline': 'Search outline…',
+    'sidebar.exportMd': 'Export MD',
+    'sidebar.exportJson': 'Export JSON',
+    'sidebar.exportCsv': 'Export CSV',
+    'sidebar.treeView': 'Message tree',
+    'topbar.search': 'Search messages',
+    'topbar.themeLight': 'Switch to light theme',
+    'topbar.themeDark': 'Switch to dark theme',
+    'topbar.notifyOn': 'Enable notifications',
+    'topbar.notifyOff': 'Disable notifications',
+    'msg.pin': 'Pin',
+    'msg.unpin': 'Unpin',
+    'msg.prev': 'Previous branch',
+    'msg.next': 'Next branch',
+    'msg.retry': 'Retry',
+    'popover.commands': 'Commands',
+    'popover.files': 'Files',
+    'popover.items': 'items',
+    'popover.noCommands': 'No matching commands',
+    'popover.noFiles': 'No matching files',
+    'search.matches': 'matches',
+    'search.regexTitle': 'Regular expression',
+    'search.caseTitle': 'Case sensitive',
+    'settings.customCmds': 'Custom commands',
+    'settings.addCmd': 'Add command',
+    'settings.cmdPlaceholder': 'Command template, e.g. /sum {path}: summarize {path}',
+    'settings.params': 'params',
+    'settings.noParam': 'No params',
+    'settings.noParamDesc': 'No placeholders, will insert as-is',
+    'settings.acrylic': 'Acrylic strength',
+    'settings.exportSession': 'Export current session',
+    'file.binary': 'Binary file',
+    'file.lines': 'lines',
+    'file.loading': 'Loading…',
+    'drop.title': 'Drop files to upload',
+    'upload.uploading': 'Uploading',
+    'upload.cancel': 'Cancel',
+    'upload.cancelAll': 'Cancel all',
+    'upload.retry': 'Retry',
+    'upload.retryAll': 'Retry failed',
+    'upload.clear': 'Clear',
+    'upload.failed': 'failed',
+    'ctx.pin': 'Pin',
+    'ctx.unpin': 'Unpin',
+    'ask.recommended': 'Recommended',
+    'ask.customOr': 'or choose a recommended option',
+    'help.cmdPalette': 'Command palette',
   },
 };
 
@@ -361,6 +497,21 @@ function loadLocalSessions() {
     const a = JSON.parse(localStorage.getItem(LS_SESSIONS) || '[]');
     return Array.isArray(a) ? a : [];
   } catch { return []; }
+}
+/* 清洗旧版本地存储的 ask 记录：确保 questions / options 恒为数组，
+   避免模板 v-for 读到 undefined 导致渲染崩溃（黑屏） */
+function _sanitizeAsks(asks) {
+  if (!Array.isArray(asks)) return [];
+  return asks.map((rec) => {
+    if (!rec || typeof rec !== 'object') return rec;
+    const questions = Array.isArray(rec.questions)
+      ? rec.questions.map((q) => {
+          if (!q || typeof q !== 'object') return q;
+          return { ...q, options: Array.isArray(q.options) ? q.options : [] };
+        })
+      : [];
+    return { ...rec, questions };
+  });
 }
 function persistSessions(list) {
   try {
@@ -443,7 +594,13 @@ function _treeToLinear(nodes, leafId) {
 /* ─── Marked renderer ───────────────────── */
 const renderer = new marked.Renderer();
 
-renderer.code = ({ text, lang }) => {
+renderer.code = (arg1, arg2) => {
+  let text, lang;
+  if (arg1 && typeof arg1 === 'object' && 'text' in arg1) {
+    ({ text, lang } = arg1);
+  } else {
+    text = arg1; lang = arg2;
+  }
   const language = (lang || '').trim().toLowerCase();
   let highlighted;
   try {
@@ -498,7 +655,13 @@ renderer.code = ({ text, lang }) => {
   </div>`;
 };
 
-renderer.link = ({ href, title, text }) => {
+renderer.link = (arg1, arg2, arg3) => {
+  let href, title, text;
+  if (arg1 && typeof arg1 === 'object' && 'href' in arg1) {
+    ({ href, title, text } = arg1);
+  } else {
+    href = arg1; title = arg2; text = arg3;
+  }
   const t = title ? ` title="${escapeHtml(title)}"` : '';
   return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer"${t}>${text}</a>`;
 };
@@ -551,7 +714,6 @@ createApp({
     const messages = ref([]);
     const input = ref('');
     const streaming = ref(false);
-    const showSettings = ref(false);
     const showHelp = ref(false);
     const showSearch = ref(false);
     const showTreeModal = ref(false);
@@ -561,7 +723,8 @@ createApp({
     const currentSessionId = ref('');
     const gatewayOnline = ref(false);
     const gatewayStats = ref({ requests: 0, errors: 0, uptime: 0 });
-    const autoApprove = ref(false);
+    const cwd = ref('');
+    const autoApprove = ref(true);
     const tools = ref([]);
     const toolsFilter = ref('');
     const toolsCategory = ref('all');
@@ -620,8 +783,9 @@ createApp({
       sessions.value.find(s => s.id === currentSessionId.value));
     const suggestions = computed(() => t('welcome.suggestions'));
     const lastUserIndex = computed(() => {
-      for (let i = messages.value.length - 1; i >= 0; i--) {
-        if (messages.value[i].role === 'user') return i;
+      const list = filteredMessages.value;
+      for (let i = list.length - 1; i >= 0; i--) {
+        if (list[i].role === 'user') return i;
       }
       return -1;
     });
@@ -702,7 +866,7 @@ createApp({
     const outlineGroups = computed(() => {
       const groups = [];
       let cur = null;
-      for (const m of messages.value) {
+      for (const m of filteredMessages.value) {
         if (m.role === 'user') {
           const firstLine = (m.content || '').split('\n')[0].trim();
           cur = {
@@ -767,6 +931,13 @@ createApp({
       const s = currentSession.value;
       if (!s || !s.pinned) return false;
       return s.pinned.some(p => p.msgId === msgId);
+    }
+    /* 会话消息数：兼容 tree 结构与旧版 linear messages 字段 */
+    function msgCount(s) {
+      if (!s) return 0;
+      if (s.tree && s.tree.nodes) return Object.keys(s.tree.nodes).length;
+      if (Array.isArray(s.messages)) return s.messages.length;
+      return 0;
     }
 
     /* ── tree layout ─────────────────── */
@@ -858,6 +1029,7 @@ createApp({
       if (!s || !s.tree) return;
       s.tree.leafId = _deepestLeaf(s.tree.nodes, id);
       showTreeModal.value = false;
+      saveCurrentSession();
       nextTick(() => scrollToBottom());
     }
 
@@ -1116,6 +1288,8 @@ createApp({
         updatedAt: s.updatedAt,
       };
     }
+    /* 广播回环防护：接收广播重建会话期间置位，期间产生的保存不广播 */
+    let _silentSync = false;
     function saveCurrentSession() {
       const s = currentSession.value;
       if (!s) return;
@@ -1129,7 +1303,7 @@ createApp({
         }
       }
       persistSessions(sessions.value.map(plainifySession));
-      _broadcast('sessions-updated', {});
+      if (!_silentSync) _broadcast('sessions-updated', {});
     }
     function switchSession(id) {
       if (streaming.value || id === currentSessionId.value) return;
@@ -1172,13 +1346,11 @@ createApp({
         s.updatedAt = Date.now();
         persistSessions(sessions.value.map(plainifySession));
       }
-      showSettings.value = false;
     }
     function clearAllSessions() {
       if (!confirm(t('confirm.clearAll'))) return;
       sessions.value = [];
       persistSessions([]);
-      showSettings.value = false;
       newSession();
     }
 
@@ -1186,7 +1358,7 @@ createApp({
     function editMessage(index) {
       if (streaming.value) return;
       const s = currentSession.value;
-      const allMsgs = messages.value;
+      const allMsgs = filteredMessages.value;
       const m = allMsgs[index];
       if (!m || m.role !== 'user') return;
       s.tree.leafId = m.parent || null;
@@ -1205,7 +1377,7 @@ createApp({
       const s = currentSession.value;
       const idx = lastUserIndex.value;
       if (idx === -1) return;
-      const userMsg = messages.value[idx];
+      const userMsg = filteredMessages.value[idx];
       s.tree.leafId = userMsg.id;
       nextTick(() => {
         _streamAssistant(s.tree.nodes[userMsg.id]);
@@ -1239,6 +1411,7 @@ createApp({
       const newIdx = (idx + direction + sibs.length) % sibs.length;
       const targetId = sibs[newIdx];
       s.tree.leafId = _deepestLeaf(s.tree.nodes, targetId);
+      saveCurrentSession();
       nextTick(() => scrollToBottom());
     }
 
@@ -1355,7 +1528,7 @@ createApp({
       { cmd: 'theme', desc: '切换主题', run: () => toggleTheme() },
       { cmd: 'lang', desc: '切换语言', run: () => toggleLang() },
       { cmd: 'settings', desc: '打开设置',
-        run: () => { showSettings.value = true; } },
+        run: () => { window.open('/settings', '_blank'); } },
       { cmd: 'sidebar', desc: '切换侧栏', run: () => toggleSidebar() },
       { cmd: 'help', desc: '快捷键', run: () => { showHelp.value = true; } },
     ];
@@ -2049,19 +2222,29 @@ createApp({
       if (!rx) return false;
       return rx.test(m.content || '');
     }
+    /* 消息渲染数据源：直接从当前会话的消息树线性化（实时反映流式更新，
+       点击会话 / 分支切换 / 重生成自动生效），并为旧节点惰性补 _id 字段 */
     const filteredMessages = computed(() => {
-      if (!appliedSearch.value) {
-        matchedMessageCount.value = 0;
-        return messages.value;
+      const s = currentSession.value;
+      let list = [];
+      if (s && s.tree && s.tree.nodes) {
+        list = _treeToLinear(s.tree.nodes, s.tree.leafId);
+        for (const n of list) {
+          if (n._id == null) n._id = n.id;
+        }
       }
-      const rx = _searchRegExp();
-      if (!rx) {
+      if (appliedSearch.value) {
+        const rx = _searchRegExp();
+        if (rx) {
+          matchedMessageCount.value =
+            list.filter(m => rx.test(m.content || '')).length;
+        } else {
+          matchedMessageCount.value = 0;
+        }
+      } else {
         matchedMessageCount.value = 0;
-        return messages.value;
       }
-      const match = messages.value.filter(m => rx.test(m.content || ''));
-      matchedMessageCount.value = match.length;
-      return messages.value;
+      return list;
     });
 
     /* ── 右键菜单 ─────────────────────── */
@@ -2105,7 +2288,7 @@ createApp({
       const el = e.target.closest('.msg');
       if (!el) return;
       const id = el.dataset.msgId;
-      const m = messages.value.find(x => x._id === id);
+      const m = filteredMessages.value.find(x => x._id === id);
       if (!m) return;
       ctxMenu.show = true;
       ctxMenu.x = e.clientX;
@@ -2126,12 +2309,16 @@ createApp({
       });
     }
     function closeCtxMenu() { ctxMenu.show = false; }
+    function ctxPin() {
+      togglePin(ctxMenu.msgId);
+      closeCtxMenu();
+    }
     function ctxCopy() {
       copyText(ctxMenu.content, t('toast.copied'));
       closeCtxMenu();
     }
     function ctxCopyAll() {
-      const all = messages.value.map(m =>
+      const all = filteredMessages.value.map(m =>
         `[${m.role}]\n${m.content || ''}`).join('\n\n---\n\n');
       copyText(all, '会话已复制');
       closeCtxMenu();
@@ -2246,29 +2433,34 @@ createApp({
       try { _bc.postMessage({ type, ...payload }); } catch {}
     }
     function _reloadSessionsFromStorage(saved) {
-      const curId = currentSessionId.value;
-      sessions.value = (saved || []).map(s => {
-        const sess = reactive({
-          id: s.id,
-          title: s.title || '',
-          tree: reactive(s.tree
-            ? { nodes: s.tree.nodes || {}, leafId: s.tree.leafId || null }
-            : _linearToTree(s.messages || [])),
-          asks: Array.isArray(s.asks) ? s.asks : [],
-          pinned: Array.isArray(s.pinned) ? s.pinned : [],
-          turnCounter: s.turnCounter || 0,
-          createdAt: s.createdAt || Date.now(),
-          updatedAt: s.updatedAt || Date.now(),
+      _silentSync = true;
+      try {
+        const curId = currentSessionId.value;
+        sessions.value = (saved || []).map(s => {
+          const sess = reactive({
+            id: s.id,
+            title: s.title || '',
+            tree: reactive(s.tree
+              ? { nodes: s.tree.nodes || {}, leafId: s.tree.leafId || null }
+              : _linearToTree(s.messages || [])),
+            asks: _sanitizeAsks(s.asks),
+            pinned: Array.isArray(s.pinned) ? s.pinned : [],
+            turnCounter: s.turnCounter || 0,
+            createdAt: s.createdAt || Date.now(),
+            updatedAt: s.updatedAt || Date.now(),
+          });
+          for (const k in sess.tree.nodes) {
+            sess.tree.nodes[k] = reactive(sess.tree.nodes[k]);
+          }
+          return sess;
         });
-        for (const k in sess.tree.nodes) {
-          sess.tree.nodes[k] = reactive(sess.tree.nodes[k]);
+        if (sessions.value.find(x => x.id === curId)) {
+          currentSessionId.value = curId;
+        } else if (sessions.value.length) {
+          currentSessionId.value = sessions.value[0].id;
         }
-        return sess;
-      });
-      if (sessions.value.find(x => x.id === curId)) {
-        currentSessionId.value = curId;
-      } else if (sessions.value.length) {
-        currentSessionId.value = sessions.value[0].id;
+      } finally {
+        _silentSync = false;
       }
     }
 
@@ -2344,6 +2536,7 @@ createApp({
           const data = await r.json();
           gatewayOnline.value = true;
           if (data.model && !settings.model) settings.model = data.model;
+          if (data.root) cwd.value = data.root;
         } else { gatewayOnline.value = false; }
       } catch { gatewayOnline.value = false; }
     }
@@ -2352,6 +2545,14 @@ createApp({
         const r = await fetch('/api/status');
         if (r.ok) gatewayStats.value = await r.json();
       } catch {}
+    }
+    function fmtUptime(sec) {
+      sec = Math.max(0, Math.floor(Number(sec) || 0));
+      if (sec < 60) return sec + 's';
+      if (sec < 3600) return Math.floor(sec / 60) + 'm ' + (sec % 60) + 's';
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      return h + 'h ' + m + 'm';
     }
     async function loadTools() {
       try {
@@ -2650,7 +2851,7 @@ createApp({
       } else {
         const lines = [`# ${s.title || '会话'}`, '',
           `- 导出：${new Date().toLocaleString()}`, ''];
-        for (const m of messages.value) {
+        for (const m of filteredMessages.value) {
           if (m.role === 'user') {
             lines.push('## 用户', '', m.content || '', '');
           } else if (m.role === 'assistant') {
@@ -2803,9 +3004,23 @@ createApp({
         }
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
+        const IDLE_MS = 180000; // 流空闲 180s 视为结束（防止服务端异常挂起时界面永远转圈）
         let buffer = '';
         while (true) {
-          const { done, value } = await reader.read();
+          let timer;
+          const idleGuard = new Promise((_, rej) => {
+            timer = setTimeout(() => rej(new Error('stream-idle-timeout')), IDLE_MS);
+          });
+          let chunk;
+          try {
+            chunk = await Promise.race([reader.read(), idleGuard]);
+          } catch (e) {
+            clearTimeout(timer);
+            if (e && e.message === 'stream-idle-timeout') break;
+            throw e;
+          }
+          clearTimeout(timer);
+          const { done, value } = chunk;
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
@@ -2865,6 +3080,11 @@ createApp({
           break;
         case 'done':
           msg.streaming = false;
+          /* 兜底：若流式期间未收到 content（工具调用后模型未输出文本），
+             用 done 事件携带的完整 answer 填充，避免消息区空白 */
+          if (!msg.content && evt.answer) {
+            msg.content = String(evt.answer);
+          }
           if (evt.duration) {
             msg.meta = (lang.value === 'zh' ? '耗时 ' : 'took ')
               + evt.duration + 's';
@@ -2872,10 +3092,12 @@ createApp({
           break;
         case 'error':
           msg.streaming = false;
-          messages.value.push({
-            _id: uid(), role: 'error',
-            content: evt.message || 'Error',
-          });
+          try {
+            _createNode({
+              _id: uid(), role: 'error',
+              content: evt.message || 'Error',
+            }, msg.id);
+          } catch {}
           break;
         case 'ask_user': {
           const sess = currentSession.value;
@@ -3063,7 +3285,6 @@ createApp({
     /* ── 设置 ─────────────────────────── */
     function saveSettings() {
       persistSettings({ ...settings });
-      showSettings.value = false;
       toast(t('toast.settingsSaved'));
       _broadcast('settings-updated', {});
     }
@@ -3099,13 +3320,12 @@ createApp({
       }
       if (meta && e.key === ',') {
         e.preventDefault();
-        showSettings.value = !showSettings.value;
+        window.open('/settings', '_blank');
         return;
       }
       if (e.key === 'Escape') {
         if (ctxMenu.show) { closeCtxMenu(); return; }
         if (showSearch.value) { closeSearch(); return; }
-        if (showSettings.value) { showSettings.value = false; return; }
         if (showHelp.value) { showHelp.value = false; return; }
         return;
       }
@@ -3120,6 +3340,15 @@ createApp({
       setLang(lang.value);
       _syncAllClasses();
 
+      /* 淡出启动加载屏 */
+      const splash = document.getElementById('boot-splash');
+      if (splash) {
+        const st = document.getElementById('boot-status');
+        if (st) st.textContent = 'ready';
+        splash.classList.add('done');
+        setTimeout(() => { splash.remove(); }, 600);
+      }
+
       const saved = loadLocalSessions();
       sessions.value = saved.map(s => {
         const sess = reactive({
@@ -3129,7 +3358,7 @@ createApp({
             ? { nodes: s.tree.nodes || {},
                 leafId: s.tree.leafId || null }
             : _linearToTree(s.messages || [])),
-          asks: Array.isArray(s.asks) ? s.asks : [],
+          asks: _sanitizeAsks(s.asks),
           pinned: Array.isArray(s.pinned) ? s.pinned : [],
           turnCounter: s.turnCounter || 0,
           createdAt: s.createdAt || Date.now(),
@@ -3172,10 +3401,6 @@ createApp({
       if (streamSpeedTimer) clearInterval(streamSpeedTimer);
     });
 
-    watch(messages, () => {
-      if (!streaming.value) saveCurrentSession();
-    }, { deep: true });
-
     watch(() => settings.think_level, _syncAllClasses);
 
     /* ── return ───────────────────────── */
@@ -3183,12 +3408,13 @@ createApp({
       // state
       lang, theme, acrylicStrength, particleHue1, particleHue2,
       hueGradient, configSyncing,
-      messages, input, streaming, showSettings, showHelp, showSearch,
+      messages, input, streaming, showHelp, showSearch,
       showTreeModal,
       sidebarOpen, sidebarTab, sessions, currentSessionId,
-      gatewayOnline, gatewayStats, autoApprove, tools, toolsFilter,
+      gatewayOnline, gatewayStats, cwd, autoApprove, tools, toolsFilter,
       toolsCategory, showScrollBtn, toasts, settings,
       messagesEl, inputEl, searchInputEl, popoverListEl,
+      popover,
       askUser, searchQuery, matchedMessageCount, streamSpeed, ctxMenu,
       outlineFilter, dragging, uploadQueue, paramDialog,
       customCommands, customCmdError, filePreview,
@@ -3196,6 +3422,7 @@ createApp({
       // computed
       model, currentSession, suggestions, lastUserIndex,
       lastUserIndexInAll, searchActive,
+      searchRegexMode, searchCaseSensitive, searchError,
       askCount, askThreads, visibleAskQuestions,
       filteredTools, filteredMessages,
       outlineGroups, outlineExpanded, outlineCount,
@@ -3206,15 +3433,17 @@ createApp({
       // methods
       t, setLang, toggleLang, toggleTheme,
       setAcrylicStrength, onHueInput, setHuePreset,
-      renderMarkdown, fmtTime, isMatch,
+      renderMarkdown, fmtTime, fmtUptime, isMatch,
       send, stopStream, newSession, switchSession, deleteSession,
       editMessage, regenerate, clearMessages, clearAllSessions,
+      msgCount, isPinned,
       toggleTool, saveSettings, toggleSidebar,
       copyText, scrollToBottom, onKeydown, onComposerKeydown,
       autoResize, onMessagesScroll, onChatClick, onChatRightClick,
       closeCtxMenu, ctxCopy, ctxCopyAll, ctxExport, ctxQuote,
       ctxRegenerate,
       openSearch, closeSearch, applySearch, clearSearch,
+      ctxPin,
       selectAskOption, onAskInput, submitAskAnswer, cancelAsk,
       loadPendingAsks,
       toggleAskThread, isAskThreadExpanded,
@@ -3233,7 +3462,7 @@ createApp({
       previewTemplate,
       toggleNotifications,
       syncConfigToServer, loadConfigFromServer,
-      selectPopoverItem,
+      selectPopoverItem, _scrollPopoverSelectedIntoView,
     };
   },
 }).mount('#app');

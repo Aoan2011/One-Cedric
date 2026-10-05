@@ -21,6 +21,7 @@ from rich.live import Live
 from rich.markdown import Markdown
 from rich.markup import escape
 from rich.panel import Panel
+from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
@@ -68,19 +69,39 @@ def _default_editor() -> str:
 
 
 def _open_in_editor(initial_text: str, suffix: str) -> str | None:
-    editor_cmd = _default_editor()
-    try:
-        editor_argv = shlex.split(editor_cmd)
-    except ValueError:
-        return None
-    if not editor_argv:
-        return None
     suffix = suffix if suffix.startswith(".") else (f".{suffix}" if suffix else ".txt")
     tmp_path = None
     try:
         fd, tmp_path = tempfile.mkstemp(prefix="one-cedric-edit-", suffix=suffix)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(initial_text)
+
+        # 优先使用内置 One Editor Lite（仅交互式终端；网关等无 TTY 场景回退）
+        if sys.stdin and sys.stdin.isatty():
+            try:
+                lite = (Path(__file__).resolve().parent.parent
+                        / "one_editor_lite" / "one_editor_lite.py")
+                if lite.exists():
+                    ret = subprocess.run(
+                        [sys.executable, str(lite), str(tmp_path)],
+                        timeout=1800).returncode
+                    if ret == 0:
+                        with open(tmp_path, "r",
+                                  encoding="utf-8") as f2:
+                            return f2.read()
+            except (subprocess.TimeoutExpired,
+                    FileNotFoundError, OSError):
+                pass
+            except Exception:
+                pass
+
+        editor_cmd = _default_editor()
+        try:
+            editor_argv = shlex.split(editor_cmd)
+        except ValueError:
+            return None
+        if not editor_argv:
+            return None
         try:
             ret = subprocess.run(editor_argv + [tmp_path]).returncode
         except FileNotFoundError:
@@ -3395,8 +3416,16 @@ class OneCedric:
                                    "content": err})
             return
         n_lines = len(code.strip().splitlines())
+        code_lines = code.splitlines()
+        shown_code = "\n".join(code_lines[:60])
+        if len(code_lines) > 60:
+            shown_code += f"\n…（共 {len(code_lines)} 行，仅显示前 60 行）"
         self.console.print(Panel(
-            Text(preview, style="bold"),
+            Group(
+                Text(preview, style="bold"),
+                Syntax(shown_code, "python", theme="monokai",
+                       line_numbers=True, word_wrap=True),
+            ),
             title="[bold]python_exec · 执行前确认[/]",
             title_align="left",
             border_style=WARN_C, box=box.ROUNDED,
@@ -6377,7 +6406,7 @@ class OneCedric:
                 return "yes"
             return "yes" if auto_approve else "no"
 
-        def _wrap_log(name, target, result):
+        def _wrap_log(name, target, result, call_id=""):
             summary = (result.splitlines()[0][:200]
                        if result else "")
             tool_calls.append({
@@ -6387,7 +6416,7 @@ class OneCedric:
                            else "ok"),
             })
             try:
-                old_log(name, target, result)
+                old_log(name, target, result, call_id=call_id)
             except Exception:
                 pass
 

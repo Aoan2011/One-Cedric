@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Cedric · 设置</title>
+<link rel="stylesheet" href="/static/style.css?v=20261005f">
+<style>
+.page-top {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border);
+}
+.page-top .logo { font-weight: 700; font-size: 14px; }
+.page-top .logo b { color: var(--brand); }
+.page-top .crumb { color: var(--text-dim); }
+.page-top .spacer { flex: 1; }
+.page-top .btn {
+  background: var(--bg-elev); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 6px 14px; cursor: pointer; font-family: var(--font-sans);
+  font-size: 12px; transition: border-color var(--transition), background var(--transition);
+}
+.page-top .btn:hover { border-color: var(--brand); color: var(--text); }
+.page-top .btn.primary { background: var(--brand); border-color: transparent; color: #0b0b0d; font-weight: 600; }
+.page-top .btn.primary:hover { filter: brightness(1.12); }
+.page-top .saved-badge { color: var(--ok); font-size: 12px; opacity: 0; transition: opacity .2s; }
+.page-top .saved-badge.show { opacity: 1; }
+
+.wrap { max-width: 900px; margin: 0 auto; padding: 28px 20px 80px; }
+
+section {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+section > header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600; font-size: 12px;
+  letter-spacing: .04em; color: var(--text-soft);
+}
+section > header .tag {
+  font-size: 10px; color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 4px; padding: 1px 6px;
+}
+section .body { padding: 16px; display: grid; gap: 14px; }
+
+.row { display: grid; grid-template-columns: 170px 1fr; gap: 14px; align-items: center; }
+.row label { color: var(--text-soft); font-size: 12px; }
+.row label small { display: block; color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+.row input[type=text], .row input[type=password], .row input[type=number], .row select, .row textarea {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 7px 10px; font-family: var(--font-sans); font-size: 12px; width: 100%;
+  outline: none; transition: border-color var(--transition);
+}
+.row input:focus, .row select:focus, .row textarea:focus { border-color: var(--accent); }
+.row input[type=range] { width: 100%; accent-color: var(--brand); }
+.row .range-val { color: var(--accent); font-size: 12px; min-width: 34px; text-align: right; }
+.row .hint { font-size: 11px; color: var(--text-dim); grid-column: 2; margin-top: -8px; }
+
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button {
+  background: var(--bg); color: var(--text-soft);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 5px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 12px;
+  transition: all var(--transition);
+}
+.seg button:hover { border-color: var(--brand); color: var(--text); }
+.seg button.on { background: var(--brand); border-color: transparent; color: #0b0b0d; font-weight: 600; }
+
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-soft); font-size: 12px; }
+.check input { accent-color: var(--brand); width: 15px; height: 15px; }
+
+.cmd-item {
+  display: grid; grid-template-columns: 1fr 2fr 90px auto; gap: 8px;
+  padding: 10px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px;
+}
+.cmd-item input {
+  background: var(--bg-elev); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 8px; font-family: var(--font-sans); font-size: 12px; outline: none;
+}
+.cmd-item input:focus { border-color: var(--accent); }
+.cmd-item .del {
+  background: transparent; color: var(--err);
+  border: 1px solid color-mix(in srgb, var(--err) 35%, transparent); border-radius: 6px;
+  cursor: pointer; font-family: var(--font-sans); font-size: 11px; padding: 0 10px;
+}
+.cmd-item .del:hover { background: color-mix(in srgb, var(--err) 12%, transparent); }
+.add-cmd {
+  background: transparent; color: var(--accent);
+  border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius: var(--radius);
+  width: 100%; padding: 8px; cursor: pointer; font-family: var(--font-sans); font-size: 12px;
+}
+.add-cmd:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+
+.data-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.data-actions .btn {
+  background: var(--bg-elev); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px 16px; cursor: pointer; font-family: var(--font-sans); font-size: 12px;
+  transition: border-color var(--transition), background var(--transition);
+}
+.data-actions .btn:hover { border-color: var(--accent); }
+.data-actions .btn.danger { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
+.data-actions .btn.danger:hover { background: color-mix(in srgb, var(--err) 10%, transparent); }
+</style>
+</head>
+<body>
+<div class="page-top">
+  <span class="logo"><b>One Cedric</b> · 设置</span>
+  <span class="crumb">settings</span>
+  <span class="spacer"></span>
+  <span class="saved-badge" id="savedBadge">✓ 已保存</span>
+  <button class="btn" onclick="location.href='/'">返回主页</button>
+  <button class="btn primary" onclick="saveAll()">保存</button>
+</div>
+
+<div class="wrap">
+
+  <section>
+    <header><span class="tag">model</span> 模型与生成</header>
+    <div class="body">
+      <div class="row">
+        <label>模型名称<small>如 deepseek-flash / qwen2.5</small></label>
+        <input type="text" id="fModel" placeholder="deepseek-flash">
+      </div>
+      <div class="row">
+        <label>Ollama Host<small>服务地址</small></label>
+        <input type="text" id="fHost" placeholder="http://localhost:11434">
+      </div>
+      <div class="row">
+        <label>API Key<small>可选，本地 Ollama 无需</small></label>
+        <input type="password" id="fApiKey" placeholder="">
+      </div>
+      <div class="row">
+        <label>Temperature<small>随机性</small></label>
+        <div style="display:flex;align-items:center;gap:10px;width:100%">
+          <input type="range" id="fTemp" min="0" max="1" step="0.05" value="0.2" style="flex:1">
+          <span class="range-val" id="tempVal">0.20</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>思考级别<small>推理强度</small></label>
+        <div class="seg" id="segThink"></div>
+      </div>
+      <div class="row">
+        <label>显示思考过程</label>
+        <label class="check"><input type="checkbox" id="fShowReasoning"> 渲染时展示模型推理内容</label>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <header><span class="tag">appearance</span> 外观</header>
+    <div class="body">
+      <div class="row">
+        <label>主题</label>
+        <div class="seg" id="segTheme"></div>
+      </div>
+      <div class="row">
+        <label>亚克力强度<small>背景毛玻璃效果</small></label>
+        <div class="seg" id="segAcrylic"></div>
+      </div>
+      <div class="row">
+        <label>粒子颜色 1</label>
+        <input type="color" id="fHue1" value="#7dcfff" style="width:120px;height:34px;padding:2px;background:var(--bg);border:1px solid var(--border);border-radius:7px;cursor:pointer">
+      </div>
+      <div class="row">
+        <label>粒子颜色 2</label>
+        <input type="color" id="fHue2" value="#d97757" style="width:120px;height:34px;padding:2px;background:var(--bg);border:1px solid var(--border);border-radius:7px;cursor:pointer">
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <header><span class="tag">behavior</span> 行为与语言</header>
+    <div class="body">
+      <div class="row">
+        <label>界面语言</label>
+        <div class="seg" id="segLang"></div>
+      </div>
+      <div class="row">
+        <label>桌面通知</label>
+        <label class="check"><input type="checkbox" id="fNotify"> 回答完成时发送系统通知</label>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <header><span class="tag">commands</span> 自定义命令</header>
+    <div class="body">
+      <div id="cmdList"></div>
+      <button class="add-cmd" onclick="addCmd()">+ 添加命令</button>
+      <div class="hint" style="color:var(--text-dim);font-size:11px;margin-top:8px">
+        模板中用 &#123;&#123;param&#125;&#125; 声明参数占位，发送时将弹出参数输入框。
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <header><span class="tag">data</span> 数据管理</header>
+    <div class="body">
+      <div class="data-actions">
+        <button class="btn" onclick="exportSessions()">导出会话 (JSON)</button>
+        <button class="btn" onclick="document.getElementById('impFile').click()">导入会话</button>
+        <button class="btn danger" onclick="clearAll()">清空全部会话</button>
+        <input type="file" id="impFile" accept=".json,application/json" style="display:none" onchange="importSessions(event)">
+      </div>
+      <div class="hint" style="font-size:11px;color:var(--text-dim)">
+        设置项保存在浏览器本地，与主界面实时同步。
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ── localStorage keys（与主页面一致） ── */
+const K = {
+  settings: 'cedric_webui_settings_v1',
+  sessions: 'cedric_webui_sessions_v1',
+  lang: 'cedric_webui_lang_v1',
+  theme: 'cedric_webui_theme_v1',
+  acrylic: 'cedric_webui_acrylic_v1',
+  hue1: 'cedric_webui_hue1_v1',
+  hue2: 'cedric_webui_hue2_v1',
+  cmds: 'cedric_webui_custom_cmds_v1',
+  notify: 'cedric_webui_notify',
+};
+const BC_NAME = 'cedric_webui_sync';
+let bc = null;
+try { bc = new BroadcastChannel(BC_NAME); } catch (e) {}
+
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); } catch (e) {} }
+
+function seg(el, opts, cur, onChange) {
+  el.innerHTML = '';
+  opts.forEach(o => {
+    const b = document.createElement('button');
+    b.textContent = o.label;
+    b.className = o.value === cur ? 'on' : '';
+    b.onclick = () => {
+      el.querySelectorAll('button').forEach(x => x.className = '');
+      b.className = 'on';
+      onChange(o.value);
+    };
+    el.appendChild(b);
+  });
+}
+
+const state = {
+  settings: lsGet(K.settings, {}),
+  theme: localStorage.getItem(K.theme) || 'dark',
+  acrylic: localStorage.getItem(K.acrylic) || 'medium',
+  hue1: localStorage.getItem(K.hue1) || '220',
+  hue2: localStorage.getItem(K.hue2) || '270',
+  cmds: lsGet(K.cmds, []),
+  lang: localStorage.getItem(K.lang) || 'zh',
+  notify: localStorage.getItem(K.notify) === '1',
+};
+const T = {
+  'minimal': '极简', 'low': '轻', 'medium': '中', 'high': '高', 'ultra': '超',
+  'dark': '深色', 'light': '浅色',
+  'off': '关闭',
+  'zh': '中文', 'en': 'English',
+};
+function hueToColor(h) { return 'hsl(' + h + ', 80%, 65%)'; }
+
+function init() {
+  const s = state.settings;
+  document.getElementById('fModel').value = s.model || '';
+  document.getElementById('fHost').value = s.host || '';
+  document.getElementById('fApiKey').value = s.api_key || '';
+  const temp = s.temperature ?? 0.2;
+  document.getElementById('fTemp').value = temp;
+  document.getElementById('tempVal').textContent = temp.toFixed(2);
+  document.getElementById('fTemp').oninput = () => {
+    document.getElementById('tempVal').textContent = parseFloat(document.getElementById('fTemp').value).toFixed(2);
+  };
+  document.getElementById('fShowReasoning').checked = s.show_reasoning !== false;
+
+  seg(document.getElementById('segThink'),
+    ['minimal','low','medium','high','ultra'].map(v => ({ value: v, label: T[v] })),
+    s.think_level || 'medium', v => { state.settings.think_level = v; });
+  seg(document.getElementById('segTheme'),
+    ['dark','light'].map(v => ({ value: v, label: T[v] })),
+    state.theme, v => { state.theme = v; applyTheme(); });
+  seg(document.getElementById('segAcrylic'),
+    ['off','low','medium','high'].map(v => ({ value: v, label: T[v] })),
+    state.acrylic, v => { state.acrylic = v; });
+  seg(document.getElementById('segLang'),
+    ['zh','en'].map(v => ({ value: v, label: T[v] })),
+    state.lang, v => { state.lang = v; });
+
+  const c1 = document.getElementById('fHue1');
+  const c2 = document.getElementById('fHue2');
+  c1.value = hueToColor(state.hue1);
+  c2.value = hueToColor(state.hue2);
+  c1.oninput = () => { state.hue1 = Math.round(hueFromColor(c1.value)); };
+  c2.oninput = () => { state.hue2 = Math.round(hueFromColor(c2.value)); };
+
+  document.getElementById('fNotify').checked = state.notify;
+  renderCmds();
+}
+function hueFromColor(hex) {
+  const m = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return 220;
+  const r = parseInt(m[1],16)/255, g = parseInt(m[2],16)/255, b = parseInt(m[3],16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+  if (d === 0) return 220;
+  let h;
+  if (max === r) h = ((g-b)/d)%6; else if (max === g) h = (b-r)/d+2; else h = (r-g)/d+4;
+  h *= 60; if (h < 0) h += 360;
+  return h;
+}
+function applyTheme() {
+  document.documentElement.style.colorScheme = state.theme;
+  if (state.theme === 'light') {
+    document.documentElement.style.setProperty('--bg', '#f5f4f2');
+    document.documentElement.style.setProperty('--bg-soft', '#ecebe8');
+    document.documentElement.style.setProperty('--bg-elev', '#ffffff');
+    document.documentElement.style.setProperty('--border', '#d8d5d0');
+    document.documentElement.style.setProperty('--text', '#1b1b1f');
+    document.documentElement.style.setProperty('--text-soft', '#4a4744');
+    document.documentElement.style.setProperty('--text-dim', '#8a8680');
+  }
+}
+
+function renderCmds() {
+  const el = document.getElementById('cmdList');
+  el.innerHTML = '';
+  if (!state.cmds.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:6px 2px">暂无自定义命令。输入 <code>/</code> 查看可用命令。</div>';
+  }
+  state.cmds.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'cmd-item';
+    const n = document.createElement('input');
+    n.value = c.name || ''; n.placeholder = '名称';
+    n.oninput = () => state.cmds[i].name = n.value;
+    const t = document.createElement('input');
+    t.value = c.template || ''; t.placeholder = '模板，如 总结一下 {{topic}}';
+    t.oninput = () => state.cmds[i].template = t.value;
+    const p = document.createElement('input');
+    p.value = (c.params || []).join(', '); p.placeholder = '参数名，逗号分隔';
+    p.oninput = () => state.cmds[i].params = p.value.split(/[,，]/).map(x => x.trim()).filter(Boolean);
+    const d = document.createElement('button');
+    d.className = 'del'; d.textContent = '删除';
+    d.onclick = () => { state.cmds.splice(i,1); renderCmds(); };
+    row.appendChild(n); row.appendChild(t); row.appendChild(p); row.appendChild(d);
+    el.appendChild(row);
+  });
+}
+function addCmd() {
+  state.cmds.push({ name: '', template: '', params: [] });
+  renderCmds();
+}
+
+function exportSessions() {
+  const data = lsGet(K.sessions, []);
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'one-cedric-sessions-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importSessions(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const arr = JSON.parse(rd.result);
+      if (!Array.isArray(arr)) throw new Error('格式错误');
+      lsSet(K.sessions, arr);
+      bcast('sessions-updated', {});
+      flash('✓ 已导入 ' + arr.length + ' 个会话');
+    } catch (e) { alert('导入失败：' + e.message); }
+  };
+  rd.readAsText(file);
+  evt.target.value = '';
+}
+function clearAll() {
+  if (!confirm('确定清空全部会话？此操作不可恢复。')) return;
+  lsSet(K.sessions, []);
+  bcast('sessions-updated', {});
+  flash('✓ 已清空');
+}
+
+function bcast(type, payload) {
+  if (!bc) return;
+  try { bc.postMessage({ type, ...payload }); } catch (e) {}
+}
+let flashTimer = null;
+function flash(msg) {
+  const el = document.getElementById('savedBadge');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+function saveAll() {
+  const s = state.settings;
+  s.model = document.getElementById('fModel').value.trim();
+  s.host = document.getElementById('fHost').value.trim();
+  s.api_key = document.getElementById('fApiKey').value.trim();
+  s.temperature = parseFloat(document.getElementById('fTemp').value) || 0.2;
+  s.show_reasoning = document.getElementById('fShowReasoning').checked;
+
+  lsSet(K.settings, s);
+  localStorage.setItem(K.theme, state.theme);
+  localStorage.setItem(K.acrylic, state.acrylic);
+  localStorage.setItem(K.hue1, String(state.hue1));
+  localStorage.setItem(K.hue2, String(state.hue2));
+  localStorage.setItem(K.lang, state.lang);
+  lsSet(K.cmds, state.cmds);
+  localStorage.setItem(K.notify, document.getElementById('fNotify').checked ? '1' : '0');
+
+  bcast('settings-updated', {});
+  bcast('theme-updated', { theme: state.theme });
+  bcast('sessions-updated', {});
+  flash('✓ 已保存');
+}
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveAll(); }
+});
+
+init();
+applyTheme();
+</script>
+</body>
+</html>

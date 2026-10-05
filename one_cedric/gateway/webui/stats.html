@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Cedric · 统计</title>
+<link rel="stylesheet" href="/static/style.css?v=20261005f">
+<style>
+.page-top {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border);
+}
+.page-top .logo { font-weight: 700; font-size: 14px; }
+.page-top .logo b { color: var(--brand); }
+.page-top .crumb { color: var(--text-dim); }
+.page-top .spacer { flex: 1; }
+.page-top .btn {
+  background: var(--bg-elev); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 6px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 12px;
+  transition: border-color var(--transition), background var(--transition);
+}
+.page-top .btn:hover { border-color: var(--brand); color: var(--text); }
+.page-top .live { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 11px; }
+.page-top .live .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: pulse 2s infinite; }
+.page-top .live .dot.down { background: var(--err); box-shadow: 0 0 8px var(--err); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+.wrap { max-width: 980px; margin: 0 auto; padding: 24px 20px 80px; }
+
+.statusbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 18px;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px 18px; margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.statusbar .item { display: flex; flex-direction: column; gap: 2px; }
+.statusbar .item .k { color: var(--text-dim); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+.statusbar .item .v { font-size: 14px; font-weight: 600; color: var(--text); }
+.statusbar .item .v.model { color: var(--brand); }
+.statusbar .item .v.ok { color: var(--ok); }
+.statusbar .item .v.err { color: var(--err); }
+.statusbar .spacer { flex: 1; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.card {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-sm);
+}
+.card .num { font-size: 30px; font-weight: 700; line-height: 1.1; color: var(--text); }
+.card .num small { font-size: 14px; color: var(--text-dim); font-weight: 400; }
+.card .label { color: var(--text-dim); font-size: 11px; margin-top: 6px; letter-spacing: .04em; }
+.card .sub { color: var(--text-soft); font-size: 12px; margin-top: 4px; }
+.card.accent .num { color: var(--brand); }
+
+.panel {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); margin-bottom: 20px; overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.panel > header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600; font-size: 12px; letter-spacing: .04em; color: var(--text-soft);
+}
+.panel > header .tag { font-size: 10px; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 4px; padding: 1px 6px; }
+.panel .body { padding: 16px; }
+
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: 150px 1fr 40px; gap: 10px; align-items: center; }
+.bar-row .name { color: var(--text-soft); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-row .track { background: var(--bg); border-radius: 4px; height: 12px; overflow: hidden; }
+.bar-row .fill { height: 100%; background: linear-gradient(100deg, var(--brand), var(--accent)); border-radius: 4px; min-width: 2px; transition: width .4s; }
+.bar-row .val { color: var(--text-dim); font-size: 11px; text-align: right; }
+
+.donut-wrap { display: flex; align-items: center; gap: 22px; }
+.donut {
+  width: 130px; height: 130px; border-radius: 50%;
+  position: relative; flex-shrink: 0;
+}
+.donut::after {
+  content: ''; position: absolute; inset: 18px;
+  background: var(--bg-elev); border-radius: 50%;
+}
+.donut .center {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; z-index: 1; color: var(--text);
+}
+.legend { display: flex; flex-direction: column; gap: 8px; }
+.legend .li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-soft); }
+.legend .sw { width: 10px; height: 10px; border-radius: 3px; }
+.legend .lv { margin-left: auto; color: var(--text); font-weight: 600; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 12px; }
+th { color: var(--text-dim); font-weight: 500; font-size: 11px; letter-spacing: .04em; }
+td { color: var(--text-soft); }
+td:first-child { color: var(--text); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+.pill { font-size: 10px; border-radius: 4px; padding: 1px 6px; border: 1px solid var(--border); color: var(--text-soft); }
+.pill.on { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.pill.off { color: var(--text-dim); }
+
+.empty { color: var(--text-dim); font-size: 12px; padding: 10px 2px; }
+.muted { color: var(--text-dim); font-size: 11px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page-top">
+  <span class="logo"><b>One Cedric</b> · 统计</span>
+  <span class="crumb">stats</span>
+  <span class="spacer"></span>
+  <span class="live" id="liveBadge"><span class="dot"></span><span id="liveText">检测中</span></span>
+  <button class="btn" onclick="location.href='/'">返回主页</button>
+  <button class="btn" onclick="refresh()">刷新</button>
+</div>
+
+<div class="wrap">
+
+  <div class="statusbar" id="statusbar">
+    <div class="item"><span class="k">模型</span><span class="v model" id="stModel">—</span></div>
+    <div class="item"><span class="k">运行状态</span><span class="v ok" id="stRunning">—</span></div>
+    <div class="item"><span class="k">运行时长</span><span class="v" id="stUptime">—</span></div>
+    <div class="item"><span class="k">请求数</span><span class="v" id="stRequests">—</span></div>
+    <div class="item"><span class="k">错误数</span><span class="v" id="stErrors">—</span></div>
+    <div class="spacer"></div>
+    <div class="item"><span class="k">网关地址</span><span class="v" id="stUrl" style="font-size:12px;font-weight:400;color:var(--text-soft)">—</span></div>
+  </div>
+
+  <div class="grid" id="gridCards"></div>
+
+  <div class="panel">
+    <header><span class="tag">messages</span> 各会话消息分布</header>
+    <div class="body" id="sessionBars"></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns: 1fr 1fr">
+    <div class="panel">
+      <header><span class="tag">roles</span> 角色占比</header>
+      <div class="body">
+        <div class="donut-wrap" id="donutWrap"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <header><span class="tag">tools</span> 工具调用 TOP</header>
+      <div class="body" id="toolTop"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <header><span class="tag">tools</span> 工具列表</header>
+    <div class="body" id="toolTable"></div>
+  </div>
+
+  <div class="muted" id="footnote"></div>
+</div>
+
+<script>
+const K_SESSIONS = 'cedric_webui_sessions_v1';
+let timer = null;
+
+function $(id) { return document.getElementById(id); }
+function fmtDur(sec) {
+  sec = Math.max(0, Math.floor(sec || 0));
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const p = n => String(n).padStart(2, '0');
+  return (d ? d + 'd ' : '') + (d || h ? p(h) + ':' : '') + p(m) + ':' + p(s);
+}
+
+function loadSessions() {
+  try { return JSON.parse(localStorage.getItem(K_SESSIONS) || '[]'); } catch (e) { return []; }
+}
+
+function collect(sessions) {
+  const st = { sessions: 0, msgs: 0, user: 0, assistant: 0, error: 0, pinned: 0, asks: 0, tools: {}, chars: 0, dur: 0, perSession: [] };
+  st.sessions = sessions.length;
+  for (const s of sessions) {
+    const nodes = (s.tree && s.tree.nodes) || {};
+    const list = Object.values(nodes);
+    const userMsgs = list.filter(n => n.role === 'user').length;
+    const astMsgs = list.filter(n => n.role === 'assistant').length;
+    st.msgs += list.length;
+    st.user += userMsgs;
+    st.assistant += astMsgs;
+    st.error += list.filter(n => n.role === 'error').length;
+    st.pinned += Array.isArray(s.pinned) ? s.pinned.length : 0;
+    st.asks += Array.isArray(s.asks) ? s.asks.length : 0;
+    st.perSession.push({ title: s.title || '(未命名)', user: userMsgs, assistant: astMsgs, total: list.length });
+    for (const n of list) {
+      if (n.toolCalls) for (const tc of n.toolCalls) {
+        st.tools[tc.name || '?'] = (st.tools[tc.name || '?'] || 0) + 1;
+      }
+      if (n.role === 'assistant' && n.content) {
+        st.chars += n.content.length;
+        const dm = (n.meta || '').match(/耗时\s*([\d.]+)s|took\s*([\d.]+)s/);
+        if (dm) st.dur += parseFloat(dm[1] || dm[2] || 0);
+      }
+    }
+  }
+  return st;
+}
+
+function renderCards(st) {
+  const el = $('gridCards');
+  const cps = st.dur > 0 ? (st.chars / st.dur / 2.5) : 0;
+  const cards = [
+    { n: st.sessions, l: '会话总数', sub: 'sessions', accent: true },
+    { n: st.msgs, l: '消息总数', sub: st.user + ' 用户 · ' + st.assistant + ' 助手 · ' + st.error + ' 错误' },
+    { n: st.pinned, l: '收藏消息', sub: 'pinned' },
+    { n: st.asks, l: '问答记录', sub: 'asks' },
+    { n: Object.keys(st.tools).length, l: '使用过的工具', sub: Object.values(st.tools).reduce((a,b)=>a+b,0) + ' 次调用' },
+    { n: st.chars.toLocaleString(), l: '累计生成字符', sub: 'assistant content' },
+  ];
+  el.innerHTML = cards.map(c => `
+    <div class="card${c.accent ? ' accent' : ''}">
+      <div class="num">${c.n}</div>
+      <div class="label">${c.l}</div>
+      <div class="sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+function renderSessionBars(st) {
+  const el = $('sessionBars');
+  if (!st.perSession.length) { el.innerHTML = '<div class="empty">暂无会话数据</div>'; return; }
+  const max = Math.max(...st.perSession.map(x => x.total), 1);
+  el.innerHTML = st.perSession.map(s => {
+    const w = Math.max(2, Math.round(s.total / max * 100));
+    return `<div class="bar-row">
+      <div class="name" title="${s.title.replace(/"/g,'&quot;')}">${s.title || '(未命名)'}</div>
+      <div class="track"><div class="fill" style="width:${w}%"></div></div>
+      <div class="val">${s.total}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDonut(st) {
+  const el = $('donutWrap');
+  const total = st.user + st.assistant + st.error;
+  if (!total) { el.innerHTML = '<div class="empty">暂无消息</div>'; return; }
+  const u = st.user / total * 100, a = st.assistant / total * 100;
+  const g = `conic-gradient(var(--brand) 0 ${u}%, var(--accent) ${u}% ${u + a}%, var(--bg-active) ${u + a}% 100%)`;
+  el.innerHTML = `<div class="donut" style="background:${g}"><div class="center">${total}</div></div>
+    <div class="legend">
+      <div class="li"><span class="sw" style="background:var(--brand)"></span>用户<span class="lv">${st.user}</span></div>
+      <div class="li"><span class="sw" style="background:var(--accent)"></span>助手<span class="lv">${st.assistant}</span></div>
+      <div class="li"><span class="sw" style="background:var(--bg-active)"></span>错误<span class="lv">${st.error}</span></div>
+    </div>`;
+}
+
+function renderToolTop(st) {
+  const el = $('toolTop');
+  const arr = Object.entries(st.tools).sort((a,b) => b[1] - a[1]).slice(0, 6);
+  if (!arr.length) { el.innerHTML = '<div class="empty">暂无工具调用</div>'; return; }
+  const max = arr[0][1];
+  el.innerHTML = '<div class="bars">' + arr.map(([n, c]) => `
+    <div class="bar-row">
+      <div class="name">${n}</div>
+      <div class="track"><div class="fill" style="width:${Math.max(2, Math.round(c / max * 100))}%"></div></div>
+      <div class="val">${c}</div>
+    </div>`).join('') + '</div>';
+}
+
+function renderToolTable(tools) {
+  const el = $('toolTable');
+  if (!tools || !tools.length) { el.innerHTML = '<div class="empty">暂无工具</div>'; return; }
+  el.innerHTML = `<table>
+    <tr><th>名称</th><th>状态</th><th>描述</th></tr>
+    ${tools.map(t => `<tr>
+      <td>${t.name || '?'}</td>
+      <td><span class="pill ${t.enabled ? 'on' : 'off'}">${t.enabled ? '启用' : '停用'}</span></td>
+      <td>${(t.description || '').slice(0, 80)}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+async function refresh() {
+  let gw = { running: false };
+  try {
+    const r = await fetch('/api/status');
+    if (r.ok) gw = await r.json();
+  } catch (e) {}
+  const health = gw.running ? gw : null;
+  const stModel = $('stModel'), stRunning = $('stRunning'), stUptime = $('stUptime'),
+        stRequests = $('stRequests'), stErrors = $('stErrors'), stUrl = $('stUrl');
+  if (health) {
+    stModel.textContent = health.model || '—';
+    stRunning.textContent = '运行中';
+    stRunning.className = 'v ok';
+    stUptime.textContent = fmtDur(health.uptime);
+    stRequests.textContent = health.requests != null ? health.requests : '—';
+    stErrors.textContent = health.errors != null ? health.errors : '—';
+    stErrors.className = 'v ' + (health.errors > 0 ? 'err' : 'ok');
+    stUrl.textContent = health.url || '—';
+    $('liveBadge').querySelector('.dot').className = 'dot';
+    $('liveText').textContent = '已连接';
+  } else {
+    stModel.textContent = '—'; stRunning.textContent = '离线'; stRunning.className = 'v err';
+    stUptime.textContent = '—'; stRequests.textContent = '—'; stErrors.textContent = '—';
+    stUrl.textContent = '—';
+    $('liveBadge').querySelector('.dot').className = 'dot down';
+    $('liveText').textContent = '网关离线';
+  }
+
+  let tools = [];
+  try {
+    const r2 = await fetch('/api/tools');
+    if (r2.ok) { const j = await r2.json(); tools = j.tools || []; }
+  } catch (e) {}
+
+  const st = collect(loadSessions());
+  renderCards(st);
+  renderSessionBars(st);
+  renderDonut(st);
+  renderToolTop(st);
+  renderToolTable(tools);
+  const enabled = tools.filter(t => t.enabled).length;
+  $('footnote').textContent = `统计基于浏览器本地会话数据 · 共 ${tools.length} 个工具，启用 ${enabled} · 生成速度按 1 中文字符 ≈ 2.5 token 估算`;
+}
+
+setInterval(() => refresh(), 15000);
+refresh();
+</script>
+</body>
+</html>
