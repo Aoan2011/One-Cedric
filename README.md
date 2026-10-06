@@ -11,6 +11,19 @@
 >
 >  · Version: **Public Beta I**
 
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://python.org)
+[![Textual](https://img.shields.io/badge/Rich%2B15.0.0%2B-green)](https://textual.textualize.io)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/y/Aoan2011/One-Cedric)
+![GitHub last commit](https://img.shields.io/github/last-commit/Aoan2011/One-Cedric)
+![GitHub Created At](https://img.shields.io/github/created-at/Aoan2011/One-Cedric)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Aoan2011/One-Cedric/total)
+![GitHub Issues](https://img.shields.io/github/issues/Aoan2011/One-Cedric)
+![GitHub Discussions (all)](https://img.shields.io/github/discussions/all/Aoan2011/One-Cedric)
+![GitHub forks](https://img.shields.io/github/forks/Aoan2011/One-Cedric)
+![GitHub Repo stars](https://img.shields.io/github/stars/Aoan2011/One-Cedric)
+![GitHub Tag](https://img.shields.io/github/v/tag/Aoan2011/One-Cedric)
+
 One Cedric is a local, file-smart AI agent that gives you **two frontends** — a terminal **CLI** and a Liquid Glass **WebUI** — over the same agent core. It connects to any **OpenAI-compatible** model provider (Ollama, DeepSeek, Kimi, ChatGPT, and more) and ships with **240+ built-in tools**: file operations, code search, a sandboxed terminal, web fetching, Office documents, databases, LSP analysis, and more. It is designed to be easy enough for a beginner to run in five minutes, while still being powerful enough to automate real work in your folders.
 > **One Editor Lite** is part of **One Editor** family, MIT license. 
 
