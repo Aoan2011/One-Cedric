@@ -27,6 +27,7 @@ const I18N = {
     'topbar.settings': '设置 (Ctrl+,)',
     'topbar.settingsPage': '独立设置页',
     'topbar.statsPage': '独立统计页',
+    'topbar.diagnose': '诊断：依赖与运行环境检查',
     'topbar.help': '快捷键 (?)',
     'sidebar.title': '会话',
     'sidebar.new': '新会话',
@@ -36,7 +37,7 @@ const I18N = {
     'sidebar.empty': '暂无会话',
     'sidebar.connected': '已连接',
     'sidebar.disconnected': '未连接',
-    'welcome.sub': '本地文件助手 · HTTP Gateway',
+    'welcome.sub': 'An AI agent for beginners · HTTP Gateway',
     'welcome.suggestions': ['这个目录里有什么文件', '读一下 README.md 讲讲项目',
                             '统计一下项目代码量', '帮我搜索一下今天的新闻'],
     'msg.copy': '复制',
@@ -244,6 +245,13 @@ const I18N = {
     'ask.recommended': '推荐',
     'ask.customOr': '或选择推荐选项',
     'help.cmdPalette': '命令面板',
+    'diagnose.title': '诊断',
+    'diagnose.loading': '正在检查依赖与运行环境…',
+    'diagnose.healthy': '运行正常',
+    'diagnose.unhealthy': '存在需注意的问题',
+    'diagnose.rerun': '重新检查',
+    'toast.sandboxOn': '沙箱终端：开启',
+    'toast.sandboxOff': '沙箱终端：关闭',
   },
   en: {
     'topbar.toggleSidebar': 'Toggle sidebar (Ctrl+B)',
@@ -254,6 +262,7 @@ const I18N = {
     'topbar.settings': 'Settings (Ctrl+,)',
     'topbar.settingsPage': 'Standalone settings page',
     'topbar.statsPage': 'Standalone stats page',
+    'topbar.diagnose': 'Diagnose: dependency & environment check',
     'topbar.help': 'Shortcuts (?)',
     'sidebar.title': 'Sessions',
     'sidebar.new': 'New session',
@@ -263,7 +272,7 @@ const I18N = {
     'sidebar.empty': 'No sessions yet',
     'sidebar.connected': 'Connected',
     'sidebar.disconnected': 'Disconnected',
-    'welcome.sub': 'Local file assistant · HTTP Gateway',
+    'welcome.sub': 'An AI agent for beginners · HTTP Gateway',
     'welcome.suggestions': ['What files are in this directory',
                             'Read README.md and explain the project',
                             'Count lines of code in the project',
@@ -473,6 +482,13 @@ const I18N = {
     'ask.recommended': 'Recommended',
     'ask.customOr': 'or choose a recommended option',
     'help.cmdPalette': 'Command palette',
+    'diagnose.title': 'Diagnose',
+    'diagnose.loading': 'Checking dependencies & environment…',
+    'diagnose.healthy': 'All healthy',
+    'diagnose.unhealthy': 'Action needed',
+    'diagnose.rerun': 'Re-run check',
+    'toast.sandboxOn': 'Sandbox terminal: ON',
+    'toast.sandboxOff': 'Sandbox terminal: OFF',
   },
 };
 
@@ -717,6 +733,15 @@ createApp({
     const showHelp = ref(false);
     const showSearch = ref(false);
     const showTreeModal = ref(false);
+    const showDiagnose = ref(false);
+    const diagnoseLoading = ref(false);
+    const diagnoseData = ref({ version: '', model: '', items: [] });
+    const diagnoseItems = computed(() =>
+      Array.isArray(diagnoseData.value.items) ? diagnoseData.value.items : []);
+    const diagnoseHealthy = computed(() =>
+      diagnoseItems.value.length > 0 &&
+      diagnoseItems.value.every(it => it.ok));
+    const sandboxTerminal = ref(true);
     const sidebarOpen = ref(true);
     const sidebarTab = ref('sessions');
     const sessions = ref([]);
@@ -765,6 +790,445 @@ createApp({
       think_level: savedSettings.think_level || 'medium',
       show_reasoning: savedSettings.show_reasoning !== false,
     });
+
+    /* ── 自定义工具管理 ── */
+    const showCustomTools = ref(false);
+    const ctTab = ref('list');
+    const customTools = ref([]);
+    const ctBusy = ref(false);
+    const ctResult = ref('');
+    const ctGenDesc = ref('');
+    const ctForm = reactive({
+      name: '', command: '', description: '', write: false,
+    });
+
+    function openCustomTools() {
+      showCustomTools.value = true;
+      ctTab.value = 'list';
+      ctResult.value = '';
+      loadCustomTools();
+    }
+    async function loadCustomTools() {
+      try {
+        const r = await fetch('/api/custom-tools', { credentials: 'same-origin' });
+        const d = await r.json();
+        customTools.value = Array.isArray(d.tools) ? d.tools : [];
+      } catch { customTools.value = []; }
+    }
+    async function toggleCustomTool(ct) {
+      try {
+        await fetch('/api/custom-tools/' + encodeURIComponent(ct.name) + '/toggle',
+          { method: 'POST', credentials: 'same-origin' });
+        ct.enabled = !ct.enabled;
+      } catch (e) { toast('操作失败: ' + e); }
+    }
+    async function uninstallCustomTool(ct) {
+      if (!confirm(lang.value === 'zh'
+        ? '卸载 ' + ct.public_name + '？' : 'Uninstall ' + ct.public_name + '?')) return;
+      try {
+        const r = await fetch('/api/custom-tools/' + encodeURIComponent(ct.name),
+          { method: 'DELETE', credentials: 'same-origin' });
+        const d = await r.json();
+        toast(d.message || (d.ok ? '已卸载' : '卸载失败'));
+        loadCustomTools();
+      } catch (e) { toast('卸载失败: ' + e); }
+    }
+    async function installCustomTool() {
+      const name = ctForm.name.trim();
+      const command = ctForm.command.trim().split(/\s+/).filter(Boolean);
+      if (!name || !command.length) { toast(lang.value === 'zh' ? '请填写工具名和命令' : 'Name and command required'); return; }
+      ctBusy.value = true;
+      ctResult.value = '';
+      try {
+        const r = await fetch('/api/custom-tools', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            description: ctForm.description.trim(),
+            command,
+            args: [],
+            write: ctForm.write,
+          }),
+          credentials: 'same-origin',
+        });
+        const d = await r.json();
+        ctResult.value = d.message || (d.ok ? 'OK' : 'Failed');
+        if (d.ok) { ctForm.name = ''; ctForm.command = ''; ctForm.description = ''; ctForm.write = false; }
+      } catch (e) { ctResult.value = '失败: ' + e; }
+      ctBusy.value = false;
+    }
+    async function generateCustomTool() {
+      const desc = ctGenDesc.value.trim();
+      if (!desc) return;
+      ctBusy.value = true;
+      ctResult.value = lang.value === 'zh' ? '正在让模型生成工具…' : 'Generating tool with AI…';
+      try {
+        const r = await fetch('/api/custom-tools/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: desc }),
+          credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (d.ok) {
+          ctResult.value = '✓ ' + (lang.value === 'zh' ? '已生成 custom__' : 'Created custom__')
+            + d.name + ' → ' + d.script;
+          ctGenDesc.value = '';
+          loadCustomTools();
+        } else {
+          ctResult.value = '✗ ' + (d.message || 'failed');
+        }
+      } catch (e) { ctResult.value = '✗ ' + e; }
+      ctBusy.value = false;
+    }
+
+    /* ═══ 输入框思考等级滑块 ═══ */
+    const thinkLevels = [
+      { value: 'minimal', zh: '极简', en: 'Minimal',
+        desc: '最快响应，适合简单问答' },
+      { value: 'low', zh: '轻', en: 'Low',
+        desc: '轻量推理，日常任务' },
+      { value: 'medium', zh: '中', en: 'Medium',
+        desc: '平衡速度与深度（默认）' },
+      { value: 'max', zh: '高', en: 'Max',
+        desc: '深入推理，复杂任务' },
+      { value: 'xhigh', zh: '超高', en: 'X-High',
+        desc: '更强推理，困难任务' },
+      { value: 'ultra', zh: '超', en: 'Ultra',
+        desc: '极限推理，最难问题' },
+    ];
+    const thinkLevelIndex = computed(() => {
+      const i = thinkLevels.findIndex(x => x.value === settings.think_level);
+      return i >= 0 ? i : 2;
+    });
+    function thinkLabel(lv) {
+      const t0 = thinkLevels.find(x => x.value === lv);
+      if (!t0) return lv || 'medium';
+      return lang.value === 'zh' ? t0.zh : t0.en;
+    }
+    function setThinkLevelByIndex(idx) {
+      const i = Math.max(0, Math.min(thinkLevels.length - 1,
+        parseInt(idx, 10) || 0));
+      settings.think_level = thinkLevels[i].value;
+      saveSettings();
+      syncConfigToServer();
+    }
+
+    /* ═══ 内嵌面板：设置 / 统计 / cron / dream ═══ */
+    const showSettingsModal = ref(false);
+    const showStatsModal = ref(false);
+    const showCronModal = ref(false);
+    const showDreamModal = ref(false);
+    const netInfo = reactive({
+      host: '', port: 0, lan_open: false, lan_urls: [],
+      local_url: '', hint: '',
+    });
+    function openSettingsModal() {
+      showSettingsModal.value = true;
+      loadNetworkInfo();
+    }
+    function openStatsModal() {
+      showStatsModal.value = true;
+      _statsRefresh();
+    }
+    function openCronModal() {
+      showCronModal.value = true;
+      loadCron();
+    }
+    function openDreamModal() {
+      showDreamModal.value = true;
+      loadDreams();
+      loadDreamStatsText();
+    }
+    async function loadNetworkInfo() {
+      try {
+        const r = await fetch('/api/network', { credentials: 'same-origin' });
+        if (r.ok) Object.assign(netInfo, await r.json());
+      } catch { /* ignore */ }
+    }
+
+    /* ── 内嵌统计（迁移自 stats.html） ── */
+    function _stCollect(sessions) {
+      const st = { sessions: 0, msgs: 0, user: 0, assistant: 0,
+        error: 0, pinned: 0, asks: 0, tools: {}, chars: 0, dur: 0,
+        perSession: [] };
+      st.sessions = sessions.length;
+      for (const s of sessions) {
+        const nodes = (s.tree && s.tree.nodes) || {};
+        const list = Object.values(nodes);
+        const userMsgs = list.filter(n => n.role === 'user').length;
+        const astMsgs = list.filter(n => n.role === 'assistant').length;
+        st.msgs += list.length;
+        st.user += userMsgs;
+        st.assistant += astMsgs;
+        st.error += list.filter(n => n.role === 'error').length;
+        st.pinned += Array.isArray(s.pinned) ? s.pinned.length : 0;
+        st.asks += Array.isArray(s.asks) ? s.asks.length : 0;
+        st.perSession.push({
+          title: s.title || '(未命名)', user: userMsgs,
+          assistant: astMsgs, total: list.length });
+        for (const n of list) {
+          if (n.toolCalls) for (const tc of n.toolCalls) {
+            st.tools[tc.name || '?'] = (st.tools[tc.name || '?'] || 0) + 1;
+          }
+          if (n.role === 'assistant' && n.content) {
+            st.chars += n.content.length;
+            const dm = (n.meta || '').match(/耗时\s*([\d.]+)s|took\s*([\d.]+)s/);
+            if (dm) st.dur += parseFloat(dm[1] || dm[2] || 0);
+          }
+        }
+      }
+      return st;
+    }
+    function _stFmtDur(sec) {
+      sec = Math.max(0, Math.floor(sec || 0));
+      const d = Math.floor(sec / 86400),
+        h = Math.floor((sec % 86400) / 3600),
+        m = Math.floor((sec % 3600) / 60), s = sec % 60;
+      const p = n => String(n).padStart(2, '0');
+      return (d ? d + 'd ' : '') + (d || h ? p(h) + ':' : '') + p(m) + ':' + p(s);
+    }
+    function _stEl(id) { return document.getElementById(id); }
+    async function _statsRefresh() {
+      let health = null;
+      try {
+        const r = await fetch('/api/status', { credentials: 'same-origin' });
+        if (r.ok) health = await r.json();
+      } catch {}
+      const st = _stCollect(loadLocalSessions());
+      // statusbar
+      if (_stEl('stmModel')) {
+        _stEl('stmModel').textContent = health ? (health.model || '—') : '—';
+        _stEl('stmRunning').textContent = health ? '运行中' : '离线';
+        _stEl('stmRunning').className = 'v ' + (health ? 'ok' : 'err');
+        _stEl('stmUptime').textContent = health
+          ? _stFmtDur(health.uptime) : '—';
+        _stEl('stmRequests').textContent =
+          health && health.requests != null ? health.requests : '—';
+        _stEl('stmErrors').textContent =
+          health && health.errors != null ? health.errors : '—';
+        _stEl('stmUrl').textContent = health ? (health.url || '—') : '—';
+      }
+      // cards
+      const cps = st.dur > 0 ? (st.chars / st.dur / 2.5) : 0;
+      const cards = [
+        { n: st.sessions, l: lang.value === 'zh' ? '会话总数' : 'Sessions', sub: 'sessions', accent: true },
+        { n: st.msgs, l: lang.value === 'zh' ? '消息总数' : 'Messages',
+          sub: st.user + ' U · ' + st.assistant + ' A · ' + st.error + ' E' },
+        { n: st.pinned, l: lang.value === 'zh' ? '收藏消息' : 'Pinned', sub: 'pinned' },
+        { n: st.asks, l: lang.value === 'zh' ? '问答记录' : 'Asks', sub: 'asks' },
+        { n: Object.keys(st.tools).length,
+          l: lang.value === 'zh' ? '使用过的工具' : 'Tools used',
+          sub: Object.values(st.tools).reduce((a, b) => a + b, 0)
+            + (lang.value === 'zh' ? ' 次调用' : ' calls') },
+        { n: st.chars.toLocaleString(),
+          l: lang.value === 'zh' ? '累计生成字符' : 'Chars generated',
+          sub: 'assistant' },
+      ];
+      if (_stEl('stmCards')) {
+        _stEl('stmCards').innerHTML = cards.map(c =>
+          `<div class="card${c.accent ? ' accent' : ''}">
+             <div class="num">${c.n}</div>
+             <div class="label">${c.l}</div>
+             <div class="sub">${c.sub}</div>
+           </div>`).join('');
+      }
+      // session bars
+      if (_stEl('stmSessionBars')) {
+        const el = _stEl('stmSessionBars');
+        if (!st.perSession.length) {
+          el.innerHTML = '<div class="empty">' +
+            (lang.value === 'zh' ? '暂无会话数据' : 'No sessions') + '</div>';
+        } else {
+          const max = Math.max(...st.perSession.map(x => x.total), 1);
+          el.innerHTML = '<div class="bars">' + st.perSession.map(s => {
+            const w = Math.max(2, Math.round(s.total / max * 100));
+            return `<div class="bar-row">
+              <div class="name" title="${String(s.title).replace(/"/g, '&quot;')}">${s.title || '(未命名)'}</div>
+              <div class="track"><div class="fill" style="width:${w}%"></div></div>
+              <div class="val">${s.total}</div>
+            </div>`;
+          }).join('') + '</div>';
+        }
+      }
+      // donut
+      if (_stEl('stmDonut')) {
+        const el = _stEl('stmDonut');
+        const total = st.user + st.assistant + st.error;
+        if (!total) {
+          el.innerHTML = '<div class="empty">' +
+            (lang.value === 'zh' ? '暂无消息' : 'No messages') + '</div>';
+        } else {
+          const u = st.user / total * 100, a = st.assistant / total * 100;
+          const g = `conic-gradient(var(--brand) 0 ${u}%, var(--accent) ${u}% ${u + a}%, var(--bg-active) ${u + a}% 100%)`;
+          el.innerHTML =
+            `<div class="donut" style="background:${g}"><div class="center">${total}</div></div>
+             <div class="legend">
+               <div class="li"><span class="sw" style="background:var(--brand)"></span>${lang.value === 'zh' ? '用户' : 'User'}<span class="lv">${st.user}</span></div>
+               <div class="li"><span class="sw" style="background:var(--accent)"></span>${lang.value === 'zh' ? '助手' : 'Assistant'}<span class="lv">${st.assistant}</span></div>
+               <div class="li"><span class="sw" style="background:var(--bg-active)"></span>${lang.value === 'zh' ? '错误' : 'Error'}<span class="lv">${st.error}</span></div>
+             </div>`;
+        }
+      }
+      // tool top
+      if (_stEl('stmToolTop')) {
+        const el = _stEl('stmToolTop');
+        const arr = Object.entries(st.tools).sort((a, b) => b[1] - a[1]).slice(0, 6);
+        if (!arr.length) {
+          el.innerHTML = '<div class="empty">' +
+            (lang.value === 'zh' ? '暂无工具调用' : 'No tool calls') + '</div>';
+        } else {
+          const max = arr[0][1];
+          el.innerHTML = '<div class="bars">' + arr.map(([n, c]) =>
+            `<div class="bar-row">
+               <div class="name">${n}</div>
+               <div class="track"><div class="fill" style="width:${Math.max(2, Math.round(c / max * 100))}%"></div></div>
+               <div class="val">${c}</div>
+             </div>`).join('') + '</div>';
+        }
+      }
+      // tool table
+      try {
+        const r2 = await fetch('/api/tools', { credentials: 'same-origin' });
+        if (r2.ok && _stEl('stmToolTable')) {
+          const j = await r2.json();
+          const tools = j.tools || [];
+          _stEl('stmToolTable').innerHTML = tools.length
+            ? `<table>
+                 <tr><th>${lang.value === 'zh' ? '名称' : 'Name'}</th>
+                     <th>${lang.value === 'zh' ? '状态' : 'Status'}</th>
+                     <th>${lang.value === 'zh' ? '描述' : 'Description'}</th></tr>
+                 ${tools.map(t => `<tr>
+                   <td>${t.name || '?'}</td>
+                   <td><span class="pill ${t.enabled ? 'on' : 'off'}">${t.enabled ? (lang.value === 'zh' ? '启用' : 'On') : (lang.value === 'zh' ? '停用' : 'Off')}</span></td>
+                   <td>${(t.description || '').slice(0, 80)}</td>
+                 </tr>`).join('')}
+               </table>`
+            : '<div class="empty">' + (lang.value === 'zh' ? '暂无工具' : 'No tools') + '</div>';
+        }
+      } catch {}
+    }
+
+    /* ── 内嵌 cron 管理 ── */
+    const cronJobs = ref([]);
+    const cronForm = reactive({ name: '', schedule: '', prompt: '' });
+    const cronBusy = ref(false);
+    const cronMsg = ref('');
+    async function loadCron() {
+      try {
+        const r = await fetch('/api/cron', { credentials: 'same-origin' });
+        const d = await r.json();
+        cronJobs.value = d.jobs || [];
+      } catch { cronJobs.value = []; }
+    }
+    async function addCron() {
+      if (!cronForm.name.trim() || !cronForm.schedule.trim()
+          || !cronForm.prompt.trim()) {
+        cronMsg.value = lang.value === 'zh' ? '请填写名称、计划与提示词' : 'Name, schedule and prompt required';
+        return;
+      }
+      cronBusy.value = true;
+      try {
+        const r = await fetch('/api/cron', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: cronForm.name.trim(),
+            schedule: cronForm.schedule.trim(),
+            prompt: cronForm.prompt.trim(),
+          }),
+          credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (d.ok) {
+          cronMsg.value = lang.value === 'zh' ? '✓ 已创建 ' + d.id : '✓ Created ' + d.id;
+          cronForm.name = ''; cronForm.schedule = ''; cronForm.prompt = '';
+          loadCron();
+        } else {
+          cronMsg.value = '✗ ' + (d.error || d.message || 'failed');
+        }
+      } catch (e) { cronMsg.value = '✗ ' + e; }
+      cronBusy.value = false;
+    }
+    async function toggleCron(j) {
+      try {
+        await fetch('/api/cron/' + encodeURIComponent(j.id) + '/enable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: !j.enabled }),
+          credentials: 'same-origin',
+        });
+        j.enabled = !j.enabled;
+      } catch (e) { toast('✗ ' + e); }
+    }
+    async function deleteCron(j) {
+      if (!confirm(lang.value === 'zh' ? '删除任务 ' + j.name + '？'
+        : 'Delete job ' + j.name + '?')) return;
+      try {
+        await fetch('/api/cron/' + encodeURIComponent(j.id),
+          { method: 'DELETE', credentials: 'same-origin' });
+        loadCron();
+      } catch (e) { toast('✗ ' + e); }
+    }
+    async function runCron(j) {
+      cronMsg.value = lang.value === 'zh' ? '运行中…' : 'Running…';
+      try {
+        const r = await fetch('/api/cron/' + encodeURIComponent(j.id) + '/run', {
+          method: 'POST', credentials: 'same-origin',
+        });
+        const d = await r.json();
+        cronMsg.value = d.message || (d.ok ? '✓' : '✗ ' + (d.error || ''));
+      } catch (e) { cronMsg.value = '✗ ' + e; }
+      loadCron();
+    }
+
+    /* ── 内嵌 dream ── */
+    const dreamForm = reactive({ days: 3, focus: '' });
+    const dreamBusy = ref(false);
+    const dreamResult = ref('');
+    const dreamList = ref([]);
+    const dreamStatsText = ref('');
+    async function runDream() {
+      dreamBusy.value = true;
+      dreamResult.value = lang.value === 'zh' ? '🌙 做梦…' : 'Dreaming…';
+      try {
+        const r = await fetch('/api/dream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            days: Math.max(1, Math.min(30, parseInt(dreamForm.days) || 3)),
+            focus: dreamForm.focus.trim(),
+          }),
+          credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (d.ok) {
+          dreamResult.value = (d.answer || '')
+            + '\n\n[✓ ' + (d.duration || 0) + 's'
+            + (d.memory_candidates
+              ? ' · ' + (lang.value === 'zh' ? d.memory_candidates + ' 条记忆候选' : d.memory_candidates + ' memory candidates')
+              : '') + ']';
+          loadDreams();
+        } else {
+          dreamResult.value = '✗ ' + (d.error || 'failed');
+        }
+      } catch (e) { dreamResult.value = '✗ ' + e; }
+      dreamBusy.value = false;
+    }
+    async function loadDreams() {
+      try {
+        const r = await fetch('/api/dream/list', { credentials: 'same-origin' });
+        const d = await r.json();
+        dreamList.value = d.dreams || [];
+      } catch { dreamList.value = []; }
+    }
+    async function loadDreamStatsText() {
+      try {
+        const r = await fetch('/api/dream/stats', { credentials: 'same-origin' });
+        if (r.ok) dreamStatsText.value = await r.text();
+      } catch { dreamStatsText.value = ''; }
+    }
 
     const messagesEl = ref(null);
     const inputEl = ref(null);
@@ -1067,6 +1531,110 @@ createApp({
       catch { return escapeHtml(text); }
     }
 
+    /* 工具输出渲染：识别 read_file（带行号）与其他文本，做代码高亮 */
+    const TOOL_HL_LANGS = ['python','javascript','typescript','json','html',
+      'css','bash','shell','sql','java','go','rust','c','cpp','csharp',
+      'ruby','php','markdown','yaml','xml','ini','diff','plaintext'];
+    function _escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    /* diff 渲染：红绿黄 + 底部高亮统计条（与 CLI file-diff 视觉一致） */
+    function _renderDiffHtml(text) {
+      let adds = 0, dels = 0, out = [];
+      const lines = String(text).split('\n');
+      for (const raw of lines) {
+        if (/^@@/.test(raw)) {
+          out.push('<div class="td-line td-hunk">' + _escapeHtml(raw) + '</div>');
+        } else if (/^(diff\s|index\s|new file|deleted file|similarity|rename|---\s|\+\+\+\s|===|^\s*[-+]{3}\s)/.test(raw)) {
+          out.push('<div class="td-line td-meta">' + _escapeHtml(raw) + '</div>');
+        } else if (raw.startsWith('+') && !raw.startsWith('+++')) {
+          adds += 1;
+          out.push('<div class="td-line td-add">' + _escapeHtml(raw) + '</div>');
+        } else if (raw.startsWith('-') && !raw.startsWith('---')) {
+          dels += 1;
+          out.push('<div class="td-line td-del">' + _escapeHtml(raw) + '</div>');
+        } else {
+          out.push('<div class="td-line td-ctx">' + _escapeHtml(raw) + '</div>');
+        }
+      }
+      const stat = '<div class="td-footer"><span class="td-add-n">+' + adds
+        + '</span><span class="td-del-n">-' + dels
+        + '</span><span class="td-changes">'
+        + (adds + dels) + ' ' + (lang.value === 'zh' ? '处变更' : 'changes')
+        + '</span></div>';
+      return '<div class="tool-out-diff">' + out.join('\n') + '</div>' + stat;
+    }
+    /* markdown 围栏检测：围栏内代码块走 hljs 高亮，围栏外原文保留 */
+    function _renderMarkdownFenced(text) {
+      if (!/```/.test(text)) return null;
+      const parts = [];
+      const re = /```([\w+-]*)\s*\n?([\s\S]*?)(?:```|$)/g;
+      let last = 0, m, fenceCount = 0;
+      while ((m = re.exec(text))) {
+        if (m.index > last) parts.push(_escapeHtml(text.slice(last, m.index)));
+        const lang = (m[1] || '').trim().toLowerCase();
+        const body = m[2].replace(/\n$/, '');
+        let codeHtml;
+        try {
+          if (lang && lang !== 'text' && hljs.getLanguage(lang)) {
+            codeHtml = hljs.highlight(body, { language: lang }).value;
+          } else if (lang === 'diff') {
+            codeHtml = hljs.highlight(body, { language: 'diff' }).value;
+          } else {
+            codeHtml = hljs.highlightAuto(body, TOOL_HL_LANGS).value;
+          }
+        } catch { codeHtml = _escapeHtml(body); }
+        parts.push('<pre class="tool-out-code"><code class="hljs'
+          + (lang ? ' language-' + _escapeHtml(lang) : '')
+          + '">' + codeHtml + '</code></pre>');
+        last = m.index + m[0].length;
+        fenceCount += 1;
+      }
+      if (last < text.length) parts.push(_escapeHtml(text.slice(last)));
+      if (fenceCount === 0) return null;
+      return parts.join('\n');
+    }
+    function renderToolOutput(tc) {
+      const text = (tc && tc.output) ? String(tc.output) : '';
+      if (!text) return '';
+      if (!window.hljs) return escapeHtml(text);
+      try {
+        // read_file 结果：头部 + 带行号的代码行
+        const headM = text.match(/^(文件|File):\s*(.+?)(?:\s+\(.*\))?\s*(?:共|total)[^\n]*\n?/);
+        const isReadFile = headM !== null;
+        const isDiff = /^(diff\s|---\s|\+\+\+\s|@@\s)/m.test(text);
+        if (isDiff) {
+          return _renderDiffHtml(text);
+        }
+        if (isReadFile) {
+          const header = headM[0].replace(/\n$/, '');
+          const rest = text.slice(headM[0].length);
+          const rows = [];
+          for (const raw of rest.split('\n')) {
+            const m = raw.match(/^(\s*\d{1,8}\|)\s?(.*)$/);
+            if (m) {
+              const code = hljs.highlightAuto(m[2], TOOL_HL_LANGS).value;
+              rows.push('<span class="tool-out-ln">' + escapeHtml(m[1]) + '</span> '
+                        + code);
+            } else {
+              rows.push(escapeHtml(raw));
+            }
+          }
+          return '<div class="tool-out-head">' + escapeHtml(header) + '</div>'
+            + '<div class="tool-out-lines">' + rows.join('\n') + '</div>';
+        }
+        // 含 markdown 围栏：围栏代码块高亮 + 原文保留
+        const fenced = _renderMarkdownFenced(text);
+        if (fenced !== null) return '<div class="tool-out-auto">' + fenced + '</div>';
+        // 通用文本：优先自动识别
+        const res = hljs.highlightAuto(text, TOOL_HL_LANGS);
+        return '<span class="tool-out-auto">' + res.value + '</span>';
+      } catch {
+        return escapeHtml(text);
+      }
+    }
+
     function fmtTime(ts) {
       if (!ts) return '';
       const diff = (Date.now() - ts) / 1000;
@@ -1101,6 +1669,42 @@ createApp({
       localStorage.setItem(LS_THEME, theme.value);
       _syncAllClasses();
       _broadcast('theme-updated', { theme: theme.value });
+    }
+    function setTheme(v) {
+      if (v !== 'dark' && v !== 'light') return;
+      theme.value = v;
+      localStorage.setItem(LS_THEME, v);
+      _syncAllClasses();
+      _broadcast('theme-updated', { theme: v });
+    }
+    function hueToHex(h) {
+      const hue = ((parseInt(h, 10) % 360) + 360) % 360;
+      const c = 0.65, x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+      let r = 0, g = 0, b = 0;
+      if (hue < 60) { r = c; g = x; } else if (hue < 120) { r = x; g = c; }
+      else if (hue < 180) { g = c; b = x; } else if (hue < 240) { g = x; b = c; }
+      else if (hue < 300) { r = x; b = c; } else { r = c; b = x; }
+      const to = n => Math.round(n * 255).toString(16).padStart(2, '0');
+      return '#' + to(r) + to(g) + to(b);
+    }
+    function setHueFromInput(idx, hex) {
+      const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+      if (!m) return;
+      const n = parseInt(m[1], 16);
+      const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h = 0;
+      if (max !== min) {
+        const d = max - min;
+        if (max === r) h = ((g - b) / d) % 6;
+        else if (max === g) h = (b - r) / d + 2;
+        else h = (r - g) / d + 4;
+        h *= 60;
+        if (h < 0) h += 360;
+      }
+      if (idx === 1) particleHue1.value = Math.round(h);
+      else particleHue2.value = Math.round(h);
+      onHueInput();
     }
     function setAcrylicStrength(v) {
       acrylicStrength.value = v;
@@ -1531,6 +2135,20 @@ createApp({
         run: () => { window.open('/settings', '_blank'); } },
       { cmd: 'sidebar', desc: '切换侧栏', run: () => toggleSidebar() },
       { cmd: 'help', desc: '快捷键', run: () => { showHelp.value = true; } },
+      { cmd: 'stats', desc: '打开统计页',
+        run: () => { window.open('/stats', '_blank'); } },
+      { cmd: 'model', desc: '打开设置（模型）',
+        run: () => { window.open('/settings', '_blank'); } },
+      { cmd: 'think', desc: '打开设置（思考模式）',
+        run: () => { window.open('/settings', '_blank'); } },
+      { cmd: 'sessions', desc: '聚焦会话侧栏',
+        run: () => { sidebarOpen.value = true; sidebarTab.value = 'sessions'; } },
+      { cmd: 'tools', desc: '聚焦工具侧栏',
+        run: () => { sidebarOpen.value = true; sidebarTab.value = 'tools'; } },
+      { cmd: 'sandbox', desc: '切换沙箱终端', run: () => toggleSandbox() },
+      { cmd: 'diagnose', desc: '运行诊断检查', run: () => openDiagnose() },
+      { cmd: 'asks', desc: '聚焦问答侧栏',
+        run: () => { sidebarOpen.value = true; sidebarTab.value = 'asks'; } },
     ];
     function getAllCommands() {
       const custom = customCommands.value.map(c => ({
@@ -2089,6 +2707,19 @@ createApp({
       }
     }
 
+    /* 点击上传按钮：弹出系统文件选择框（多选） */
+    function pickFiles() {
+      if (streaming.value) return;
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.multiple = true;
+      inp.onchange = () => {
+        if (inp.files && inp.files.length) uploadFiles([...inp.files]);
+        inp.value = '';
+      };
+      inp.click();
+    }
+
     /* ── 自定义命令 ───────────────────── */
     function saveCustomCommands() {
       customCmdError.value = '';
@@ -2206,6 +2837,55 @@ createApp({
       appliedSearch.value = '';
       searchError.value = '';
     }
+
+    /* ── 诊断 ─────────────────────────── */
+    async function openDiagnose() {
+      showDiagnose.value = true;
+      diagnoseLoading.value = true;
+      try {
+        const r = await fetch('/api/diagnose');
+        if (r.ok) {
+          const data = await r.json();
+          diagnoseData.value = data || {};
+          if (typeof data.sandbox_terminal === 'boolean') {
+            sandboxTerminal.value = data.sandbox_terminal;
+          }
+        } else {
+          diagnoseData.value = { version: '', model: '', items: [{
+            name: 'Gateway', ok: false, detail: 'HTTP ' + r.status,
+          }] };
+        }
+      } catch (e) {
+        diagnoseData.value = { version: '', model: '', items: [{
+          name: 'Gateway', ok: false, detail: String(e),
+        }] };
+      } finally {
+        diagnoseLoading.value = false;
+      }
+    }
+
+    /* ── 沙箱终端开关 ─────────────────── */
+    async function toggleSandbox() {
+      const target = !sandboxTerminal.value;
+      try {
+        const r = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sandbox_terminal: target }),
+        });
+        const data = await r.json();
+        if (r.ok && data.ok) {
+          sandboxTerminal.value = target;
+          toast(t(target ? 'toast.sandboxOn' : 'toast.sandboxOff'));
+        } else {
+          toast(t('toast.syncFailed') + ': ' +
+                ((data && data.error) || ''));
+        }
+      } catch (e) {
+        toast(t('toast.syncFailed') + ': ' + String(e).slice(0, 60));
+      }
+    }
+
     function _searchRegExp() {
       const q = appliedSearch.value;
       if (!q) return null;
@@ -2609,6 +3289,9 @@ createApp({
         if (!localStorage.getItem(LS_HUE2) &&
             typeof ui.particle_hue2 === 'number') {
           particleHue2.value = ui.particle_hue2;
+        }
+        if (typeof ui.sandbox_terminal === 'boolean') {
+          sandboxTerminal.value = ui.sandbox_terminal;
         }
         _syncAllClasses();
       } catch {}
@@ -3072,12 +3755,30 @@ createApp({
           streamCharCount += (evt.delta || '').length;
           setParticleProgress(Math.min(0.9, msg.content.length / 2000));
           break;
-        case 'tool_call':
+        case 'tool_start':
           msg.toolCalls.push({
-            name: evt.name || '?', target: evt.target || '',
-            summary: evt.summary || '', status: evt.status || 'ok',
+            _cid: evt.call_id || '',
+            name: evt.name || '?',
+            target: evt.target || '',
+            summary: '', status: 'running',
+            output: '', duration: null,
           });
           break;
+        case 'tool_call': {
+          const prev = msg.toolCalls.find(x =>
+            x._cid && evt.call_id && x._cid === evt.call_id);
+          const rec = {
+            name: evt.name || '?',
+            target: evt.target || '',
+            summary: evt.summary || '',
+            status: evt.status || 'ok',
+            output: evt.result || '',
+            duration: evt.duration != null ? evt.duration : null,
+          };
+          if (prev) Object.assign(prev, rec);
+          else msg.toolCalls.push(rec);
+          break;
+        }
         case 'done':
           msg.streaming = false;
           /* 兜底：若流式期间未收到 content（工具调用后模型未输出文本），
@@ -3320,13 +4021,17 @@ createApp({
       }
       if (meta && e.key === ',') {
         e.preventDefault();
-        window.open('/settings', '_blank');
+        openSettingsModal();
         return;
       }
       if (e.key === 'Escape') {
         if (ctxMenu.show) { closeCtxMenu(); return; }
         if (showSearch.value) { closeSearch(); return; }
         if (showHelp.value) { showHelp.value = false; return; }
+        if (showSettingsModal.value) { showSettingsModal.value = false; return; }
+        if (showStatsModal.value) { showStatsModal.value = false; return; }
+        if (showCronModal.value) { showCronModal.value = false; return; }
+        if (showDreamModal.value) { showDreamModal.value = false; return; }
         return;
       }
       if (e.key === '?' && !inInput && !meta) {
@@ -3418,7 +4123,7 @@ createApp({
       askUser, searchQuery, matchedMessageCount, streamSpeed, ctxMenu,
       outlineFilter, dragging, uploadQueue, paramDialog,
       customCommands, customCmdError, filePreview,
-      particleProgress, canNotify, notifyEnabled,
+      particleProgress, canNotify, notifyEnabled, sandboxTerminal,
       // computed
       model, currentSession, suggestions, lastUserIndex,
       lastUserIndexInAll, searchActive,
@@ -3431,7 +4136,8 @@ createApp({
       treeLayout,
       previewHighlighted, previewLineNumbers,
       // methods
-      t, setLang, toggleLang, toggleTheme,
+      t, setLang, toggleLang, toggleTheme, setTheme,
+      hueToHex, setHueFromInput,
       setAcrylicStrength, onHueInput, setHuePreset,
       renderMarkdown, fmtTime, fmtUptime, isMatch,
       send, stopStream, newSession, switchSession, deleteSession,
@@ -3440,6 +4146,13 @@ createApp({
       toggleTool, saveSettings, toggleSidebar,
       copyText, scrollToBottom, onKeydown, onComposerKeydown,
       autoResize, onMessagesScroll, onChatClick, onChatRightClick,
+      renderToolOutput,
+      // 自定义工具管理
+      showCustomTools, ctTab, customTools, ctBusy, ctResult, ctGenDesc,
+      ctForm,
+      openCustomTools, loadCustomTools,
+      toggleCustomTool, uninstallCustomTool,
+      installCustomTool, generateCustomTool,
       closeCtxMenu, ctxCopy, ctxCopyAll, ctxExport, ctxQuote,
       ctxRegenerate,
       openSearch, closeSearch, applySearch, clearSearch,
@@ -3457,12 +4170,52 @@ createApp({
       onDragLeave, onDrop, onPaste, uploadFiles,
       cancelUpload, cancelAllUploads, retryUpload, retryAllFailed,
       clearFinishedUploads,
+      pickFiles,
       addCustomCommand, removeCustomCommand, saveCustomCommands,
       parseTemplateParams, openParamDialog, applyParamDialog,
       previewTemplate,
       toggleNotifications,
       syncConfigToServer, loadConfigFromServer,
       selectPopoverItem, _scrollPopoverSelectedIntoView,
+      // 思考等级滑块
+      thinkLevels, thinkLevelIndex, thinkLabel, setThinkLevelByIndex,
+      // 内嵌面板
+      showSettingsModal, showStatsModal, showCronModal, showDreamModal,
+      netInfo,
+      openSettingsModal, openStatsModal, openCronModal, openDreamModal,
+      loadNetworkInfo,
+      // 诊断
+      showDiagnose, diagnoseLoading, diagnoseData, diagnoseItems,
+      diagnoseHealthy, openDiagnose,
+      sandboxTerminal, toggleSandbox,
+      closeCtxMenu, ctxCopy, ctxCopyAll, ctxExport, ctxQuote,
+      ctxRegenerate,
+      openSearch, closeSearch, applySearch, clearSearch,
+      ctxPin,
+      selectAskOption, onAskInput, submitAskAnswer, cancelAsk,
+      loadPendingAsks,
+      toggleAskThread, isAskThreadExpanded,
+      exportAsks, exportSession, exportAllSessions,
+      importSessionsFromFile,
+      switchSibling, getSiblingInfo,
+      jumpToMessage,
+      togglePin, jumpToPinned, clearPins,
+      toggleOutlineGroup, isOutlineExpanded,
+      treeNodeClick,
+      onDragLeave, onDrop, onPaste, uploadFiles,
+      cancelUpload, cancelAllUploads, retryUpload, retryAllFailed,
+      clearFinishedUploads,
+      pickFiles,
+      addCustomCommand, removeCustomCommand, saveCustomCommands,
+      parseTemplateParams, openParamDialog, applyParamDialog,
+      previewTemplate,
+      toggleNotifications,
+      syncConfigToServer, loadConfigFromServer,
+      selectPopoverItem, _scrollPopoverSelectedIntoView,
+      cronJobs, cronForm, cronBusy, cronMsg,
+      loadCron, addCron, toggleCron, deleteCron, runCron,
+      dreamForm, dreamBusy, dreamResult, dreamList, dreamStatsText,
+      runDream, loadDreams, loadDreamStatsText,
     };
   },
 }).mount('#app');

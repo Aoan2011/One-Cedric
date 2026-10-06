@@ -106,6 +106,9 @@ def run_settings_screen(console, copilot) -> None:
             ("allow_arbitrary_shell",
              "开" if copilot.allow_arbitrary_shell else "关",
              "允许任意 shell 命令"),
+            ("sandbox_terminal",
+             "开" if copilot.sandbox_terminal else "关",
+             "shell 工具沙箱终端"),
             ("computer_use",
              "开" if copilot._computer_policy.enabled else "关",
              "Computer Use"),
@@ -256,11 +259,13 @@ def run_settings_screen(console, copilot) -> None:
         elif idx == 10:
             copilot.allow_arbitrary_shell = not copilot.allow_arbitrary_shell
         elif idx == 11:
+            copilot.sandbox_terminal = not copilot.sandbox_terminal
+        elif idx == 12:
             copilot._computer_policy.enabled = not \
                 copilot._computer_policy.enabled
-        elif idx == 12:
-            copilot.enable_vision = not copilot.enable_vision
         elif idx == 13:
+            copilot.enable_vision = not copilot.enable_vision
+        elif idx == 14:
             console.print("  [dim]用 /tools 命令管理工具开关[/]")
             wait_for_return(console, "  [dim]按任意键继续…[/] ")
         else:

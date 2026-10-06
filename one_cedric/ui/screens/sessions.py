@@ -10,6 +10,7 @@ from rich.text import Text
 from ...config import BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C, TOOL_C
 from ...storage import list_session_files, delete_session_file
 from ..menu import selection_progress
+from ..keys import wait_for_return
 
 
 def _session_summary(s: dict) -> dict:
@@ -39,7 +40,7 @@ def _session_summary(s: dict) -> dict:
 def run_sessions_screen(console, copilot) -> None:
     from ..keys import (
         read_key, KEY_UP, KEY_DOWN, KEY_ENTER, KEY_ESC,
-        KEY_LEFT, KEY_RIGHT, has_readchar, wait_for_return,
+        KEY_LEFT, KEY_RIGHT, has_readchar,
     )
 
     root = copilot.root

@@ -17,6 +17,60 @@ from pathlib import Path
 AT_PATTERN = re.compile(r"@([^\s@]+)")
 
 
+def build_attachment(root: Path, path_str: str) -> tuple:
+    """把单个路径解析为上传/引用附件块。
+
+    返回 (block, warning)：block 为可插入上下文的 Markdown 附件块
+    （文件内容或目录列表）；warning 为失败原因（此时 block 为 None）。
+    """
+    from .tools.sandbox import _resolve_path
+
+    raw = path_str.strip().rstrip(",.，。；;:：!！?？)）]】")
+    if not raw:
+        return None, "空路径"
+
+    line_range = None
+    if "#" in raw:
+        path_part, _, range_part = raw.partition("#")
+        m2 = re.match(r"L?(\d+)(?:-L?(\d+))?", range_part, re.IGNORECASE)
+        if m2:
+            start = int(m2.group(1))
+            end = int(m2.group(2)) if m2.group(2) else start
+            line_range = (start, end)
+            raw = path_part
+
+    is_dir_recursive = raw.endswith("/**")
+    is_dir = raw.endswith("/") or is_dir_recursive
+    if is_dir_recursive:
+        raw = raw[:-3]
+
+    p, err = _resolve_path(root, raw)
+    if err:
+        return None, f"{raw}: {err}"
+    if not p.exists():
+        return None, f"{raw}: 路径不存在"
+
+    try:
+        if p.is_file():
+            content = _read_file_for_ref(p, line_range)
+            label = str(p.relative_to(root)) if p.is_relative_to(root) \
+                else str(p)
+            if line_range:
+                label += f"#L{line_range[0]}-{line_range[1]}"
+            return f"### {label}\n```\n{content}\n```", None
+        if p.is_dir():
+            content = _list_dir_for_ref(root, p,
+                                        recursive=is_dir_recursive)
+            try:
+                rel = str(p.relative_to(root))
+            except ValueError:
+                rel = str(p)
+            return f"### {rel}/\n```\n{content}\n```", None
+    except OSError as exc:
+        return None, f"{raw}: 读取失败 {exc}"
+    return None, f"{raw}: 不支持的路径类型"
+
+
 def expand_at_refs(root: Path, text: str) -> tuple:
     """展开 @ 引用。
 

@@ -13,6 +13,7 @@ def run_main_menu(console, copilot) -> str:
         MenuItem("mcp", t("menu.mcp"), t("menu.mcp.desc")),
         MenuItem("hooks", t("menu.hooks"), t("menu.hooks.desc")),
         MenuItem("tools", t("menu.tools"), t("menu.tools.desc")),
+        MenuItem("diagnose", t("menu.diagnose"), t("menu.diagnose.desc")),
         MenuItem("about", t("menu.about"), t("menu.about.desc")),
         MenuItem("quit", t("menu.exit"), t("menu.exit.desc")),
     ]

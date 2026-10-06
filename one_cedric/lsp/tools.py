@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..sandbox import _as_int, _resolve_path
+from ..tools.sandbox import _as_int, _resolve_path
 from .manager import get_manager
 
 

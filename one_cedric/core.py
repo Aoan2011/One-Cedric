@@ -28,6 +28,7 @@ from rich.text import Text
 from .cache import ToolCache
 from .config import (
     BRAND, ACCENT, USER_C, TOOL_C, WARN_C, PLAN_C, OK_C, ERR_C, DIM_C, THEME,
+    CURSOR_MARK, CURSOR_STYLE,
     SYSTEM_PROMPT, PLAN_SYSTEM_PROMPT, COMPACT_PROMPT, TITLE_PROMPT,
     MAX_WRITE_BYTES, SHELL_OUTPUT_LIMIT, DEFAULT_SHELL_TIMEOUT,
     REASONING_MODEL_KEYWORDS, DEEPSEEK_BUGGY_MODEL_KEYWORDS,
@@ -41,7 +42,8 @@ from .git_snap import _git_available, git_make_snapshot, git_rollback
 from .storage import (
     save_session_file, load_session_file, list_session_files,
     delete_session_file, find_session_by_id_or_title,
-    default_config_path, project_config_path, _fresh_config,
+    default_config_path, project_config_path as _project_config_path,
+    _fresh_config,
     _read_config_file, save_config_file,
     save_profile, load_profile, profile_path, list_profiles,
     delete_profile, PROFILE_NAME_RE, profile_preset_tag,
@@ -59,6 +61,31 @@ from . import ui
 # ═══════════════════════════════════════════════════════════════════════ #
 # 外部编辑器
 # ═══════════════════════════════════════════════════════════════════════ #
+
+def _sandbox_env() -> dict:
+    """构造沙箱终端环境：剔除敏感变量，仅保留运行所需的基础变量。"""
+    from .config import ENV_SENSITIVE_KEYWORDS
+    base = {}
+    for k, v in os.environ.items():
+        lk = k.lower()
+        if any(s in lk for s in ENV_SENSITIVE_KEYWORDS):
+            continue
+        base[k] = v
+    base.setdefault("PATH", os.environ.get("PATH", ""))
+    base.setdefault("SYSTEMROOT", os.environ.get("SYSTEMROOT", r"C:\Windows"))
+    base.setdefault("TEMP", os.environ.get("TEMP", ""))
+    base.setdefault("TMP", os.environ.get("TMP", ""))
+    base["ONECEDRIC_SANDBOX"] = "1"
+    return base
+
+
+def _md_with_cursor(text: str):
+    """Markdown 正文 + 末尾橙色 ✦ 生成光标。"""
+    return Group(
+        Markdown(text, code_theme="monokai"),
+        Text("  " + CURSOR_MARK, style=CURSOR_STYLE),
+    )
+
 
 def _default_editor() -> str:
     for key in ("EDITOR", "VISUAL"):
@@ -362,7 +389,8 @@ class OneCedric:
                  enable_computer_use: bool = False,
                  enable_vision: bool = False,
                  think_level: str = DEFAULT_THINK_LEVEL,
-                 access_mode: str = DEFAULT_ACCESS_MODE):
+                 access_mode: str = DEFAULT_ACCESS_MODE,
+                 sandbox_terminal: bool | None = None):
         self.console = Console(theme=THEME, highlight=False)
         self.model = model
         self.host = host
@@ -394,7 +422,7 @@ class OneCedric:
         self.config = config or _fresh_config()
         self.config_path = config_path or default_config_path()
         self.project_config_path = (project_config_path
-                                     or project_config_path(root))
+                                     or _project_config_path(root))
         self.tool_cache = ToolCache()
 
         d_cfg = self.config.get("default", {})
@@ -427,6 +455,11 @@ class OneCedric:
 
         self.allow_arbitrary_shell = bool(
             d_cfg.get("allow_arbitrary_shell", False)
+        )
+        self.sandbox_terminal = (
+            bool(sandbox_terminal)
+            if sandbox_terminal is not None
+            else bool(d_cfg.get("sandbox_terminal", True))
         )
         self.session_allowed_cmds: set = set()
         self.disabled_tools: set = load_tools_config().get("disabled", set())
@@ -1446,6 +1479,27 @@ class OneCedric:
                         f"{command[:40]}（{reason}）", command=command)
             return
 
+        # ── 沙箱终端：未知命令一律阻止（即使 fullaccess / shell-any） ──
+        if self.sandbox_terminal and level == "unknown":
+            _base = (command.strip().split(maxsplit=1)[0]
+                     if command.strip() else "").lower()
+            msg = (
+                f"ERROR: 沙箱终端已开启，命令 '{_base}' 不在白名单/已知命令"
+                f"列表中，已阻止执行。\n"
+                f"如需放行：\n"
+                f"  1. 在设置中关闭 'sandbox_terminal'\n"
+                f"  2. 或临时用 /sandbox off 关闭本会话沙箱\n"
+                f"如果只是想读文件/搜索/列目录，"
+                f"请用 read_file / search_in_files / list_files。"
+            )
+            self._log_tool("bash", target, msg)
+            self.messages.append({"role": "tool",
+                                   "tool_call_id": tc["id"],
+                                   "content": msg})
+            self._audit("bash", "blocked",
+                        f"{_base}（沙箱终端拦截）", command=command)
+            return
+
         argv, err = _parse_shell_command(command)
         if err:
             self._log_tool("bash", target, err)
@@ -1540,6 +1594,7 @@ class OneCedric:
             self.console.print("  [dim]· auto-yes[/]")
 
         t_start = time.time()
+        sb_env = _sandbox_env() if self.sandbox_terminal else None
         with ui.ToolStatus(self.console, "bash", target):
             try:
                 proc = subprocess.run(
@@ -1547,6 +1602,7 @@ class OneCedric:
                     capture_output=True, text=True,
                     encoding="utf-8", errors="replace",
                     timeout=timeout, shell=False,
+                    env=sb_env,
                 )
             except subprocess.TimeoutExpired:
                 duration = time.time() - t_start
@@ -4505,6 +4561,252 @@ class OneCedric:
                           is_new=is_new,
                           tool=rec.get("tool") or None)
 
+    # ================================================================== #
+    # /tools 子命令：list / install / uninstall / gen
+    # ================================================================== #
+
+    def _cmd_tools_sub(self, arg: str) -> None:
+        if not arg:
+            try:
+                from .ui.screens.tools import run_tools_screen
+                run_tools_screen(self.console, self)
+            except Exception as exc:
+                self.console.print(
+                    f"[err]✗ 工具界面失败: {escape(str(exc))}[/]")
+            return
+        sub, _, rest = arg.partition(" ")
+        sub = sub.lower()
+
+        if sub == "list":
+            self._tools_list()
+            return
+        if sub == "install":
+            self._tools_install(rest)
+            return
+        if sub in ("uninstall", "remove", "rm"):
+            self._tools_uninstall(rest)
+            return
+        if sub in ("gen", "generate", "new"):
+            self._tools_gen(rest)
+            return
+        self.console.print(
+            "[dim]用法：/tools [list|install <名> <命令...>|"
+            "uninstall <名>|gen <描述>][/]")
+
+    def _tools_list(self) -> None:
+        from .tools.schema import TOOLS
+        from .integrations import (
+            external_tool_schemas, list_custom_tools,
+        )
+        try:
+            extras = external_tool_schemas()
+        except Exception as exc:
+            extras = []
+            self.console.print(f"[warn]⚠ 外部工具加载失败: {escape(str(exc))}[/]")
+        disabled = set(self.disabled_tools or set())
+        builtin = sum(1 for t in TOOLS if t["function"]["name"] not in disabled)
+        ext_enabled = 0
+        ext_names = []
+        for t in extras:
+            n = t["function"]["name"]
+            if n not in disabled:
+                ext_enabled += 1
+            ext_names.append(n)
+        custom = list_custom_tools()
+        tbl = Table(box=box.SIMPLE, header_style=f"bold {BRAND}")
+        tbl.add_column("工具", style="bold")
+        tbl.add_column("来源")
+        tbl.add_column("状态", justify="right")
+        tbl.add_column("说明", style="dim", overflow="ellipsis")
+        for t in TOOLS:
+            n = t["function"]["name"]
+            tbl.add_row(n, "内置",
+                        "[err]关[/]" if n in disabled else "[ok]开[/]",
+                        (t["function"].get("description") or "").split("\n")[0][:40])
+        for n in ext_names:
+            tbl.add_row(n, "MCP/自定义",
+                        "[err]关[/]" if n in disabled else "[ok]开[/]", "")
+        for c in custom:
+            n = c["public_name"]
+            tbl.add_row(n, "自定义",
+                        "[err]关[/]" if not c["enabled"] else "[ok]开[/]",
+                        c["description"][:40])
+        self.console.print(
+            f"[bold {BRAND}]◆ 工具清单[/]  "
+            f"[dim]内置 {len(TOOLS)} · 外部 {len(extras)} · "
+            f"自定义 {len(custom)} · 已启用 "
+            f"{builtin + ext_enabled}[/]")
+        self.console.print(tbl)
+        self.console.print(
+            "[dim]安装: /tools install <名> <命令...> · "
+            "卸载: /tools uninstall <名> · "
+            "AI 生成: /tools gen <描述>[/]")
+
+    def _tools_install(self, rest: str) -> None:
+        parts = rest.split()
+        if len(parts) < 2:
+            self.console.print(
+                "[dim]用法：/tools install <工具名> <可执行命令> "
+                "[参数...]（参数以 --name=value 或位置形式传入，"
+                "执行时工具参数 JSON 从 stdin 输入）[/]")
+            return
+        name = parts[0]
+        command = parts[1:]
+        from .integrations import install_custom_tool
+        ok, msg = install_custom_tool(
+            name, description="(命令行安装)", command=command, write=False)
+        if ok:
+            self.console.print(f"[ok]✓ {msg}[/]")
+            self.console.print(
+                "[dim]已注册为只读工具（不弹确认）。若需写操作确认，"
+                "可在工具界面切换。[/]")
+        else:
+            self.console.print(f"[err]✗ {msg}[/]")
+
+    def _tools_uninstall(self, rest: str) -> None:
+        name = rest.strip()
+        if not name:
+            self.console.print("[dim]用法：/tools uninstall <工具名>[/]")
+            return
+        from .integrations import uninstall_custom_tool
+        ok, msg = uninstall_custom_tool(name)
+        if ok:
+            self.console.print(f"[ok]✓ {msg}[/]")
+        else:
+            self.console.print(f"[err]✗ {msg}[/]")
+
+    def _handle_upload_command(self, line: str) -> None:
+        """/upload <路径...>：把文件/目录内容立即上传进上下文交给模型。
+
+        与 @ 引用的区别：/upload 立即作为一条消息触发模型分析；
+        @路径 是普通提问中内嵌的引用，随消息一起展开。
+        """
+        parts = line.split(maxsplit=1)
+        if len(parts) < 2 or not parts[1].strip():
+            self.console.print(
+                "[dim]用法：/upload <路径...>[/]  "
+                "[dim]支持 @ 语法（#L10-20 行范围、目录/、** 递归）[/]")
+            self.console.print(
+                "[dim]例：/upload src/main.py README.md[/]")
+            return
+        tokens = parts[1].split()
+        from .at_ref import build_attachment
+        blocks: list[str] = []
+        warnings: list[str] = []
+        ok_paths: list[str] = []
+        for t in tokens:
+            block, warn = build_attachment(self.root, t)
+            if block:
+                blocks.append(block)
+                ok_paths.append(t)
+            else:
+                warnings.append(warn or f"{t}: 无法读取")
+        for w in warnings:
+            self.console.print(f"  [warn]⚠ {escape(w)}[/]")
+        if not blocks:
+            self.console.print("[err]✗ 没有可上传的文件[/]")
+            return
+        self.console.print(
+            "  [dim]· 已上传:[/] " + "  ".join(
+                f"[accent]{escape(p)}[/]" for p in ok_paths))
+        header = "[用户通过 /upload 上传的文件]\n\n" + "\n\n".join(blocks)
+        try:
+            self.agent_turn(header)
+            self._maybe_auto_compact()
+        except KeyboardInterrupt:
+            self.console.print("\n[dim](已中断本轮对话)[/]")
+
+    def _tools_gen(self, desc: str) -> None:
+        if not desc.strip():
+            self.console.print("[dim]用法：/tools gen <工具描述>[/]")
+            self.console.print(
+                "[dim]例：/tools gen 一个返回北京天气的只读工具[/]")
+            return
+        ok, name, script, message = self._generate_custom_tool(desc.strip())
+        if ok:
+            self.console.print(f"[ok]✓ 已生成工具 custom__{name}[/]")
+            self.console.print(f"[dim]脚本: {script}[/]")
+            self.console.print(
+                "[warn]提示：工具以当前用户权限运行，"
+                "执行前会请求确认（可在工具界面切换为只读）。[/]")
+        else:
+            self.console.print(f"[err]✗ {message}[/]")
+
+    def _generate_custom_tool(self, description: str) -> tuple:
+        """让模型根据描述生成一个自定义工具（Python 脚本 + schema）。
+
+        返回 (ok, name, script_path, message)。生成脚本写入
+        ~/.one-cedric/custom_tools/<name>.py，并在 integrations.json
+        注册 custom__<name>。
+        """
+        import json as _json
+        from pathlib import Path as _Path
+        from .integrations import load_integrations, save_integrations
+        try:
+            import requests as _requests
+        except ImportError:
+            _requests = None
+        prompt = (
+            "Design a custom function-calling tool for One Cedric. "
+            "Return only valid JSON with keys name, description, "
+            "parameters, and python. parameters must be an "
+            "OpenAI-compatible JSON Schema object schema. python must be "
+            "a complete Python script that reads a JSON object from stdin "
+            "and writes its result to stdout. Use no markdown fences. "
+            "Tool request: " + description
+        )
+        try:
+            generated = self._once_chat([
+                {"role": "system", "content": "Return only valid JSON."},
+                {"role": "user", "content": prompt},
+            ])
+        except Exception as exc:
+            return False, "", "", f"模型调用失败: {exc}"
+        generated = (generated or "").strip()
+        if generated.startswith("```"):
+            generated = generated.split("\n", 1)[1].rsplit("```", 1)[0]
+        try:
+            result = _json.loads(generated)
+        except _json.JSONDecodeError as exc:
+            return False, "", "", f"模型未返回有效 JSON: {exc}"
+        name = result.get("name")
+        code = result.get("python")
+        schema = result.get("parameters")
+        desc = str(result.get("description") or description)
+        if (not isinstance(name, str)
+                or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,47}", name)
+                or not isinstance(code, str) or not code.strip()
+                or not isinstance(schema, dict)
+                or schema.get("type", "object") != "object"):
+            return False, "", "", "生成的工具名、Schema 或代码无效"
+        data = load_integrations()
+        tools = data.setdefault("custom_tools", {})
+        if name in tools:
+            return False, "", "", f"工具 '{name}' 已存在"
+        scripts = _Path.home() / ".one-cedric" / "custom_tools"
+        script = scripts / f"{name}.py"
+        if script.exists():
+            return False, "", "", f"脚本已存在，不会覆盖: {script}"
+        try:
+            scripts.mkdir(parents=True, exist_ok=True)
+            script.write_text(code, encoding="utf-8")
+            tools[name] = {
+                "description": desc,
+                "parameters": schema,
+                "command": [sys.executable, str(script)],
+                "args": [],
+                "enabled": True,
+                "write": True,
+            }
+            save_integrations(data)
+        except OSError as exc:
+            try:
+                script.unlink(missing_ok=True)
+            except OSError:
+                pass
+            return False, "", "", f"保存自定义工具失败: {exc}"
+        return True, name, str(script), "ok"
+
     def _print_snapshots(self) -> None:
         if not self.snapshots:
             self.console.print("[dim]本会话还没有快照。[/]")
@@ -5836,8 +6138,7 @@ class OneCedric:
                             if (now - last_render >= 0.12
                                     and text.strip()):
                                 last_render = now
-                                live.update(Markdown(text,
-                                                     code_theme="monokai"))
+                                live.update(_md_with_cursor(text))
                         elif kind == "final":
                             final_content = data["content"]
                             final_reasoning = data.get("reasoning", "")
@@ -5857,8 +6158,7 @@ class OneCedric:
                                                  + len(final_reasoning))
 
                             if final_content.strip():
-                                live.update(Markdown(final_content,
-                                                     code_theme="monokai"))
+                                live.update(_md_with_cursor(final_content))
                             elif final_reasoning.strip():
                                 live.update(Panel(
                                     Text(
@@ -5973,8 +6273,7 @@ class OneCedric:
                     ui.render_answer_header(self.console)
                     if (text.strip()
                             and text != "(模型返回了空回复)"):
-                        self.console.print(
-                            Markdown(text, code_theme="monokai"))
+                        self.console.print(_md_with_cursor(text))
                     else:
                         self.console.print(f"[dim]{text}[/]")
                     return text
@@ -6518,8 +6817,9 @@ class OneCedric:
         f"  [bold {BRAND}]/mode[/] [dim][模式][/]       访问模式\n"
         f"  [bold {BRAND}]/yes[/]                 切换自动确认写操作\n"
         f"  [bold {BRAND}]/shell[/] [dim][on|off|clear][/]   任意命令开关\n"
+        f"  [bold {BRAND}]/sandbox[/] [dim][on|off][/]     沙箱终端开关\n"
         f"  [bold {BRAND}]/computer[/] [dim][on|off][/]   切换 computer use\n"
-        f"  [bold {BRAND}]/tools[/]               工具管理界面\n"
+        f"  [bold {BRAND}]/tools[/] [dim][list|install|uninstall|gen][/] 工具管理/自定义工具\n"
         f"  [bold {BRAND}]/allow[/]               查看 bash 白名单\n"
         f"  [bold {BRAND}]/plan[/] [dim][on|off|show][/]  计划模式\n"
         f"  [bold {BRAND}]/todos[/]              查看任务清单\n"
@@ -6553,6 +6853,7 @@ class OneCedric:
         f"  [bold {BRAND}]/budget[/] [dim][show|set <period> <amt>|clear|reset][/]  预算\n"
         f"  [bold {BRAND}]/dog[/] [dim][show|reload|edit|export|preview][/]  小狗帧配置\n"
         f"  [bold {BRAND}]/exit[/] [dim]/q[/]          退出\n"
+        f"  [bold {BRAND}]/upload[/] [dim]<路径...>[/]     上传文件并立即分析\n"
         f"\n[dim]· 输入 [/][accent]@文件路径[/][dim] 可自动加载文件到上下文[/]\n"
         f"[dim]   [/][accent]@README.md[/][dim]               读整个文件[/]\n"
         f"[dim]   [/][accent]@src/main.py#L10-L20[/][dim]     读第 10-20 行[/]\n"
@@ -6577,8 +6878,9 @@ class OneCedric:
         f"  [bold {BRAND}]/mode[/] [dim][mode][/]       Access mode\n"
         f"  [bold {BRAND}]/yes[/]                 Toggle auto-confirm\n"
         f"  [bold {BRAND}]/shell[/] [dim][on|off|clear][/]   Arbitrary shell\n"
+        f"  [bold {BRAND}]/sandbox[/] [dim][on|off][/]    Sandbox terminal\n"
         f"  [bold {BRAND}]/computer[/] [dim][on|off][/]   Computer use\n"
-        f"  [bold {BRAND}]/tools[/]               Tool manager\n"
+        f"  [bold {BRAND}]/tools[/] [dim][list|install|uninstall|gen][/] Tool manager / custom tools\n"
         f"  [bold {BRAND}]/allow[/]               Show bash allowlist\n"
         f"  [bold {BRAND}]/plan[/] [dim][on|off|show][/]  Plan mode\n"
         f"  [bold {BRAND}]/todos[/]              Task list\n"
@@ -6608,6 +6910,7 @@ class OneCedric:
         f"  [bold {BRAND}]/budget[/] [dim][show|set <period> <amt>|clear|reset][/]\n"
         f"  [bold {BRAND}]/dog[/] [dim][show|reload|edit|export|preview][/]\n"
         f"  [bold {BRAND}]/exit[/] [dim]/q[/]          Quit\n"
+        f"  [bold {BRAND}]/upload[/] [dim]<paths...>[/]    Upload files & analyze now\n"
         f"\n[dim]· Type [/][accent]@path[/][dim] to attach files[/]\n"
     )
 
@@ -6968,6 +7271,26 @@ class OneCedric:
                         f"[dim]任意 shell 命令：{state}[/]")
                 continue
 
+            # ── /sandbox ──
+            if line.startswith("/sandbox"):
+                parts = line.split(maxsplit=1)
+                arg = parts[1].strip().lower() if len(parts) == 2 else ""
+                if arg in ("on", "enable"):
+                    self.sandbox_terminal = True
+                    self.console.print(
+                        "[ok]✓ 沙箱终端：开启[/]")
+                elif arg in ("off", "disable"):
+                    self.sandbox_terminal = False
+                    self.console.print(
+                        "[dim]沙箱终端：关闭（命令将直接执行）[/]")
+                else:
+                    state = ("[ok]开启[/]"
+                             if self.sandbox_terminal
+                             else "[dim]关闭[/]")
+                    self.console.print(
+                        f"[dim]沙箱终端：{state}[/]")
+                continue
+
             # ── /computer ──
             if line.startswith("/computer"):
                 parts = line.split(maxsplit=1)
@@ -6990,13 +7313,10 @@ class OneCedric:
                 continue
 
             # ── /tools ──
-            if line == "/tools":
-                try:
-                    from .ui.screens.tools import run_tools_screen
-                    run_tools_screen(self.console, self)
-                except Exception as exc:
-                    self.console.print(
-                        f"[err]✗ 工具界面失败: {escape(str(exc))}[/]")
+            if line.startswith("/tools"):
+                parts = line.split(maxsplit=1)
+                self._cmd_tools_sub(
+                    parts[1].strip() if len(parts) == 2 else "")
                 continue
 
             # ── /allow ──
@@ -7481,6 +7801,11 @@ class OneCedric:
             # ── /dog ──
             if line.startswith("/dog"):
                 self._handle_dog_command(line)
+                continue
+
+            # ── /upload 上传文件 ──
+            if line.startswith("/upload"):
+                self._handle_upload_command(line)
                 continue
 
             # ── @file 引用 ──

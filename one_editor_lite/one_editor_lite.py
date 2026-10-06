@@ -647,9 +647,9 @@ class OneEditorLite(App):
         if bid == "btn-about":
             self.push_screen(AboutScreen())
         elif bid == "btn-save":
-            self.action_quit_app()
+            self._save_and_quit()
         elif bid == "btn-quit":
-            self.action_quit_app()
+            self._save_and_quit()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id != "command-input":
@@ -751,7 +751,7 @@ class OneEditorLite(App):
         except Exception as exc:  # noqa: BLE001
             self.notify(f"保存失败: {exc}", severity="error")
     def _save_and_quit(self) -> None:
-    # 有路径就写盘，没路径就提示一下但依然退出
+        # 有路径就写盘，没路径就提示一下但依然退出
         if self.filepath:
             try:
                 self.filepath.write_text(self.editor.text, encoding="utf-8")
@@ -789,7 +789,8 @@ class OneEditorLite(App):
         )
 
     def action_quit_app(self) -> None:
-        self.run_worker(self._async_quit(), exclusive=True, group="quit")
+        # 退出前先保存，避免用户修改被丢弃
+        self._save_and_quit()
 
     async def _async_quit(self) -> None:
         try:

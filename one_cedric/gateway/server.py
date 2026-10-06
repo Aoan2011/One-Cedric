@@ -10,9 +10,14 @@ import json
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
-from ..config import BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C
+from ..config import (
+    BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C, BETA_VERSION,
+)
+
+# 串行化 cron 任务文件的写操作（WebUI 并发访问时避免与调度线程竞争）
+_CRON_LOCK = threading.Lock()
 
 
 _BaseModel = None
@@ -35,6 +40,15 @@ def _get_basemodel():
 
 _GATEWAY_LOCK = threading.Lock()
 _GATEWAY_INSTANCE: "Gateway | None" = None
+
+
+def _lsp_ok() -> bool:
+    """检查 LSP 配置文件是否存在且可读。"""
+    try:
+        from ..lsp.config import default_lsp_config_path as _p
+        return bool(_p().exists())
+    except Exception:
+        return False
 
 
 def get_gateway(copilot) -> "Gateway":
@@ -318,7 +332,7 @@ class Gateway:
         BaseModel = _get_basemodel()
         gw = self
 
-        app = FastAPI(title="One Cedric Gateway", version="0.17.0")
+        app = FastAPI(title="One Cedric Gateway", version=BETA_VERSION)
 
         class ChatRequest(BaseModel):
             message: str = ""
@@ -339,6 +353,19 @@ class Gateway:
             think_level: str = ""
             particle_hue1: int = -1
             particle_hue2: int = -1
+            sandbox_terminal: Optional[bool] = None
+
+        class CustomToolRequest(BaseModel):
+            name: str = ""
+            description: str = ""
+            parameters: dict = {}
+            command: list = []
+            args: list = []
+            write: bool = True
+            enabled: bool = True
+
+        class GenerateToolRequest(BaseModel):
+            description: str = ""
 
         def _auth(request: Request):
             token = gw.token
@@ -489,6 +516,230 @@ class Gateway:
                 except Exception:
                     pass
                 return {"name": name, "enabled": name not in disabled}
+            except Exception as exc:
+                return {"error": str(exc)}
+
+        # ---- 自定义工具（install / uninstall / list / generate） ----
+
+        @app.get("/api/custom-tools")
+        async def api_custom_tools(request: Request):
+            _auth(request)
+            try:
+                from ..integrations import list_custom_tools
+                return {"tools": list_custom_tools()}
+            except Exception as exc:
+                return {"error": str(exc), "tools": []}
+
+        @app.post("/api/custom-tools")
+        async def api_custom_tools_install(req: CustomToolRequest,
+                                            request: Request):
+            _auth(request)
+            try:
+                from ..integrations import install_custom_tool
+                ok, msg = install_custom_tool(
+                    req.name,
+                    description=req.description,
+                    parameters=req.parameters or None,
+                    command=req.command or None,
+                    args=req.args or [],
+                    write=req.write,
+                    enabled=req.enabled,
+                )
+                return {"ok": bool(ok), "message": msg}
+            except Exception as exc:
+                return {"ok": False, "message": str(exc)}
+
+        @app.post("/api/custom-tools/generate")
+        async def api_custom_tools_generate(req: GenerateToolRequest,
+                                             request: Request):
+            _auth(request)
+            if not req.description.strip():
+                raise HTTPException(400, "description 不能为空")
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(
+                None, gw.copilot._generate_custom_tool,
+                req.description.strip())
+            ok, name, script, message = result
+            return {
+                "ok": bool(ok), "name": name,
+                "script": script, "message": message,
+            }
+
+        @app.delete("/api/custom-tools/{name}")
+        async def api_custom_tools_delete(name: str, request: Request):
+            _auth(request)
+            try:
+                from ..integrations import uninstall_custom_tool
+                ok, msg = uninstall_custom_tool(name)
+                return {"ok": bool(ok), "message": msg}
+            except Exception as exc:
+                return {"ok": False, "message": str(exc)}
+
+        @app.post("/api/custom-tools/{name}/toggle")
+        async def api_custom_tools_toggle(name: str, request: Request):
+            _auth(request)
+            try:
+                from ..integrations import toggle_custom_tool
+                ok, msg = toggle_custom_tool(name)
+                return {"ok": bool(ok), "message": msg}
+            except Exception as exc:
+                return {"ok": False, "message": str(exc)}
+
+        # ---- 定时任务（cron） ----
+
+        @app.get("/api/cron")
+        async def api_cron_list(request: Request):
+            _auth(request)
+            try:
+                from .. import cron as _cron
+                jobs = []
+                for j in _cron.list_jobs():
+                    jobs.append({
+                        "id": j.get("id", ""),
+                        "name": j.get("name", ""),
+                        "schedule": j.get("schedule", ""),
+                        "prompt": j.get("prompt", ""),
+                        "enabled": bool(j.get("enabled", True)),
+                        "last_run": j.get("last_run", 0),
+                        "next_run": j.get("next_run", 0),
+                        "last_status": j.get("last_status", ""),
+                    })
+                return {"jobs": jobs}
+            except Exception as exc:
+                return {"error": str(exc), "jobs": []}
+
+        class CronAddRequest(BaseModel):
+            name: str = ""
+            schedule: str = ""
+            prompt: str = ""
+
+        @app.post("/api/cron")
+        async def api_cron_add(req: CronAddRequest, request: Request):
+            _auth(request)
+            try:
+                from .. import cron as _cron
+                if not req.name.strip() or not req.schedule.strip() \
+                        or not req.prompt.strip():
+                    raise HTTPException(400, "name/schedule/prompt 都不能为空")
+                with _CRON_LOCK:
+                    jid, err = _cron.add_job(
+                        req.name.strip(), req.schedule.strip(),
+                        req.prompt.strip())
+                if err:
+                    return {"ok": False, "error": err}
+                try:
+                    gw.copilot._ensure_cron_daemon()
+                except Exception:
+                    pass
+                return {"ok": True, "id": jid}
+            except HTTPException:
+                raise
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
+        @app.delete("/api/cron/{jid}")
+        async def api_cron_delete(jid: str, request: Request):
+            _auth(request)
+            try:
+                from .. import cron as _cron
+                with _CRON_LOCK:
+                    ok = _cron.remove_job(jid)
+                return {"ok": bool(ok)}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
+        class CronEnableRequest(BaseModel):
+            enabled: bool = True
+
+        @app.post("/api/cron/{jid}/enable")
+        async def api_cron_enable(jid: str, req: CronEnableRequest,
+                                  request: Request):
+            _auth(request)
+            try:
+                from .. import cron as _cron
+                with _CRON_LOCK:
+                    ok = _cron.enable_job(jid, req.enabled)
+                if ok and req.enabled:
+                    try:
+                        gw.copilot._ensure_cron_daemon()
+                    except Exception:
+                        pass
+                return {"ok": bool(ok)}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
+        @app.post("/api/cron/{jid}/run")
+        async def api_cron_run(jid: str, request: Request):
+            _auth(request)
+            loop = asyncio.get_running_loop()
+            try:
+                from .. import cron as _cron
+                job = _cron.get_job(jid)
+                if not job:
+                    return {"ok": False, "error": "任务不存在"}
+
+                def _run():
+                    try:
+                        gw.copilot._ensure_cron_daemon()
+                    except Exception:
+                        pass
+                    daemon = getattr(gw.copilot, "_cron_daemon", None)
+                    if daemon is None:
+                        return "调度器未启动"
+                    return daemon.run_now(jid)
+
+                message = await loop.run_in_executor(None, _run)
+                return {"ok": True, "message": str(message)}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
+        # ---- 梦境（dream） ----
+
+        class DreamRunRequest(BaseModel):
+            days: int = 3
+            focus: str = ""
+
+        @app.post("/api/dream")
+        async def api_dream_run(req: DreamRunRequest, request: Request):
+            _auth(request)
+            loop = asyncio.get_running_loop()
+            try:
+                from .. import dream as _dream
+
+                def _run():
+                    r = _dream.run_dream(
+                        gw.copilot,
+                        days=max(1, min(int(req.days), 30)),
+                        focus=(req.focus or "").strip())
+                    return r
+
+                r = await loop.run_in_executor(None, _run)
+                return {
+                    "ok": bool(r.get("ok")),
+                    "answer": r.get("answer", ""),
+                    "duration": r.get("duration", 0),
+                    "path": r.get("path", ""),
+                    "error": r.get("error", ""),
+                    "memory_candidates": r.get("memory_candidates", 0),
+                }
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
+        @app.get("/api/dream/list")
+        async def api_dream_list(request: Request):
+            _auth(request)
+            try:
+                from .. import dream as _dream
+                return {"dreams": _dream.list_dreams(limit=30)}
+            except Exception as exc:
+                return {"error": str(exc), "dreams": []}
+
+        @app.get("/api/dream/stats")
+        async def api_dream_stats(request: Request):
+            _auth(request)
+            try:
+                from .. import dream as _dream
+                return _dream.dream_stats()
             except Exception as exc:
                 return {"error": str(exc)}
 
@@ -645,9 +896,14 @@ class Gateway:
                 "think_level": gw.copilot.think_level or "medium",
                 "particle_hue1": 220,
                 "particle_hue2": 270,
+                "sandbox_terminal": bool(
+                    getattr(gw.copilot, "sandbox_terminal", True)),
             }
             for k, v in defaults.items():
                 ui_cfg.setdefault(k, v)
+            # 沙箱终端永远返回实时值（POST 后立即生效）
+            ui_cfg["sandbox_terminal"] = bool(
+                getattr(gw.copilot, "sandbox_terminal", True))
             return {
                 "ui": ui_cfg,
                 "model": gw.copilot.model,
@@ -678,6 +934,13 @@ class Gateway:
             if 0 <= req.particle_hue2 <= 360:
                 ui_cfg["particle_hue2"] = req.particle_hue2
                 changed.append("particle_hue2")
+            if req.sandbox_terminal is not None:
+                gw.copilot.sandbox_terminal = bool(req.sandbox_terminal)
+                gw.copilot.config.setdefault("default", {})[
+                    "sandbox_terminal"] = bool(req.sandbox_terminal)
+                gw.copilot.config.setdefault("ui", {})[
+                    "sandbox_terminal"] = bool(req.sandbox_terminal)
+                changed.append("sandbox_terminal")
 
             if not changed:
                 return {"ok": False, "error": "无可更新字段"}
@@ -691,6 +954,127 @@ class Gateway:
                         "changed": changed}
 
             return {"ok": True, "changed": changed, "ui": ui_cfg}
+
+        # ---- 诊断（依赖 / 运行环境检查） ----
+
+        @app.get("/api/diagnose")
+        async def api_diagnose(request: Request):
+            _auth(request)
+            items: list = []
+
+            def _add(name, ok, detail, warn=False):
+                items.append({
+                    "name": name, "ok": bool(ok), "warn": bool(warn),
+                    "detail": str(detail),
+                })
+
+            import importlib
+            import sys as _sys
+
+            deps = [
+                ("fastapi", "WebUI 服务"),
+                ("uvicorn", "网关服务器"),
+                ("pydantic", "参数校验"),
+                ("requests", "HTTP / API"),
+                ("rich", "终端渲染"),
+                ("textual", "TUI 界面"),
+                ("PIL", "图像识别"),
+            ]
+            for mod, why in deps:
+                try:
+                    m = importlib.import_module(mod)
+                    ver = getattr(m, "__version__", "")
+                    _add(f"{mod}（{why}）", True,
+                         f"v{ver}" if ver else "已安装")
+                except Exception:
+                    _add(f"{mod}（{why}）", False, "未安装")
+
+            _add("Python", True, _sys.version.split()[0])
+            _add("Git", gw.copilot.git_enabled,
+                 "已检测到 git" if gw.copilot.git_enabled
+                 else "未检测到 git（快照/回滚不可用）")
+            _add("LSP 配置", _lsp_ok(),
+                 "lsp/config.json 就绪" if _lsp_ok() else "缺少 lsp 配置")
+            _add("工具总数", True,
+                 f"{len(gw.copilot._current_tool_schemas)} 个已注册工具")
+            _add("会话保存", True, str(gw.copilot.root))
+            _add("沙箱终端", gw.copilot.sandbox_terminal,
+                 "开启" if gw.copilot.sandbox_terminal else "关闭")
+            try:
+                from ..agents_skills import list_agents_skills
+                _skills = list_agents_skills()
+                _add("第三方技能(~/.agents/skills)",
+                     True if _skills else False,
+                     f"只读加载 {len(_skills)} 个技能（"
+                     + "、".join(s["name"] for s in _skills[:5])
+                     + ("…" if len(_skills) > 5 else "") + "）")
+                if _skills:
+                    pass
+                else:
+                    raise ValueError("未发现")
+            except ValueError:
+                _add("第三方技能(~/.agents/skills)", False,
+                     "未发现（技能由 agent 运行时安装）", warn=True)
+            except Exception as exc:
+                _add("第三方技能(~/.agents/skills)", False,
+                     f"检查失败: {exc}")
+            gw_host = getattr(gw, "host", "127.0.0.1") or "127.0.0.1"
+            gw_lan = gw_host in ("0.0.0.0", "::") \
+                or not gw_host.startswith("127.")
+            _add("局域网访问", gw_lan,
+                 f"监听 {gw_host}（已开放）" if gw_lan
+                 else f"监听 {gw_host}（--host 0.0.0.0 开放）",
+                 warn=not gw_lan)
+
+            return {
+                "version": BETA_VERSION,
+                "model": gw.copilot.model,
+                "host": gw.copilot.host,
+                "items": items,
+                "healthy": all(it["ok"] for it in items),
+            }
+
+        # ---- 局域网访问状态 ----
+
+        @app.get("/api/network")
+        async def api_network(request: Request):
+            _auth(request)
+            import socket as _socket
+            lan_ips: list = []
+            try:
+                s = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
+                try:
+                    s.connect(("8.8.8.8", 80))
+                    ip = s.getsockname()[0]
+                    if ip and not ip.startswith("127."):
+                        lan_ips.append(ip)
+                finally:
+                    s.close()
+            except Exception:
+                pass
+            if not lan_ips:
+                try:
+                    for info in _socket.getaddrinfo(
+                            _socket.gethostname(), None, _socket.AF_INET):
+                        ip = info[4][0]
+                        if ip and not ip.startswith("127.") \
+                                and ip not in lan_ips:
+                            lan_ips.append(ip)
+                except Exception:
+                    pass
+            host = getattr(gw, "host", "127.0.0.1") or "127.0.0.1"
+            port = getattr(gw, "port", 2043) or 2043
+            lan_open = host in ("0.0.0.0", "::") or not host.startswith("127.")
+            urls = [f"http://{ip}:{port}" for ip in lan_ips[:5]]
+            return {
+                "host": host,
+                "port": port,
+                "lan_open": bool(lan_open),
+                "lan_urls": urls,
+                "local_url": f"http://127.0.0.1:{port}",
+                "hint": ("" if lan_open else
+                         "当前仅本机可访问；用 --host 0.0.0.0 启动可开放局域网访问。"),
+            }
 
         # ---- 文件列表（补全用） ----
 

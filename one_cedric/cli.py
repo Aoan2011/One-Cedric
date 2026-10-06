@@ -9,6 +9,8 @@ from .config import (
     DEFAULT_HOST, DEFAULT_MODEL, DEFAULT_API_KEY,
     THINK_LEVELS, DEFAULT_THINK_LEVEL,
     ACCESS_MODES, ACCESS_MODE_ALIASES, DEFAULT_ACCESS_MODE,
+    BETA_VERSION, PROJECT_NAME, PROJECT_AUTHOR, PROJECT_REPO,
+    PROJECT_LICENSE, PROJECT_LICENSE_NOTICE,
 )
 from .core import OneCedric
 from .storage import (
@@ -21,7 +23,7 @@ from .tools.shell import merge_bash_prefixes
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="One Cedric - 本地文件助手",
+        description="One Cedric - An AI agent for beginners",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -59,10 +61,34 @@ def main() -> None:
     parser.add_argument("--no-menu", action="store_true")
     parser.add_argument("--chat", action="store_true")
 
+    sandbox_grp = parser.add_mutually_exclusive_group()
+    sandbox_grp.add_argument("--sandbox-terminal", dest="sandbox_terminal",
+                             action="store_true", default=None,
+                             help="shell 工具在沙箱终端中运行（默认开）")
+    sandbox_grp.add_argument("--no-sandbox-terminal",
+                             dest="sandbox_terminal", action="store_false",
+                             help="关闭 shell 工具沙箱终端")
+
+    parser.add_argument("--license", action="store_true",
+                        help="显示许可证信息")
+    parser.add_argument("--version", action="store_true",
+                        help="显示版本与项目信息")
+
     parser.add_argument("--cron-daemon", action="store_true",
                         help="启动时自动运行 cron 调度器")
 
     args = parser.parse_args()
+
+    if args.license:
+        print(PROJECT_LICENSE_NOTICE)
+        return
+
+    if args.version:
+        print(f"{PROJECT_NAME} {BETA_VERSION}")
+        print(f"An AI agent for beginners — built by {PROJECT_AUTHOR}.")
+        print(f"Repository: {PROJECT_REPO}")
+        print(f"License: {PROJECT_LICENSE}")
+        return
 
     root = Path(args.root).expanduser().resolve()
     if not root.is_dir():
@@ -152,6 +178,12 @@ def main() -> None:
         cfg["default"].get("enable_vision", False)
     )
 
+    sandbox_terminal = (
+        args.sandbox_terminal
+        if args.sandbox_terminal is not None
+        else bool(cfg["default"].get("sandbox_terminal", True))
+    )
+
     if args.safe:
         access_mode = "workspacesafe"
     elif args.yolo:
@@ -185,6 +217,7 @@ def main() -> None:
         enable_vision=enable_vision,
         think_level=think_level,
         access_mode=access_mode,
+        sandbox_terminal=sandbox_terminal,
     )
     if profile_raw:
         copilot.preset_tag = profile_preset_tag(profile_raw)
@@ -301,6 +334,14 @@ def _run_with_menu(copilot) -> None:
                 run_about_screen(console, copilot)
             except ImportError:
                 run_placeholder(console, copilot, "关于")
+            continue
+
+        if choice == "diagnose":
+            try:
+                from .ui.screens.diagnose import run_diagnose_screen
+                run_diagnose_screen(console, copilot)
+            except ImportError:
+                run_placeholder(console, copilot, "诊断")
             continue
 
         continue

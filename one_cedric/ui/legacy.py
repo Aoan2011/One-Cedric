@@ -640,7 +640,10 @@ def render_diff(console, rel_path: str, old: str, new: str,
         lines = new.splitlines()
         shown = lines[:40]
         for i, line in enumerate(shown, 1):
-            console.print(f"    [dim]{i:>4}[/] [ok]+[/] {escape(line)}")
+            console.print(
+                f"    [dim]{i:>4}[/] "
+                f"[bold {OK_C} on #17301b]+[/] "
+                f"[{OK_C} on #17301b]{escape(line)}[/]")
         if len(lines) > 40:
             console.print(f"    [dim]… 还有 {len(lines) - 40} 行[/]")
         console.print()
@@ -662,14 +665,18 @@ def render_diff(console, rel_path: str, old: str, new: str,
             m = re.match(r"@@ -(\d+),\d+ \+(\d+),\d+ @@", line)
             if m:
                 line_num = int(m.group(1))
-            console.print(f"    [diff.hunk]{escape(line)}[/]")
+            console.print(
+                f"    [bold {WARN_C} on #2b2313]{escape(line)}[/]")
             continue
         if line.startswith("+"):
             console.print(
-                f"    [dim]{'':>4}[/] [diff.add]+[/] {escape(line[1:])}")
+                f"    [dim]{'':>4}[/] "
+                f"[bold {OK_C} on #17301b]+[/] "
+                f"[{OK_C} on #17301b]{escape(line[1:])}[/]")
         elif line.startswith("-"):
             console.print(
-                f"    [dim]{line_num:>4}[/] [diff.del]-[/] {escape(line[1:])}")
+                f"    [bold {ERR_C} on #301418]{line_num:>4} -[/] "
+                f"[{ERR_C} on #301418]{escape(line[1:])}[/]")
             line_num += 1
         else:
             content = line[1:] if line else ""
@@ -981,7 +988,7 @@ def render_tool_line(console, *, name: str, target: str,
         visible = result if len(result) <= 6000 else (
             result[:6000] + f"\n\n… output truncated ({len(result)} chars total)"
         )
-        parts.append(Text(visible))
+        parts.append(_preview_text(visible))
     if not parts:
         parts.append(Text("No output"))
     console.print(Panel(
@@ -993,6 +1000,30 @@ def render_tool_line(console, *, name: str, target: str,
         padding=(0, 1),
         expand=False,
     ))
+
+
+def _preview_text(text: str) -> Text:
+    """工具输出预览：检测 unified diff / git diff 文本，红绿黄高亮。"""
+    if re.search(r"^(diff\s|index\s|---\s|\+\+\+\s|@@\s)", text, re.M):
+        t = Text()
+        lines = text.splitlines()
+        for line in lines:
+            if line.startswith("@@"):
+                t.append(line + "\n",
+                         style=f"bold {WARN_C} on #2b2313")
+            elif re.match(r"^(diff\s|index\s|new file|deleted file|"
+                          r"similarity|rename|---\s|\+\+\+\s)", line):
+                t.append(line + "\n", style=f"{WARN_C} on #2b2313")
+            elif line.startswith("+") and not line.startswith("+++"):
+                t.append(line + "\n",
+                         style=f"bold {OK_C} on #17301b")
+            elif line.startswith("-") and not line.startswith("---"):
+                t.append(line + "\n",
+                         style=f"bold {ERR_C} on #301418")
+            else:
+                t.append(line + "\n", style="dim")
+        return t
+    return Text(text)
 
 
 # ═══════════════════════════════════════════════════════════════════════ #

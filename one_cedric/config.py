@@ -5,7 +5,37 @@ import os
 
 from rich.theme import Theme
 
-BETA_VERSION = "Beta 17"
+BETA_VERSION = "Public Beta I"
+
+# ── 项目元信息（自我描述 / 关于 / --license 共用） ──────────────
+PROJECT_NAME = "One Cedric"
+PROJECT_SLUG = "one-cedric"
+PROJECT_AUTHOR = "Aoan2011"
+PROJECT_REPO = "https://github.com/Aoan2011/One-Cedric"
+PROJECT_LICENSE = "GPL-3.0"
+PROJECT_SUMMARY = (
+    "One Cedric —— An AI agent for beginners（由 Aoan2011 主持开发），"
+    "支持 CLI 终端对话与 WebUI 双界面。"
+)
+PROJECT_LICENSE_NOTICE = f"""\
+{PROJECT_NAME} {BETA_VERSION}
+Copyright (C) 2026 {PROJECT_AUTHOR}
+
+{PROJECT_NAME} is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, version 3 of the License.
+
+{PROJECT_NAME} is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with {PROJECT_NAME}. If not, see <https://www.gnu.org/licenses/>.
+
+项目主页: {PROJECT_REPO}
+License: {PROJECT_LICENSE}
+"""
 
 BRAND = "#d97757"
 ACCENT = "#4ec9b0"
@@ -16,6 +46,10 @@ PLAN_C = "#bb9af7"
 OK_C = "#9ece6a"
 ERR_C = "#f7768e"
 DIM_C = "#565f89"
+
+# 生成光标：AI 输出末尾附上的橙色 ✦
+CURSOR_MARK = "✦"
+CURSOR_STYLE = "bold #ff9e2c"
 
 THEME = Theme({
     "brand":     f"bold {BRAND}",
@@ -271,6 +305,7 @@ DEFAULT_CONFIG: dict = {
         "enable_computer_use": False,
         "enable_vision": False,
         "allow_arbitrary_shell": False,
+        "sandbox_terminal": True,
         "mode": "workspace",
         "language": "zh",
     },
@@ -289,7 +324,7 @@ DEFAULT_CONFIG: dict = {
     },
 }
 
-SYSTEM_PROMPT = r"""你是 One Cedric，一个可以操作本地文件的命令行助手。
+SYSTEM_PROMPT = r"""你是 One Cedric，An AI agent for beginners，一个可以操作本地文件的命令行助手（由 Aoan2011 主持开发，开源协议 GPL-3.0，项目主页 https://github.com/Aoan2011/One-Cedric）。
 
 ## 工作流程
 

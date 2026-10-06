@@ -1,57 +1,85 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>One Cedric · 设置</title>
-<link rel="stylesheet" href="/static/style.css?v=20261005f">
+<link rel="stylesheet" href="/static/style.css?v=20261006d">
 <style>
 .page-top {
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: 10px; z-index: 20;
   display: flex; align-items: center; gap: 12px;
-  padding: 10px 20px;
-  background: color-mix(in srgb, var(--bg) 86%, transparent);
-  backdrop-filter: blur(18px);
-  border-bottom: 1px solid var(--border);
+  margin: 10px 14px 0;
+  padding: 10px 18px;
+  background: var(--glass-bg, rgba(255,255,255,0.075));
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.13));
+  border-radius: 20px;
+  box-shadow: var(--glass-shadow, 0 10px 36px rgba(0,0,0,0.38)),
+              inset 0 1px 0 rgba(255,255,255,0.09);
 }
 .page-top .logo { font-weight: 700; font-size: 14px; }
 .page-top .logo b { color: var(--brand); }
 .page-top .crumb { color: var(--text-dim); }
 .page-top .spacer { flex: 1; }
 .page-top .btn {
-  background: var(--bg-elev); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 6px 14px; cursor: pointer; font-family: var(--font-sans);
-  font-size: 12px; transition: border-color var(--transition), background var(--transition);
+  background: var(--glass-btn-bg, rgba(255,255,255,0.055));
+  color: var(--text);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.13));
+  border-radius: 12px;
+  padding: 7px 16px; cursor: pointer; font-family: var(--font-sans);
+  font-size: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background var(--transition), border-color var(--transition),
+              filter var(--transition);
 }
-.page-top .btn:hover { border-color: var(--brand); color: var(--text); }
-.page-top .btn.primary { background: var(--brand); border-color: transparent; color: #0b0b0d; font-weight: 600; }
+.page-top .btn:hover { background: var(--glass-btn-hover, rgba(255,255,255,0.12)); border-color: var(--brand); }
+.page-top .btn.primary {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--brand) 82%, transparent),
+    color-mix(in srgb, var(--brand-dim) 82%, transparent));
+  border-color: transparent; color: #fff; font-weight: 600;
+  box-shadow: 0 4px 18px var(--brand-glow);
+}
 .page-top .btn.primary:hover { filter: brightness(1.12); }
 .page-top .saved-badge { color: var(--ok); font-size: 12px; opacity: 0; transition: opacity .2s; }
 .page-top .saved-badge.show { opacity: 1; }
 
+body {
+  background:
+    radial-gradient(900px 600px at 12% -8%, rgba(217, 119, 87, 0.16), transparent 60%),
+    radial-gradient(1000px 700px at 108% 12%, rgba(125, 207, 255, 0.13), transparent 62%),
+    var(--bg);
+}
+
 .wrap { max-width: 900px; margin: 0 auto; padding: 28px 20px 80px; }
 
 section {
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: var(--glass-bg-soft, rgba(14,14,17,0.46));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.13));
+  border-radius: 20px;
   margin-bottom: 20px;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(22px) saturate(1.45);
+  -webkit-backdrop-filter: blur(22px) saturate(1.45);
+  box-shadow: var(--glass-shadow, 0 10px 36px rgba(0,0,0,0.38)),
+              inset 0 1px 0 rgba(255,255,255,0.09);
 }
 section > header {
   display: flex; align-items: center; gap: 8px;
   padding: 12px 16px;
-  background: var(--bg-soft);
-  border-bottom: 1px solid var(--border);
+  background: var(--glass-btn-bg, rgba(255,255,255,0.055));
+  border-bottom: 1px solid var(--glass-border, rgba(255,255,255,0.13));
   font-weight: 600; font-size: 12px;
   letter-spacing: .04em; color: var(--text-soft);
 }
 section > header .tag {
   font-size: 10px; color: var(--accent);
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  border-radius: 4px; padding: 1px 6px;
+  border-radius: 6px; padding: 1px 6px;
+  background: var(--glass-btn-bg, rgba(255,255,255,0.055));
 }
 section .body { padding: 16px; display: grid; gap: 14px; }
 
@@ -59,63 +87,90 @@ section .body { padding: 16px; display: grid; gap: 14px; }
 .row label { color: var(--text-soft); font-size: 12px; }
 .row label small { display: block; color: var(--text-dim); font-size: 11px; margin-top: 2px; }
 .row input[type=text], .row input[type=password], .row input[type=number], .row select, .row textarea {
-  background: var(--bg); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--glass-btn-bg, rgba(255,255,255,0.055));
+  color: var(--text);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.13));
+  border-radius: 12px;
   padding: 7px 10px; font-family: var(--font-sans); font-size: 12px; width: 100%;
-  outline: none; transition: border-color var(--transition);
+  outline: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
-.row input:focus, .row select:focus, .row textarea:focus { border-color: var(--accent); }
+.row input:focus, .row select:focus, .row textarea:focus {
+  border-color: color-mix(in srgb, var(--brand) 55%, var(--glass-border, rgba(255,255,255,0.13)));
+  box-shadow: 0 0 0 3px var(--brand-glow);
+}
 .row input[type=range] { width: 100%; accent-color: var(--brand); }
 .row .range-val { color: var(--accent); font-size: 12px; min-width: 34px; text-align: right; }
 .row .hint { font-size: 11px; color: var(--text-dim); grid-column: 2; margin-top: -8px; }
 
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }
 .seg button {
-  background: var(--bg); color: var(--text-soft);
-  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--glass-btn-bg, rgba(255,255,255,0.055));
+  color: var(--text-soft);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.13));
+  border-radius: 12px;
   padding: 5px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   transition: all var(--transition);
 }
-.seg button:hover { border-color: var(--brand); color: var(--text); }
-.seg button.on { background: var(--brand); border-color: transparent; color: #0b0b0d; font-weight: 600; }
+.seg button:hover { border-color: var(--brand); color: var(--text); background: var(--glass-btn-hover, rgba(255,255,255,0.12)); }
+.seg button.on {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--brand) 82%, transparent),
+    color-mix(in srgb, var(--brand-dim) 82%, transparent));
+  border-color: transparent; color: #fff; font-weight: 600;
+  box-shadow: 0 4px 14px var(--brand-glow);
+}
 
 .check { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-soft); font-size: 12px; }
 .check input { accent-color: var(--brand); width: 15px; height: 15px; }
 
 .cmd-item {
   display: grid; grid-template-columns: 1fr 2fr 90px auto; gap: 8px;
-  padding: 10px; background: var(--bg);
-  border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px;
+  padding: 10px; background: var(--glass-btn-bg, rgba(255,255,255,0.055));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.13));
+  border-radius: 14px; margin-bottom: 8px;
 }
 .cmd-item input {
-  background: var(--bg-elev); color: var(--text);
-  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--glass-btn-bg, rgba(255,255,255,0.055));
+  color: var(--text);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.13));
+  border-radius: 9px;
   padding: 6px 8px; font-family: var(--font-sans); font-size: 12px; outline: none;
 }
-.cmd-item input:focus { border-color: var(--accent); }
+.cmd-item input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-glow); }
 .cmd-item .del {
   background: transparent; color: var(--err);
-  border: 1px solid color-mix(in srgb, var(--err) 35%, transparent); border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--err) 35%, transparent); border-radius: 9px;
   cursor: pointer; font-family: var(--font-sans); font-size: 11px; padding: 0 10px;
 }
 .cmd-item .del:hover { background: color-mix(in srgb, var(--err) 12%, transparent); }
 .add-cmd {
   background: transparent; color: var(--accent);
-  border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius: var(--radius);
+  border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 14px;
   width: 100%; padding: 8px; cursor: pointer; font-family: var(--font-sans); font-size: 12px;
 }
 .add-cmd:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 
 .data-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .data-actions .btn {
-  background: var(--bg-elev); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--glass-btn-bg, rgba(255,255,255,0.055));
+  color: var(--text);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.13));
+  border-radius: 12px;
   padding: 8px 16px; cursor: pointer; font-family: var(--font-sans); font-size: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   transition: border-color var(--transition), background var(--transition);
 }
-.data-actions .btn:hover { border-color: var(--accent); }
+.data-actions .btn:hover { border-color: var(--accent); background: var(--glass-btn-hover, rgba(255,255,255,0.12)); }
 .data-actions .btn.danger { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
 .data-actions .btn.danger:hover { background: color-mix(in srgb, var(--err) 10%, transparent); }
+
+.switch-row { display: flex; align-items: center; gap: 12px; }
 </style>
 </head>
 <body>
@@ -176,11 +231,11 @@ section .body { padding: 16px; display: grid; gap: 14px; }
       </div>
       <div class="row">
         <label>粒子颜色 1</label>
-        <input type="color" id="fHue1" value="#7dcfff" style="width:120px;height:34px;padding:2px;background:var(--bg);border:1px solid var(--border);border-radius:7px;cursor:pointer">
+        <input type="color" id="fHue1" value="#7dcfff" style="width:120px;height:34px;padding:2px;background:var(--glass-btn-bg,rgba(255,255,255,0.055));border:1px solid var(--glass-border, rgba(255,255,255,0.13));border-radius:10px;cursor:pointer">
       </div>
       <div class="row">
         <label>粒子颜色 2</label>
-        <input type="color" id="fHue2" value="#d97757" style="width:120px;height:34px;padding:2px;background:var(--bg);border:1px solid var(--border);border-radius:7px;cursor:pointer">
+        <input type="color" id="fHue2" value="#d97757" style="width:120px;height:34px;padding:2px;background:var(--glass-btn-bg,rgba(255,255,255,0.055));border:1px solid var(--glass-border, rgba(255,255,255,0.13));border-radius:10px;cursor:pointer">
       </div>
     </div>
   </section>
@@ -195,6 +250,10 @@ section .body { padding: 16px; display: grid; gap: 14px; }
       <div class="row">
         <label>桌面通知</label>
         <label class="check"><input type="checkbox" id="fNotify"> 回答完成时发送系统通知</label>
+      </div>
+      <div class="row">
+        <label>沙箱终端<small>shell 工具隔离运行：拦截未知命令 + 清洗敏感环境变量</small></label>
+        <label class="check"><input type="checkbox" id="fSandbox"> 开启沙箱终端（sandbox terminal）</label>
       </div>
     </div>
   </section>
@@ -211,6 +270,24 @@ section .body { padding: 16px; display: grid; gap: 14px; }
   </section>
 
   <section>
+    <header><span class="tag">network</span> 网络与局域网访问</header>
+    <div class="body">
+      <div class="row">
+        <label>网关监听<small>服务启动时的绑定地址</small></label>
+        <div><code id="netHost" style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">…</code></div>
+      </div>
+      <div class="row">
+        <label>局域网访问</label>
+        <div id="netLan">…</div>
+      </div>
+      <div class="row">
+        <label>局域网地址</label>
+        <div id="netUrls">…</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
     <header><span class="tag">data</span> 数据管理</header>
     <div class="body">
       <div class="data-actions">
@@ -220,7 +297,7 @@ section .body { padding: 16px; display: grid; gap: 14px; }
         <input type="file" id="impFile" accept=".json,application/json" style="display:none" onchange="importSessions(event)">
       </div>
       <div class="hint" style="font-size:11px;color:var(--text-dim)">
-        设置项保存在浏览器本地，与主界面实时同步。
+        设置项保存在浏览器本地，与主界面实时同步；沙箱终端为服务端设置，立即生效。
       </div>
     </div>
   </section>
@@ -280,6 +357,8 @@ const T = {
 };
 function hueToColor(h) { return 'hsl(' + h + ', 80%, 65%)'; }
 
+let sandboxTerminal = true;
+
 function init() {
   const s = state.settings;
   document.getElementById('fModel').value = s.model || '';
@@ -314,7 +393,49 @@ function init() {
   c2.oninput = () => { state.hue2 = Math.round(hueFromColor(c2.value)); };
 
   document.getElementById('fNotify').checked = state.notify;
+
+  const fsb = document.getElementById('fSandbox');
+  fsb.onchange = saveSandbox;
+  loadSandbox();
+
+  loadNetwork();
   renderCmds();
+}
+
+/* ── 网络与局域网访问 ── */
+async function loadNetwork() {
+  const elHost = document.getElementById('netHost');
+  const elLan = document.getElementById('netLan');
+  const elUrls = document.getElementById('netUrls');
+  try {
+    const r = await fetch('/api/network');
+    if (!r.ok) {
+      elHost.textContent = '服务不可用';
+      elLan.textContent = '—';
+      return;
+    }
+    const d = await r.json();
+    elHost.textContent = d.host + ':' + d.port;
+    if (d.lan_open) {
+      elLan.innerHTML =
+        '<span style="color:var(--ok);font-weight:600">✓ 已开放局域网访问</span>' +
+        '<div style="font-size:11px;color:var(--text-dim);margin-top:2px">同一局域网内的设备可直接访问</div>';
+    } else {
+      elLan.innerHTML =
+        '<span style="color:var(--warn);font-weight:600">✗ 当前仅本机可访问</span>' +
+        '<div style="font-size:11px;color:var(--text-dim);margin-top:2px">以 ' +
+        '<code style="font-family:var(--font-mono);font-size:11px">python -m one_cedric --gateway --host 0.0.0.0</code>' +
+        ' 启动即可开放局域网访问</div>';
+    }
+    elUrls.innerHTML = (d.lan_open && d.lan_urls && d.lan_urls.length)
+      ? d.lan_urls.map(u =>
+          '<div style="font-family:var(--font-mono);font-size:12px;padding:3px 0;color:var(--text)">' + u + '</div>').join('')
+      : '<div style="font-size:11px;color:var(--text-dim)">—（开放后此处显示局域网地址）</div>';
+  } catch (e) {
+    elHost.textContent = '—';
+    elLan.textContent = '—';
+    elUrls.textContent = '—';
+  }
 }
 function hueFromColor(hex) {
   const m = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
@@ -337,6 +458,40 @@ function applyTheme() {
     document.documentElement.style.setProperty('--text', '#1b1b1f');
     document.documentElement.style.setProperty('--text-soft', '#4a4744');
     document.documentElement.style.setProperty('--text-dim', '#8a8680');
+  }
+}
+
+/* ── 沙箱终端（服务端设置） ── */
+async function loadSandbox() {
+  try {
+    const r = await fetch('/api/config');
+    if (!r.ok) return;
+    const d = await r.json();
+    const v = d && d.ui && typeof d.ui.sandbox_terminal === 'boolean'
+      ? d.ui.sandbox_terminal : true;
+    sandboxTerminal = v;
+    document.getElementById('fSandbox').checked = v;
+  } catch (e) { /* 服务端不可用时保持默认 */ }
+}
+async function saveSandbox() {
+  const v = document.getElementById('fSandbox').checked;
+  try {
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sandbox_terminal: v }),
+    });
+    const d = await r.json();
+    if (r.ok && d && d.ok) {
+      sandboxTerminal = v;
+      flash(v ? '✓ 沙箱终端：开启' : '✓ 沙箱终端：关闭');
+    } else {
+      document.getElementById('fSandbox').checked = sandboxTerminal;
+      flash('✗ 沙箱设置失败');
+    }
+  } catch (e) {
+    document.getElementById('fSandbox').checked = sandboxTerminal;
+    flash('✗ 服务不可用');
   }
 }
 

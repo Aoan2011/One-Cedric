@@ -21,6 +21,52 @@ _CLIENTS_LOCK = threading.RLock()
 _TOOL_MAP: dict[str, tuple[str, str]] = {}
 
 
+def agents_skills_enabled() -> bool:
+    """~/.agents/skills 只读技能开关（integrations.json 可关，默认开）。"""
+    data = load_integrations()
+    cfg = data.get("agents_skills")
+    if isinstance(cfg, dict) and "enabled" in cfg:
+        return bool(cfg["enabled"])
+    return True
+
+
+def _agents_skill_schema() -> dict | None:
+    if not agents_skills_enabled():
+        return None
+    try:
+        from .agents_skills import list_agents_skills
+        count = len(list_agents_skills())
+    except Exception:
+        return None
+    if count == 0:
+        return None
+    return {
+        "type": "function",
+        "function": {
+            "name": "agents_skill",
+            "description": (
+                "读取 ~/.agents/skills 中第三方安装的文档型技能（只读）。"
+                "先不带 name 调用以枚举可用技能，再传入 name 读取该技能"
+                "的完整说明（SKILL.md），并按其中的指引执行（例如调用"
+                "技能所需的 CLI 工具）。")
+            .replace("\n", " ")[:4000],
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "list": {
+                        "type": "boolean",
+                        "description": "为 true 或省略 name 时列出所有技能",
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "要读取的技能名",
+                    },
+                },
+            },
+        },
+    }
+
+
 def load_integrations() -> dict:
     if not CONFIG_PATH.exists():
         return {"mcp_servers": {}, "hooks": [], "custom_tools": {}}
@@ -56,6 +102,93 @@ def save_integrations(data: dict) -> None:
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2),
                    encoding="utf-8")
     tmp.replace(CONFIG_PATH)
+
+
+# ─────────────────────────────────────────────────────────────────────── #
+# 自定义工具（custom_tools）管理：安装 / 卸载 / 列表
+# ─────────────────────────────────────────────────────────────────────── #
+
+def _tool_name_ok(name: str) -> bool:
+    return bool(name) and bool(_NAME_RE.match(name))
+
+
+def install_custom_tool(name: str, description: str = "",
+                        parameters: dict | None = None,
+                        command: list | None = None,
+                        args: list | None = None,
+                        write: bool = True,
+                        enabled: bool = True) -> tuple[bool, str]:
+    """安装一个命令式自定义工具（写入 integrations.json）。
+
+    返回 (ok, message)。command 为可执行命令参数列表；执行时工具参数
+    JSON 会通过 stdin 传入，stdout 作为工具结果返回。
+    """
+    if not _tool_name_ok(name):
+        return False, ("工具名须以字母开头，且只含字母、数字、_、-"
+                       "（最长 48 字符）")
+    if not isinstance(command, list) or not command or not all(
+            isinstance(part, str) and part.strip() for part in command):
+        return False, "command 必须是非空字符串数组"
+    if not isinstance(args, list) or not all(
+            isinstance(part, str) for part in args):
+        args = []
+    if parameters is None:
+        parameters = {"type": "object", "properties": {}}
+    data = load_integrations()
+    tools = data.setdefault("custom_tools", {})
+    if name in tools:
+        return False, f"自定义工具 '{name}' 已存在"
+    tools[name] = {
+        "description": str(description or ""),
+        "parameters": _clean_schema(parameters),
+        "command": command,
+        "args": args,
+        "write": bool(write),
+        "enabled": bool(enabled),
+    }
+    save_integrations(data)
+    return True, f"已安装 custom__{name}"
+
+
+def uninstall_custom_tool(name: str) -> tuple[bool, str]:
+    """卸载自定义工具（从配置移除；脚本文件保留以便恢复）。"""
+    data = load_integrations()
+    tools = data.setdefault("custom_tools", {})
+    if name not in tools:
+        return False, f"自定义工具 '{name}' 不存在"
+    del tools[name]
+    save_integrations(data)
+    return True, f"已卸载 custom__{name}"
+
+
+def toggle_custom_tool(name: str) -> tuple[bool, str]:
+    data = load_integrations()
+    tools = data.setdefault("custom_tools", {})
+    if name not in tools:
+        return False, f"自定义工具 '{name}' 不存在"
+    tools[name]["enabled"] = not tools[name].get("enabled", True)
+    save_integrations(data)
+    state = "启用" if tools[name]["enabled"] else "禁用"
+    return True, f"custom__{name} 已{state}"
+
+
+def list_custom_tools() -> list[dict]:
+    data = load_integrations()
+    tools = data.get("custom_tools", {})
+    out = []
+    if isinstance(tools, dict):
+        for name, entry in tools.items():
+            if not isinstance(entry, dict):
+                continue
+            out.append({
+                "name": name,
+                "public_name": "custom__" + name,
+                "description": str(entry.get("description", ""))[:300],
+                "enabled": bool(entry.get("enabled", True)),
+                "write": bool(entry.get("write", True)),
+                "command": entry.get("command", []),
+            })
+    return out
 
 
 def _clean_schema(value: Any) -> dict:
@@ -330,14 +463,20 @@ def external_tool_schemas() -> list[dict]:
             })
     _TOOL_MAP.clear()
     _TOOL_MAP.update(tool_map)
+
+    skill_schema = _agents_skill_schema()
+    if skill_schema is not None:
+        schemas.append(skill_schema)
     return schemas
 
 
 def is_external_tool(name: str) -> bool:
-    return name.startswith(("mcp__", "custom__"))
+    return name.startswith(("mcp__", "custom__")) or name == "agents_skill"
 
 
 def is_mutating_tool(name: str) -> bool:
+    if name == "agents_skill":
+        return False
     if name.startswith("mcp__"):
         return True
     if not name.startswith("custom__"):
@@ -349,6 +488,12 @@ def is_mutating_tool(name: str) -> bool:
 
 def call_external_tool(name: str, arguments: dict,
                        root: Path | None = None) -> str:
+    if name == "agents_skill":
+        from .agents_skills import agents_skill_tool
+        if not agents_skills_enabled():
+            return "ERROR: ~/.agents/skills 只读技能已关闭"
+        return agents_skill_tool(arguments)
+
     if name.startswith("mcp__"):
         if name not in _TOOL_MAP:
             external_tool_schemas()

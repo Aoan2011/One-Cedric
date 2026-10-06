@@ -5,11 +5,22 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "one-cedric"
 version = "0.17.0"
-description = "Claude Code 风格的本地文件助手（Ollama / DeepSeek / OpenAI 兼容）"
+description = "One Cedric —— An AI agent for beginners（由 Aoan2011 主持开发，CLI + WebUI）"
 readme = "README.md"
 requires-python = ">=3.10"
-license = "GPL-3.0-or-later"
-authors = [{ name = "you" }]
+license = "GPL-3.0"
+authors = [{ name = "Aoan2011" }]
+keywords = ["cli", "ai", "ollama", "agent", "webui", "assistant"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/Aoan2011/One-Cedric"
+Repository = "https://github.com/Aoan2011/One-Cedric"
+
 dependencies = [
     "requests>=2.28",
     "rich>=13.0",

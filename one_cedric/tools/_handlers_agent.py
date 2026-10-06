@@ -9,6 +9,11 @@ def _imp(name: str):
     return importlib.import_module(f".{name}", package=__package__)
 
 
+def _imp_abs(name: str):
+    """从 one_cedric 包根导入（lsp / computer 等子包）。"""
+    return importlib.import_module(f"..{name}", package=__package__)
+
+
 def _require(args: dict, *keys: str) -> str:
     for k in keys:
         if k not in args or args[k] in ("", None):
@@ -157,7 +162,7 @@ def _lsp_hover(root: Path, args: dict) -> str:
     err = _require(args, "path", "line", "column")
     if err:
         return err
-    return _imp("lsp.tools").lsp_hover(
+    return _imp_abs("lsp.tools").lsp_hover(
         root, args["path"], args["line"], args["column"])
 
 
@@ -165,7 +170,7 @@ def _lsp_definition(root: Path, args: dict) -> str:
     err = _require(args, "path", "line", "column")
     if err:
         return err
-    return _imp("lsp.tools").lsp_definition(
+    return _imp_abs("lsp.tools").lsp_definition(
         root, args["path"], args["line"], args["column"])
 
 
@@ -173,7 +178,7 @@ def _lsp_references(root: Path, args: dict) -> str:
     err = _require(args, "path", "line", "column")
     if err:
         return err
-    return _imp("lsp.tools").lsp_references(
+    return _imp_abs("lsp.tools").lsp_references(
         root, args["path"], args["line"], args["column"],
         include_declaration=bool(
             args.get("include_declaration", True)))
@@ -183,18 +188,18 @@ def _lsp_diagnostics(root: Path, args: dict) -> str:
     err = _require(args, "path")
     if err:
         return err
-    return _imp("lsp.tools").lsp_diagnostics(root, args["path"])
+    return _imp_abs("lsp.tools").lsp_diagnostics(root, args["path"])
 
 
 def _lsp_symbols(root: Path, args: dict) -> str:
     err = _require(args, "path")
     if err:
         return err
-    return _imp("lsp.tools").lsp_symbols(root, args["path"])
+    return _imp_abs("lsp.tools").lsp_symbols(root, args["path"])
 
 
 def _lsp_status(root: Path, args: dict) -> str:
-    return _imp("lsp.tools").lsp_status(root)
+    return _imp_abs("lsp.tools").lsp_status(root)
 
 
 # ═══════════════════════════════════════════════════════════════════════ #
@@ -202,7 +207,7 @@ def _lsp_status(root: Path, args: dict) -> str:
 # ═══════════════════════════════════════════════════════════════════════ #
 
 def _screen_info(root: Path, args: dict) -> str:
-    return _imp("computer.tools").screen_info(root)
+    return _imp_abs("computer.tools").screen_info(root)
 
 
 # ═══════════════════════════════════════════════════════════════════════ #

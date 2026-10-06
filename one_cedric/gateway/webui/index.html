@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>One Cedric</title>
-<link rel="stylesheet" href="/static/style.css?v=20261005f">
-<link rel="stylesheet" href="/static/hljs-theme.min.css?v=20261005f">
+<link rel="stylesheet" href="/static/style.css?v=20261006f">
+<link rel="stylesheet" href="/static/hljs-theme.min.css?v=20261006f">
 <!-- 内联兜底：库文件未加载时也保证页面不是黑屏 -->
 <style>
   html, body { background: #0b0b0d; }
@@ -19,9 +19,9 @@
   #boot-splash .bs { font-size: 11px; color: #6e6b67;
     font-family: Consolas, monospace; }
 </style>
-<script src="/static/vue.min.js?v=20261005f"></script>
-<script src="/static/marked.min.js?v=20261005f"></script>
-<script src="/static/highlight.min.js?v=20261005f"></script>
+<script src="/static/vue.min.js?v=20261006f"></script>
+<script src="/static/marked.min.js?v=20261006f"></script>
+<script src="/static/highlight.min.js?v=20261006f"></script>
 </head>
 <body>
 
@@ -147,8 +147,8 @@
         </svg>
       </button>
 
-      <a class="icon-btn" href="/stats" target="_blank"
-         :title="t('topbar.statsPage')">
+      <button class="icon-btn" @click="openStatsModal"
+              :title="t('topbar.statsPage')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round"
              stroke-linejoin="round">
@@ -156,10 +156,38 @@
           <line x1="12" y1="20" x2="12" y2="4"/>
           <line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
-      </a>
+      </button>
 
-      <a class="icon-btn" href="/settings" target="_blank"
-         :title="t('topbar.settingsPage')">
+      <button class="icon-btn" @click="openCronModal"
+              :title="lang === 'zh' ? '定时任务' : 'Cron jobs'">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="openDreamModal"
+              :title="lang === 'zh' ? '梦境回顾' : 'Dream'">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="openDiagnose"
+              :title="t('topbar.diagnose')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="openSettingsModal"
+              :title="t('topbar.settingsPage')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round"
              stroke-linejoin="round">
@@ -173,7 +201,7 @@
           <line x1="9" y1="8" x2="15" y2="8"/>
           <line x1="17" y1="16" x2="23" y2="16"/>
         </svg>
-      </a>
+      </button>
 
       <button class="icon-btn" @click="showHelp = true"
               :title="t('topbar.help')">
@@ -358,6 +386,10 @@
           <span class="sidebar-count">
             {{ tools.filter(x=>x.enabled).length }}/{{ tools.length }}
           </span>
+          <button class="ghost-btn ct-manage-btn" type="button"
+                  @click="openCustomTools">
+            {{ lang === 'zh' ? '自定义' : 'Custom' }}
+          </button>
         </div>
         <div class="tools-filter">
           <input class="tools-search" v-model="toolsFilter"
@@ -622,13 +654,16 @@
                   </div>
                   <details v-if="tc.output" class="tool-output">
                     <summary>{{ lang === 'zh' ? '查看工具输出' : 'View tool output' }}</summary>
-                    <pre>{{ tc.output }}</pre>
+                    <pre class="tool-output-pre" v-html="renderToolOutput(tc)"></pre>
                   </details>
                 </div>
               </div>
 
               <div v-if="m.content" class="msg-content"
                    v-html="renderMarkdown(m.content)"></div>
+              <span v-if="m.role === 'assistant' && m.content"
+                    class="cursor-star"
+                    :class="{ blink: m.streaming }">✦</span>
               <div v-else-if="m.streaming" class="typing">
                 <span></span><span></span><span></span>
               </div>
@@ -803,6 +838,20 @@
                     rows="1"></textarea>
           <div class="input-bar">
             <div class="input-left">
+              <div class="think-slider"
+                   :title="lang === 'zh' ? '思考等级：拖动滑块从极简到超（minimal → ultra）' : 'Thinking level: drag from Minimal to Ultra'">
+                <span class="think-bolt">⚡</span>
+                <input type="range" class="think-range" min="0"
+                       :max="thinkLevels.length - 1"
+                       :value="thinkLevelIndex"
+                       :disabled="streaming"
+                       @input="setThinkLevelByIndex($event.target.value)">
+                <span class="think-name">{{ thinkLabel(settings.think_level) }}</span>
+              </div>
+              <button class="attach-btn" type="button"
+                      :disabled="streaming"
+                      :title="lang === 'zh' ? '上传文件（也可拖拽或 Ctrl+V 粘贴）' : 'Upload files (drag & drop or Ctrl+V too)'"
+                      @click="pickFiles">📎</button>
               <label class="switch">
                 <input type="checkbox" v-model="autoApprove">
                 <span class="switch-track"><span class="switch-thumb"></span></span>
@@ -953,6 +1002,489 @@
           <div class="help-row">
             <span>{{ t('help.thisHelp') }}</span>
             <span class="kbd">?</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 诊断弹层 ══ -->
+  <transition name="fade">
+    <div v-if="showDiagnose" class="modal-mask" @click.self="showDiagnose = false">
+      <div class="diagnose-modal">
+        <div class="drawer-head">
+          <h2>{{ t('diagnose.title') }}</h2>
+          <button class="icon-btn" @click="showDiagnose = false">✕</button>
+        </div>
+        <div class="diagnose-body">
+          <div v-if="diagnoseLoading" class="empty-hint">
+            {{ t('diagnose.loading') }}
+          </div>
+          <template v-else>
+            <div class="diagnose-summary">
+              <span class="stat-dot" :class="diagnoseHealthy ? 'ok' : 'err'"></span>
+              <span :class="diagnoseHealthy ? '' : 'diagnose-unhealthy'">
+                {{ diagnoseHealthy ? t('diagnose.healthy') : t('diagnose.unhealthy') }}
+              </span>
+              <span class="diagnose-version">
+                {{ diagnoseData.version }}
+                <template v-if="diagnoseData.model"> · {{ diagnoseData.model }}</template>
+              </span>
+            </div>
+            <div v-for="it in diagnoseItems" :key="it.name"
+                 class="diagnose-item">
+              <span class="diagnose-mark"
+                    :class="it.ok ? 'ok' : (it.warn ? 'warn' : 'err')">
+                {{ it.ok ? '✓' : (it.warn ? '⚠' : '✗') }}
+              </span>
+              <span class="diagnose-name">{{ it.name }}</span>
+              <span class="diagnose-detail">{{ it.detail }}</span>
+            </div>
+            <button class="btn-primary diagnose-rerun" @click="openDiagnose">
+              {{ t('diagnose.rerun') }}
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 自定义工具弹层 ══ -->
+  <transition name="fade">
+    <div v-if="showCustomTools" class="modal-mask" @click.self="showCustomTools = false">
+      <div class="custom-tools-modal">
+        <div class="drawer-head">
+          <h2>{{ lang === 'zh' ? '自定义工具' : 'Custom Tools' }}</h2>
+          <button class="icon-btn" @click="showCustomTools = false">✕</button>
+        </div>
+        <div class="ct-tabs">
+          <button class="cat-chip" :class="{ active: ctTab === 'list' }"
+                  @click="ctTab = 'list'; loadCustomTools()">
+            {{ lang === 'zh' ? '列表' : 'List' }}
+          </button>
+          <button class="cat-chip" :class="{ active: ctTab === 'install' }"
+                  @click="ctTab = 'install'">
+            {{ lang === 'zh' ? '安装' : 'Install' }}
+          </button>
+          <button class="cat-chip" :class="{ active: ctTab === 'generate' }"
+                  @click="ctTab = 'generate'">
+            {{ lang === 'zh' ? 'AI 生成' : 'AI Generate' }}
+          </button>
+        </div>
+        <div class="ct-body">
+          <div v-if="ctTab === 'list'">
+            <div v-if="customTools.length === 0" class="empty-hint">
+              {{ lang === 'zh' ? '暂无自定义工具' : 'No custom tools yet' }}
+            </div>
+            <div v-for="ct in customTools" :key="ct.name" class="ct-item">
+              <div class="ct-item-main">
+                <span class="ct-name">{{ ct.public_name }}</span>
+                <span class="ct-desc">{{ ct.description || '—' }}</span>
+              </div>
+              <div class="ct-item-ops">
+                <label class="ct-toggle">
+                  <input type="checkbox" :checked="ct.enabled"
+                         @change="toggleCustomTool(ct)">
+                  <span>{{ lang === 'zh' ? '启用' : 'On' }}</span>
+                </label>
+                <button class="ghost-btn ct-danger" @click="uninstallCustomTool(ct)">
+                  {{ lang === 'zh' ? '卸载' : 'Remove' }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div v-if="ctTab === 'install'" class="ct-form">
+            <input class="glass-input" v-model="ctForm.name"
+                   :placeholder="lang === 'zh' ? '工具名（字母开头）' : 'Tool name (letter first)'">
+            <input class="glass-input" v-model="ctForm.command"
+                   :placeholder="lang === 'zh' ? '命令，如 python C:/tool.py' : 'Command, e.g. python C:/tool.py'">
+            <input class="glass-input" v-model="ctForm.description"
+                   :placeholder="lang === 'zh' ? '工具描述' : 'Description'">
+            <label class="ct-check">
+              <input type="checkbox" v-model="ctForm.write">
+              <span>{{ lang === 'zh' ? '写操作需确认（默认只读）' : 'Require confirmation for writes (default read-only)' }}</span>
+            </label>
+            <button class="btn-primary" @click="installCustomTool"
+                    :disabled="ctBusy">
+              {{ lang === 'zh' ? '安装工具' : 'Install' }}
+            </button>
+          </div>
+          <div v-if="ctTab === 'generate'" class="ct-form">
+            <textarea class="glass-input ct-gen-input" v-model="ctGenDesc" rows="4"
+                      :placeholder="lang === 'zh' ? '描述你想要的工具，例如：一个读取系统 CPU 温度并返回 JSON 的只读工具' : 'Describe the tool you want, e.g. a read-only tool that returns CPU temperature as JSON'"></textarea>
+            <button class="btn-primary" @click="generateCustomTool"
+                    :disabled="ctBusy || !ctGenDesc.trim()">
+              {{ ctBusy ? (lang === 'zh' ? '生成中…' : 'Generating…') : (lang === 'zh' ? 'AI 生成工具' : 'Generate') }}
+            </button>
+            <div v-if="ctResult" class="ct-result">{{ ctResult }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 设置面板（内嵌） ══ -->
+  <transition name="fade">
+    <div v-if="showSettingsModal" class="modal-mask"
+         @click.self="showSettingsModal = false">
+      <div class="embed-modal embed-settings">
+        <div class="drawer-head">
+          <h2>⚙ {{ lang === 'zh' ? '设置' : 'Settings' }}</h2>
+          <button class="icon-btn" @click="showSettingsModal = false">✕</button>
+        </div>
+        <div class="embed-body">
+          <section class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">model</span>
+              {{ lang === 'zh' ? '模型与生成' : 'Model & Generation' }}
+            </div>
+            <div class="embed-grid">
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '模型名称' : 'Model name' }}</span>
+                <input class="glass-input" v-model="settings.model">
+              </label>
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? 'Ollama Host' : 'Ollama host' }}</span>
+                <input class="glass-input" v-model="settings.host">
+              </label>
+              <label class="embed-field">
+                <span>API Key</span>
+                <input class="glass-input" type="password"
+                       v-model="settings.api_key">
+              </label>
+              <label class="embed-field">
+                <span>Temperature</span>
+                <input class="glass-input" type="number" min="0" max="2"
+                       step="0.05" v-model="settings.temperature">
+              </label>
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '思考级别' : 'Think level' }}</span>
+                <select class="glass-input" v-model="settings.think_level"
+                        @change="saveSettings()">
+                  <option v-for="lv in thinkLevels" :key="lv.value"
+                          :value="lv.value">{{ lv.zh }} · {{ lv.en }}</option>
+                </select>
+              </label>
+              <label class="embed-check">
+                <input type="checkbox" v-model="settings.show_reasoning">
+                <span>{{ lang === 'zh' ? '显示思考过程' : 'Show reasoning' }}</span>
+              </label>
+            </div>
+            <button class="btn-primary embed-save" @click="saveSettings()">
+              {{ lang === 'zh' ? '保存设置' : 'Save settings' }}
+            </button>
+          </section>
+
+          <section class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">appearance</span>
+              {{ lang === 'zh' ? '外观' : 'Appearance' }}
+            </div>
+            <div class="embed-grid">
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '主题' : 'Theme' }}</span>
+                <select class="glass-input" :value="theme"
+                        @change="setTheme($event.target.value)">
+                  <option value="dark">Dark</option>
+                  <option value="light">Light</option>
+                </select>
+              </label>
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '亚克力强度' : 'Acrylic strength' }}</span>
+                <select class="glass-input" :value="acrylicStrength"
+                        @change="setAcrylicStrength($event.target.value)">
+                  <option value="off">Off</option>
+                  <option value="low">Low</option>
+                  <option value="mid">Mid</option>
+                  <option value="high">High</option>
+                </select>
+              </label>
+              <label class="embed-field">
+                <span>Hue 1</span>
+                <input class="glass-input" type="color"
+                       :value="hueToHex(particleHue1)"
+                       @input="setHueFromInput(1, $event.target.value)">
+              </label>
+              <label class="embed-field">
+                <span>Hue 2</span>
+                <input class="glass-input" type="color"
+                       :value="hueToHex(particleHue2)"
+                       @input="setHueFromInput(2, $event.target.value)">
+              </label>
+            </div>
+          </section>
+
+          <section class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">behavior</span>
+              {{ lang === 'zh' ? '行为与语言' : 'Behavior & Language' }}
+            </div>
+            <div class="embed-grid">
+              <label class="embed-check">
+                <input type="checkbox" v-model="autoApprove">
+                <span>{{ lang === 'zh' ? '自动确认工具调用' : 'Auto-approve tools' }}</span>
+              </label>
+              <label class="embed-check">
+                <input type="checkbox" :checked="sandboxTerminal"
+                       @change="toggleSandbox()">
+                <span>{{ lang === 'zh' ? '沙箱终端' : 'Sandbox terminal' }}</span>
+              </label>
+              <label class="embed-check">
+                <input type="checkbox" v-model="notifyEnabled"
+                       @change="toggleNotifications()">
+                <span>{{ lang === 'zh' ? '桌面通知' : 'Notifications' }}</span>
+              </label>
+              <label class="embed-check">
+                <input type="checkbox" :checked="lang === 'zh'"
+                       @change="toggleLang()">
+                <span>{{ lang === 'zh' ? '简体中文界面' : 'Chinese UI' }}</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">network</span>
+              {{ lang === 'zh' ? '网络与局域网访问' : 'Network & LAN' }}
+            </div>
+            <div class="embed-net">
+              <div class="embed-net-row">
+                <span class="embed-net-k">{{ lang === 'zh' ? '监听地址' : 'Listening' }}</span>
+                <span class="embed-net-v">{{ netInfo.host || '—' }}:{{ netInfo.port || '—' }}</span>
+              </div>
+              <div class="embed-net-row">
+                <span class="embed-net-k">{{ lang === 'zh' ? '局域网状态' : 'LAN' }}</span>
+                <span class="embed-net-v" :class="netInfo.lan_open ? 'ok' : 'warn'">
+                  {{ netInfo.lan_open ? '✓ ' + (lang === 'zh' ? '已开放' : 'Open')
+                    : '✗ ' + (lang === 'zh' ? '当前仅本机可访问' : 'Local only') }}
+                </span>
+              </div>
+              <div class="embed-net-row" v-if="netInfo.lan_open && netInfo.lan_urls.length">
+                <span class="embed-net-k">{{ lang === 'zh' ? '局域网地址' : 'LAN URLs' }}</span>
+                <span class="embed-net-v">{{ netInfo.lan_urls.join('  ') }}</span>
+              </div>
+              <div class="embed-net-row">
+                <span class="embed-net-k">{{ lang === 'zh' ? '本机地址' : 'Local URL' }}</span>
+                <span class="embed-net-v">{{ netInfo.local_url }}</span>
+              </div>
+              <div class="embed-net-hint">{{ netInfo.hint }}</div>
+            </div>
+          </section>
+
+          <section class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">commands</span>
+              {{ lang === 'zh' ? '自定义命令' : 'Custom commands' }}
+            </div>
+            <div class="embed-cmds">
+              <div v-for="(cmd, ci) in customCommands" :key="ci" class="embed-cmd-row">
+                <input class="glass-input" v-model="cmd.name"
+                       :placeholder="lang === 'zh' ? '命令名（/ 前缀可选）' : 'Name (slash optional)'">
+                <input class="glass-input" v-model="cmd.template"
+                       :placeholder="lang === 'zh' ? '模板，支持 {file} {sel} {input}' : 'Template with {file} {sel} {input}'">
+                <button class="ghost-btn ct-danger" @click="removeCustomCommand(ci)">
+                  ✕
+                </button>
+              </div>
+              <div class="embed-cmd-ops">
+                <button class="ghost-btn" @click="addCustomCommand()">
+                  + {{ lang === 'zh' ? '添加命令' : 'Add command' }}
+                </button>
+                <button class="btn-primary" @click="saveCustomCommands()">
+                  {{ lang === 'zh' ? '保存命令' : 'Save commands' }}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">data</span>
+              {{ lang === 'zh' ? '数据管理' : 'Data' }}
+            </div>
+            <div class="embed-data-ops">
+              <button class="ghost-btn" @click="exportAllSessions()">
+                {{ lang === 'zh' ? '导出会话' : 'Export sessions' }}
+              </button>
+              <button class="ghost-btn" @click="importSessionsFromFile()">
+                {{ lang === 'zh' ? '导入会话' : 'Import sessions' }}
+              </button>
+              <button class="ghost-btn ct-danger" @click="clearAllSessions()">
+                {{ lang === 'zh' ? '清空会话' : 'Clear sessions' }}
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 统计面板（内嵌） ══ -->
+  <transition name="fade">
+    <div v-if="showStatsModal" class="modal-mask"
+         @click.self="showStatsModal = false">
+      <div class="embed-modal embed-stats">
+        <div class="drawer-head">
+          <h2>📊 {{ lang === 'zh' ? '统计' : 'Stats' }}</h2>
+          <button class="icon-btn" @click="showStatsModal = false">✕</button>
+          <button class="ghost-btn" style="margin-left:auto" @click="_statsRefresh()">
+            ↻
+          </button>
+        </div>
+        <div class="embed-body">
+          <div class="st-statusbar">
+            <div class="item"><span class="k">{{ lang === 'zh' ? '模型' : 'Model' }}</span><span class="v model" id="stmModel">—</span></div>
+            <div class="item"><span class="k">{{ lang === 'zh' ? '状态' : 'Status' }}</span><span class="v ok" id="stmRunning">—</span></div>
+            <div class="item"><span class="k">{{ lang === 'zh' ? '时长' : 'Uptime' }}</span><span class="v" id="stmUptime">—</span></div>
+            <div class="item"><span class="k">Req</span><span class="v" id="stmRequests">—</span></div>
+            <div class="item"><span class="k">Err</span><span class="v" id="stmErrors">—</span></div>
+            <div class="item st-url"><span class="k">{{ lang === 'zh' ? '网关' : 'Gateway' }}</span><span class="v" id="stmUrl">—</span></div>
+          </div>
+          <div class="st-grid" id="stmCards"></div>
+          <div class="st-panel">
+            <header><span class="st-tag">messages</span>
+              {{ lang === 'zh' ? '各会话消息分布' : 'Messages per session' }}</header>
+            <div class="st-body" id="stmSessionBars"></div>
+          </div>
+          <div class="st-two">
+            <div class="st-panel">
+              <header><span class="st-tag">roles</span>
+                {{ lang === 'zh' ? '角色占比' : 'Role share' }}</header>
+              <div class="st-body">
+                <div class="st-donut-wrap" id="stmDonut"></div>
+              </div>
+            </div>
+            <div class="st-panel">
+              <header><span class="st-tag">tools</span>
+                {{ lang === 'zh' ? '工具调用 TOP' : 'Tool calls TOP' }}</header>
+              <div class="st-body" id="stmToolTop"></div>
+            </div>
+          </div>
+          <div class="st-panel">
+            <header><span class="st-tag">tools</span>
+              {{ lang === 'zh' ? '工具列表' : 'Tools' }}</header>
+            <div class="st-body" id="stmToolTable"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 定时任务面板（内嵌） ══ -->
+  <transition name="fade">
+    <div v-if="showCronModal" class="modal-mask"
+         @click.self="showCronModal = false">
+      <div class="embed-modal embed-cron">
+        <div class="drawer-head">
+          <h2>⏱ {{ lang === 'zh' ? '定时任务' : 'Cron Jobs' }}</h2>
+          <button class="icon-btn" @click="showCronModal = false">✕</button>
+        </div>
+        <div class="embed-body">
+          <div class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">jobs</span>
+              {{ lang === 'zh' ? '任务列表' : 'Job list' }}
+            </div>
+            <div v-if="cronJobs.length === 0" class="empty-hint">
+              {{ lang === 'zh' ? '暂无任务，在下方添加第一个定时任务。' : 'No jobs yet — add your first one below.' }}
+            </div>
+            <div v-for="j in cronJobs" :key="j.id" class="cron-item">
+              <div class="cron-main">
+                <span class="cron-name">{{ j.name }}</span>
+                <span class="cron-sched">{{ j.schedule }}</span>
+                <span class="cron-prompt" :title="j.prompt">{{ j.prompt }}</span>
+                <span v-if="j.last_status" class="cron-status"
+                      :class="{ ok: j.last_status === 'ok', err: j.last_status !== 'ok' }">
+                  {{ j.last_status }}
+                </span>
+              </div>
+              <div class="cron-ops">
+                <button class="ghost-btn" @click="runCron(j)">
+                  {{ lang === 'zh' ? '运行' : 'Run' }}
+                </button>
+                <label class="ct-toggle">
+                  <input type="checkbox" :checked="j.enabled"
+                         @change="toggleCron(j)">
+                  <span>{{ j.enabled ? (lang === 'zh' ? '启用' : 'On') : (lang === 'zh' ? '停用' : 'Off') }}</span>
+                </label>
+                <button class="ghost-btn ct-danger" @click="deleteCron(j)">
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">add</span>
+              {{ lang === 'zh' ? '新建任务' : 'New job' }}
+            </div>
+            <div class="cron-form">
+              <input class="glass-input" v-model="cronForm.name"
+                     :placeholder="lang === 'zh' ? '任务名称，如 每日复盘' : 'Name, e.g. daily review'">
+              <input class="glass-input" v-model="cronForm.schedule"
+                     placeholder="cron 表达式，如 0 3 * * *"
+                     :title="lang === 'zh' ? '分 时 日 月 周' : 'min hour day month weekday'">
+              <textarea class="glass-input" v-model="cronForm.prompt" rows="2"
+                        :placeholder="lang === 'zh' ? '模型提示词（到点自动执行）' : 'Prompt executed on schedule'"></textarea>
+              <button class="btn-primary" @click="addCron" :disabled="cronBusy">
+                {{ lang === 'zh' ? '添加任务' : 'Add job' }}
+              </button>
+              <div v-if="cronMsg" class="cron-msg">{{ cronMsg }}</div>
+              <div class="embed-net-hint">
+                {{ lang === 'zh' ? '提示：与 CLI /cron 共用同一份任务存储；"运行"需模型可达（Ollama 或远端 API）。' : 'Note: shares storage with CLI /cron; Run requires a reachable model.' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ══ 梦境面板（内嵌） ══ -->
+  <transition name="fade">
+    <div v-if="showDreamModal" class="modal-mask"
+         @click.self="showDreamModal = false">
+      <div class="embed-modal embed-dream">
+        <div class="drawer-head">
+          <h2>🌙 {{ lang === 'zh' ? '梦境回顾' : 'Dream' }}</h2>
+          <button class="icon-btn" @click="showDreamModal = false">✕</button>
+        </div>
+        <div class="embed-body">
+          <div class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">run</span>
+              {{ lang === 'zh' ? '生成梦境' : 'Run a dream' }}
+            </div>
+            <div class="cron-form">
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '回顾天数' : 'Days to review' }}</span>
+                <input class="glass-input" type="number" min="1" max="30"
+                       v-model="dreamForm.days">
+              </label>
+              <input class="glass-input" v-model="dreamForm.focus"
+                     :placeholder="lang === 'zh' ? '关注点（可选），如：近期项目进展' : 'Focus (optional)'">
+              <button class="btn-primary" @click="runDream" :disabled="dreamBusy">
+                {{ dreamBusy ? (lang === 'zh' ? '做梦…' : 'Dreaming…') : (lang === 'zh' ? '开始做梦' : 'Dream') }}
+              </button>
+            </div>
+            <pre v-if="dreamResult" class="dream-result">{{ dreamResult }}</pre>
+          </div>
+          <div v-if="dreamStatsText" class="dream-stats">{{ dreamStatsText }}</div>
+          <div class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">history</span>
+              {{ lang === 'zh' ? '历史梦境' : 'Dream history' }}
+            </div>
+            <div v-if="dreamList.length === 0" class="empty-hint">
+              {{ lang === 'zh' ? '还没有做过梦。' : 'No dreams yet.' }}
+            </div>
+            <div v-for="d in dreamList" :key="d.id" class="dream-item">
+              <span class="dream-id">{{ d.id }}</span>
+              <span class="dream-time">
+                {{ new Date(d.mtime * 1000).toLocaleString() }}
+              </span>
+              <span class="dream-size">{{ d.size }} B</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1241,7 +1773,7 @@
 
 </div>
 
-<script src="/static/app.js?v=20261005f"></script>
+<script src="/static/app.js?v=20261006f"></script>
 </body>
 </html>
 
