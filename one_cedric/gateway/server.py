@@ -440,6 +440,13 @@ class Gateway:
             }.get(f.suffix.lower(), "application/octet-stream")
             return FileResponse(str(f), media_type=media)
 
+        @app.get("/favicon.ico")
+        async def favicon():
+            f = webui_dir / "favicon.ico"
+            if not f.exists() or not f.is_file():
+                raise HTTPException(404, "favicon not found")
+            return FileResponse(str(f), media_type="image/x-icon")
+
         # ---- 端点 ----
 
         @app.get("/health")
