@@ -19,6 +19,7 @@ from .sandbox import (
 )
 from .normalize import prepare_tool_call
 from ._dispatch import dispatch_tool, is_core_handled
+from ..computer.tools import mouse_action, keyboard_action, window_action
 
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "prepare_tool_call",
     "_resolve_path", "_as_int",
     "set_access_mode", "get_access_mode",
+    "mouse_action", "keyboard_action", "window_action",
 ]

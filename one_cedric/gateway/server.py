@@ -1008,6 +1008,19 @@ class Gateway:
             _add("沙箱终端", gw.copilot.sandbox_terminal,
                  "开启" if gw.copilot.sandbox_terminal else "关闭")
             try:
+                from ..tools._handlers_extra import _github_latest_version
+                _ver = _github_latest_version(gw.copilot.root, {})
+                if _ver.startswith("ERROR"):
+                    raise RuntimeError(_ver[6:])
+                _tag = next(
+                    (l.split(": ", 1)[1] for l in _ver.splitlines()
+                     if l.startswith("最新版本")),
+                    _ver.splitlines()[0])
+                _add("GitHub 最新版本", True, _tag)
+            except Exception as exc:
+                _add("GitHub 最新版本", False,
+                     f"获取失败: {exc}", warn=True)
+            try:
                 from ..agents_skills import list_agents_skills
                 _skills = list_agents_skills()
                 _add("第三方技能(~/.agents/skills)",

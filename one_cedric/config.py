@@ -87,32 +87,27 @@ DEEPSEEK_BUGGY_MODEL_KEYWORDS = (
     "deepseek-v4.1-flash", "deepseek-v4.1", "deepseek-v4-pro",
 )
 
-THINK_LEVELS = ("minimal", "low", "medium", "max", "xhigh", "ultra")
+THINK_LEVELS = ("minimal", "low", "medium", "high", "xhigh", "max", "ultra")
 
 THINK_LEVEL_DESC = {
     "minimal": "直接回答，不展示推理",
     "low":     "简短推理",
     "medium":  "标准推理（默认）",
-    "max":     "深入推理",
+    "high":    "增强推理",
     "xhigh":   "深度推理 + 多角度验证",
+    "max":     "深入推理（历史档位）",
     "ultra":   "穷尽推理 + 正反论证 + 边界分析",
 }
 
-THINK_TO_REASONING_EFFORT = {
-    "minimal": "minimal",
-    "low":     "low",
-    "medium":  "medium",
-    "max":     "high",
-    "xhigh":   "high",
-    "ultra":   "high",
-}
+THINK_TO_REASONING_EFFORT = {lvl: lvl for lvl in THINK_LEVELS}
 
 THINK_TO_BUDGET = {
     "minimal": 512,
     "low":     2048,
     "medium":  8192,
-    "max":     16384,
+    "high":    12288,
     "xhigh":   32768,
+    "max":     16384,
     "ultra":   65536,
 }
 
@@ -120,9 +115,10 @@ THINK_PROMPT_HINTS = {
     "minimal": "\n\n[思考模式: minimal] 直接给出答案，不要展示推理过程。",
     "low":     "\n\n[思考模式: low] 简要推理后给出答案。",
     "medium":  "",
-    "max":     "\n\n[思考模式: max] 深入分析问题，考虑多种可能性后再回答。",
+    "high":    "\n\n[思考模式: high] 增强推理：深入分析后再回答。",
     "xhigh":   ("\n\n[思考模式: xhigh] 深度推理，从多个角度验证结论，"
                 "主动指出潜在风险与替代方案。"),
+    "max":     "\n\n[思考模式: max] 深入分析问题，考虑多种可能性后再回答。",
     "ultra":   ("\n\n[思考模式: ultra] 穷尽式推理：列出所有可能方案，"
                 "逐一评估优缺点，正反论证，分析边界条件与失败场景，"
                 "最后给出最优建议。必要时明确说明假设与不确定性。"),

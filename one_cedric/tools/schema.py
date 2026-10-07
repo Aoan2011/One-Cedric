@@ -1510,6 +1510,98 @@ TOOLS = [
         }, "required": ["action"]},
     }},
 
+    # ==================== 浏览器模拟 ====================
+    {"type": "function", "function": {
+        "name": "browser_open",
+        "description": "用模拟浏览器打开网页（playwright + 系统 Edge）。"
+                       "返回 URL、标题与页面文本预览。",
+        "parameters": {"type": "object", "properties": {
+            "url": {"type": "string", "description": "要打开的网址。"},
+            "timeout": {"type": "integer",
+                        "description": "超时毫秒，默认 30000。"},
+            "limit": {"type": "integer",
+                      "description": "文本预览长度，默认 800。"},
+        }, "required": ["url"]},
+    }},
+    {"type": "function", "function": {
+        "name": "browser_click",
+        "description": "在浏览器页面中点击元素（CSS 选择器，可指定第 N 个）。",
+        "parameters": {"type": "object", "properties": {
+            "selector": {"type": "string",
+                         "description": "CSS 选择器，如 'button.login'。"},
+            "index": {"type": "integer",
+                      "description": "命中多个时点击第几个（0 起）。"},
+        }, "required": ["selector"]},
+    }},
+    {"type": "function", "function": {
+        "name": "browser_type",
+        "description": "在浏览器页面输入框输入文本，可选回车提交。",
+        "parameters": {"type": "object", "properties": {
+            "selector": {"type": "string", "description": "CSS 选择器。"},
+            "text": {"type": "string", "description": "要输入的内容。"},
+            "clear": {"type": "boolean", "description": "输入前是否清空，默认 true。"},
+            "submit": {"type": "boolean", "description": "输入后按回车提交。"},
+            "delay": {"type": "integer", "description": "按键间隔毫秒。"},
+        }, "required": ["selector", "text"]},
+    }},
+    {"type": "function", "function": {
+        "name": "browser_extract",
+        "description": "从浏览器当前页面提取文本（可指定选择器或取整页）。",
+        "parameters": {"type": "object", "properties": {
+            "selector": {"type": "string",
+                         "description": "CSS 选择器，留空取整页正文。"},
+            "limit": {"type": "integer", "description": "最大字符数，默认 4000。"},
+            "max_elements": {"type": "integer",
+                             "description": "选择器命中多个时最多提取几个。"},
+        }},
+    }},
+    {"type": "function", "function": {
+        "name": "browser_screenshot",
+        "description": "对浏览器当前页面截图，保存到指定路径。",
+        "parameters": {"type": "object", "properties": {
+            "save_to": {"type": "string", "description": "截图保存路径。"},
+            "full_page": {"type": "boolean",
+                          "description": "是否截整页（默认当前视口）。"},
+        }, "required": ["save_to"]},
+    }},
+    {"type": "function", "function": {
+        "name": "browser_url",
+        "description": "返回浏览器当前 URL 与标题。",
+        "parameters": {"type": "object", "properties": {}},
+    }},
+    {"type": "function", "function": {
+        "name": "browser_nav",
+        "description": "浏览器前进 / 后退 / 刷新。",
+        "parameters": {"type": "object", "properties": {
+            "action": {"type": "string",
+                       "enum": ["back", "forward", "reload"]},
+        }, "required": ["action"]},
+    }},
+    {"type": "function", "function": {
+        "name": "browser_wait",
+        "description": "等待指定毫秒（用于等页面加载/动画）。",
+        "parameters": {"type": "object", "properties": {
+            "ms": {"type": "integer", "description": "等待毫秒，默认 1000。"},
+        }},
+    }},
+    {"type": "function", "function": {
+        "name": "browser_close",
+        "description": "关闭模拟浏览器（释放资源）。",
+        "parameters": {"type": "object", "properties": {}},
+    }},
+
+    # ==================== 版本信息 ====================
+    {"type": "function", "function": {
+        "name": "github_latest_version",
+        "description": "查询 GitHub 仓库的最新 release 版本号（默认 "
+                       "Aoan2011/One-Cedric）。",
+        "parameters": {"type": "object", "properties": {
+            "repo": {"type": "string",
+                     "description": "GitHub 仓库，如 owner/repo，默认 "
+                                    "Aoan2011/One-Cedric。"},
+        }},
+    }},
+
     # ==================== Sub agent ====================
     {"type": "function", "function": {
         "name": "spawn_agent",
@@ -2436,6 +2528,9 @@ READONLY_TOOL_NAMES = {
     "web_fetch", "http_request", "web_search", "web_research",
     "download_info", "ping_host", "port_scan", "traceroute",
     "get_public_ip", "dns_lookup", "ssl_check", "http_head",
+    "github_latest_version",
+    # 浏览器模拟（只读子集）
+    "browser_extract", "browser_url", "browser_wait",
     # 数据
     "json_query", "csv_query", "sqlite",
     "json_schema_validate", "sqlite_tables", "sqlite_schema",
@@ -2574,6 +2669,9 @@ WRITE_TOOLS = {
     "compose_exec",
     "k8s_apply", "k8s_delete", "k8s_scale", "k8s_exec",
     "todo",
+    # 浏览器模拟（交互与写文件）
+    "browser_open", "browser_click", "browser_type",
+    "browser_screenshot", "browser_nav", "browser_close",
 }
 
 

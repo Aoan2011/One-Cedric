@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>One Cedric</title>
 <link rel="icon" href="/static/favicon.ico">
-<link rel="stylesheet" href="/static/style.css?v=20261006f">
-<link rel="stylesheet" href="/static/hljs-theme.min.css?v=20261006f">
+<link rel="stylesheet" href="/static/style.css?v=20261007c">
+<link rel="stylesheet" href="/static/hljs-theme.min.css?v=20261007c">
 <!-- 内联兜底：库文件未加载时也保证页面不是黑屏 -->
 <style>
   html, body { background: #0b0b0d; }
@@ -20,9 +20,9 @@
   #boot-splash .bs { font-size: 11px; color: #6e6b67;
     font-family: Consolas, monospace; }
 </style>
-<script src="/static/vue.min.js?v=20261006f"></script>
-<script src="/static/marked.min.js?v=20261006f"></script>
-<script src="/static/highlight.min.js?v=20261006f"></script>
+<script src="/static/vue.min.js?v=20261007c"></script>
+<script src="/static/marked.min.js?v=20261007c"></script>
+<script src="/static/highlight.min.js?v=20261007c"></script>
 </head>
 <body>
 
@@ -840,15 +840,58 @@
           <div class="input-bar">
             <div class="input-left">
               <div class="think-slider"
-                   :title="lang === 'zh' ? '思考等级：拖动滑块从极简到超（minimal → ultra）' : 'Thinking level: drag from Minimal to Ultra'">
+                   :class="{ 'think-ultra': settings.think_level === 'ultra' }"
+                   :title="lang === 'zh' ? '思考强度：点击弹出拖拽（minimal → ultra）' : 'Thinking effort: click to open the dragger (minimal → ultra)'"
+                   @click="openEffort">
                 <span class="think-bolt">⚡</span>
-                <input type="range" class="think-range" min="0"
-                       :max="thinkLevels.length - 1"
-                       :value="thinkLevelIndex"
-                       :disabled="streaming"
-                       @input="setThinkLevelByIndex($event.target.value)">
                 <span class="think-name">{{ thinkLabel(settings.think_level) }}</span>
+                <span class="think-caret">▾</span>
               </div>
+
+              <!-- 思考强度弹窗：宽轨道 + 阻尼圆点 + ultra 蓝紫粒子 -->
+              <transition name="effort-pop">
+                <div v-if="effortOpen" class="effort-popover"
+                     @click.stop>
+                  <div class="effort-head">
+                    <span class="effort-title">
+                      {{ lang === 'zh' ? '思考强度' : 'Thinking effort' }}</span>
+                    <span class="effort-level"
+                          :class="{ ultra: effortIsUltra }">
+                      {{ thinkLabel(settings.think_level) }}</span>
+                    <button class="icon-btn effort-x" type="button"
+                            @click="closeEffort">✕</button>
+                  </div>
+                  <div v-if="effortIsUltra" class="effort-warning">
+                    <span v-for="(ch, i) in effortWarningChars" :key="i"
+                          :style="{ '--i': i }">{{ ch }}</span>
+                  </div>
+                  <div ref="effortTrackEl"
+                       class="effort-track"
+                       :class="{ ultra: effortIsUltra, dragging: effortDragging }"
+                       @pointerdown="onEffortTrackDown">
+                    <div v-if="effortIsUltra" class="effort-particles">
+                      <span v-for="n in 14" :key="n"
+                            :style="effortParticleStyle(n)"></span>
+                    </div>
+                    <div class="effort-fill"
+                         :style="{ width: (effortDisplayPos * 100) + '%' }"></div>
+                    <div class="effort-thumb"
+                         :style="{ left: (effortDisplayPos * 100) + '%' }">
+                      <span class="effort-dot"></span>
+                    </div>
+                    <div class="effort-tick"
+                         v-for="n in (thinkLevels.length - 2)"
+                         :key="'t' + n"
+                         :style="{ left: (100 * n / (thinkLevels.length - 1)) + '%' }"></div>
+                  </div>
+                  <div class="effort-foot">
+                    <span class="effort-hint">{{ effortLevelDesc }}</span>
+                    <span class="effort-cols">
+                      {{ effortLevelIndex + 1 }} / {{ thinkLevels.length }}</span>
+                  </div>
+                </div>
+              </transition>
+
               <button class="attach-btn" type="button"
                       :disabled="streaming"
                       :title="lang === 'zh' ? '上传文件（也可拖拽或 Ctrl+V 粘贴）' : 'Upload files (drag & drop or Ctrl+V too)'"
@@ -1774,7 +1817,7 @@
 
 </div>
 
-<script src="/static/app.js?v=20261006f"></script>
+<script src="/static/app.js?v=20261007c"></script>
 </body>
 </html>
 

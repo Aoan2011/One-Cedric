@@ -883,7 +883,7 @@ createApp({
       ctBusy.value = false;
     }
 
-    /* ═══ 输入框思考等级滑块 ═══ */
+    /* ═══ 输入框思考等级（7 档，点击弹窗拖拽） ═══ */
     const thinkLevels = [
       { value: 'minimal', zh: '极简', en: 'Minimal',
         desc: '最快响应，适合简单问答' },
@@ -891,10 +891,12 @@ createApp({
         desc: '轻量推理，日常任务' },
       { value: 'medium', zh: '中', en: 'Medium',
         desc: '平衡速度与深度（默认）' },
-      { value: 'max', zh: '高', en: 'Max',
-        desc: '深入推理，复杂任务' },
+      { value: 'high', zh: '高', en: 'High',
+        desc: '增强推理，复杂任务' },
       { value: 'xhigh', zh: '超高', en: 'X-High',
-        desc: '更强推理，困难任务' },
+        desc: '深度推理，困难任务' },
+      { value: 'max', zh: '深入', en: 'Max',
+        desc: '深入推理，多角度验证' },
       { value: 'ultra', zh: '超', en: 'Ultra',
         desc: '极限推理，最难问题' },
     ];
@@ -913,6 +915,99 @@ createApp({
       settings.think_level = thinkLevels[i].value;
       saveSettings();
       syncConfigToServer();
+    }
+
+    /* ═══ 思考强度弹窗（宽轨道 + 阻尼拖拽 + ultra 蓝紫粒子） ═══ */
+    const effortOpen = ref(false);
+    const effortDragging = ref(false);
+    const effortPos = ref(0);          // 0..1 目标位置
+    const effortDisplayPos = ref(0);   // 动画位置（阻尼跟随）
+    const effortTrackEl = ref(null);
+    let _effortRaf = 0;
+
+    const effortIsUltra = computed(() => {
+      const i = Math.round(effortPos.value * (thinkLevels.length - 1));
+      return i >= thinkLevels.length - 1;
+    });
+    const effortLevelDesc = computed(() => {
+      const i = Math.round(effortPos.value * (thinkLevels.length - 1));
+      const lv = thinkLevels[Math.max(0, Math.min(i, thinkLevels.length - 1))];
+      return lv ? (lang.value === 'zh' ? lv.desc : lv.en + ' effort') : '';
+    });
+    const effortLevelIndex = computed(() => {
+      const i = Math.round(effortPos.value * (thinkLevels.length - 1));
+      return Math.max(0, Math.min(i, thinkLevels.length - 1));
+    });
+    const effortWarningChars = computed(() => {
+      const txt = lang.value === 'zh' ? '更快消耗额度' : 'BURNS QUOTA FASTER';
+      return txt.split('');
+    });
+
+    function _effortTick() {
+      const diff = effortPos.value - effortDisplayPos.value;
+      effortDisplayPos.value += diff * 0.26;   // 阻尼系数
+      if (Math.abs(diff) < 0.003) {
+        effortDisplayPos.value = effortPos.value;
+      }
+      if (effortOpen.value || effortDragging.value) {
+        _effortRaf = requestAnimationFrame(_effortTick);
+      } else {
+        _effortRaf = 0;
+      }
+    }
+    function _effortStartRaf() {
+      if (!_effortRaf) _effortRaf = requestAnimationFrame(_effortTick);
+    }
+
+    function openEffort() {
+      const i = thinkLevelIndex.value;
+      effortPos.value = i / (thinkLevels.length - 1);
+      effortDisplayPos.value = effortPos.value;
+      effortOpen.value = true;
+      _effortStartRaf();
+    }
+    function closeEffort() {
+      effortOpen.value = false;
+      effortDragging.value = false;
+      if (_effortRaf) { cancelAnimationFrame(_effortRaf); _effortRaf = 0; }
+    }
+    function effortParticleStyle(n) {
+      const rnd = (a, b) => a + Math.random() * (b - a);
+      return {
+        left: rnd(2, 96) + '%',
+        top: rnd(5, 90) + '%',
+        width: rnd(2, 5) + 'px',
+        height: rnd(2, 5) + 'px',
+        animationDelay: rnd(0, 1.6) + 's',
+        animationDuration: rnd(0.7, 1.9) + 's',
+      };
+    }
+    function onEffortTrackDown(e) {
+      if (streaming.value) return;
+      const rect = effortTrackEl.value.getBoundingClientRect();
+      effortDragging.value = true;
+      effortPos.value = Math.max(0, Math.min(1,
+        (e.clientX - rect.left) / rect.width));
+      _effortStartRaf();
+      if (e.pointerId !== undefined && effortTrackEl.value.setPointerCapture) {
+        try { effortTrackEl.value.setPointerCapture(e.pointerId); } catch (_) {}
+      }
+    }
+    function onEffortPointerMove(e) {
+      if (!effortDragging.value || !effortTrackEl.value) return;
+      const rect = effortTrackEl.value.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      effortPos.value = Math.max(0, Math.min(1,
+        (e.clientX - rect.left) / rect.width));
+    }
+    function onEffortPointerUp() {
+      if (!effortDragging.value) return;
+      effortDragging.value = false;
+      const i = Math.round(effortPos.value * (thinkLevels.length - 1));
+      const idx = Math.max(0, Math.min(i, thinkLevels.length - 1));
+      effortPos.value = idx / (thinkLevels.length - 1);
+      setThinkLevelByIndex(idx);
+      _effortStartRaf();
     }
 
     /* ═══ 内嵌面板：设置 / 统计 / cron / dream ═══ */
@@ -4090,6 +4185,8 @@ createApp({
       setInterval(checkHealth, 15000);
 
       window.addEventListener('keydown', onGlobalKeydown);
+      window.addEventListener('pointermove', onEffortPointerMove);
+      window.addEventListener('pointerup', onEffortPointerUp);
       _setupDragUpload();
       _setupSync();
       _setupTouchGestures();
@@ -4179,6 +4276,11 @@ createApp({
       selectPopoverItem, _scrollPopoverSelectedIntoView,
       // 思考等级滑块
       thinkLevels, thinkLevelIndex, thinkLabel, setThinkLevelByIndex,
+      // 思考强度弹窗
+      effortOpen, effortDragging, effortPos, effortDisplayPos,
+      effortTrackEl, effortIsUltra, effortLevelDesc, effortLevelIndex,
+      effortWarningChars,
+      openEffort, closeEffort, onEffortTrackDown, effortParticleStyle,
       // 内嵌面板
       showSettingsModal, showStatsModal, showCronModal, showDreamModal,
       netInfo,

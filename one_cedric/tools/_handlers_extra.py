@@ -390,7 +390,43 @@ def _k8s_top(root: Path, args: dict) -> str:
 # 注册表
 # ═══════════════════════════════════════════════════════════════════════ #
 
+def _github_latest_version(root: Path, args: dict) -> str:
+    repo = str(args.get("repo") or "Aoan2011/One-Cedric").strip()
+    try:
+        import requests as _r
+    except Exception as exc:
+        return f"ERROR: 需要 requests: {exc}"
+    try:
+        resp = _r.get(
+            f"https://api.github.com/repos/{repo}/releases/latest",
+            headers={"Accept": "application/vnd.github+json",
+                     "User-Agent": "One-Cedric"},
+            timeout=15)
+        if resp.status_code == 404:
+            return f"ERROR: 仓库 {repo} 没有发布过 release"
+        if resp.status_code != 200:
+            return f"ERROR: GitHub API 返回 {resp.status_code}"
+        data = resp.json()
+    except Exception as exc:
+        return f"ERROR: 请求失败: {exc}"
+    body = str(data.get("body") or "")[:400] or "（无说明）"
+    return (f"仓库: {repo}\n"
+            f"最新版本: {data.get('tag_name', '?')}\n"
+            f"发布时间: {data.get('published_at', '?')}\n"
+            f"版本说明: {body}\n"
+            f"链接: {data.get('html_url', '')}")
+
+
+try:
+    from ..browser_tools import BROWSER_HANDLERS as _BROWSER_HANDLERS
+except Exception as _exc:  # playwright 未安装时仅少浏览器工具
+    print(f"[tools] 跳过 browser_tools（{_exc}）")
+    _BROWSER_HANDLERS = {}
+
 HANDLERS = {
+    **_BROWSER_HANDLERS,
+    # 版本信息
+    "github_latest_version": _github_latest_version,
     # 通知
     "notify_check":         _notify_check,
     # 应用

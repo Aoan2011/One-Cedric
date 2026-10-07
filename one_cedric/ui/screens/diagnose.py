@@ -158,6 +158,17 @@ def _check_environment(console: Console, copilot) -> None:
     row("配置(全局)", True, str(copilot.config_path))
     row("配置(项目)", True, str(copilot.project_config_path))
     row("会话保存", True, str(copilot.root))
+    try:
+        from ...tools._handlers_extra import _github_latest_version
+        _ver = _github_latest_version(copilot.root, {})
+        if _ver.startswith("ERROR"):
+            row("GitHub 最新版本", False, _ver.replace("ERROR: ", ""),
+                warn=True)
+        else:
+            row("GitHub 最新版本", True, _ver.splitlines()[1].split(": ")[1]
+                if ": " in _ver else _ver[:40])
+    except Exception as exc:
+        row("GitHub 最新版本", False, f"检查失败: {exc}", warn=True)
 
     console.print(tbl)
     console.print()
