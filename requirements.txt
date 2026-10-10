@@ -17,7 +17,7 @@ openpyxl==3.1.5
 msoffcrypto
 pillow==12.3.0
 qrcode
-opencv-python==4.10.0
+opencv-python==5.0.0.93
 numpy==2.3.5
 pandas==3.0.3
 matplotlib==3.11.2
