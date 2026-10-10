@@ -24,7 +24,7 @@ matplotlib==3.11.2
 sympy
 jieba
 opencc
-cryptography==50.0.1
+cryptography==50.0.2
 pyzbar
 pytesseract==0.3.13
 pyautogui==0.9.54
