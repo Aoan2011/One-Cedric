@@ -9,7 +9,7 @@ jsonschema==4.26.0
 psutil==7.2.2
 bs4==4.15.0
 lxml==6.1.3
-trafilatura==2.2.0
+trafilatura==2.3.1
 readability==0.9
 docx==1.2.0
 pptx==1.0.2
