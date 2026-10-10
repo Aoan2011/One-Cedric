@@ -2,7 +2,7 @@ requests==2.34.2
 rich
 readchar==4.2.2
 fastapi==0.142.2
-uvicorn==0.52.4
+uvicorn==0.54.0
 pyyaml
 pypdf==6.19.0
 jsonschema==4.26.0
