@@ -80,6 +80,40 @@ def test_reduced_motion_is_respected():
     assert "prefers-contrast" in css
 
 
+def test_csp_allows_the_vue_build_that_is_shipped():
+    """A strict CSP must stay compatible with the bundled Vue build.
+
+    The WebUI uses Vue's *global* build, which compiles the in-DOM template at
+    runtime with ``new Function``. A ``script-src`` without ``'unsafe-eval'``
+    therefore stops the app from mounting and the page hangs on the boot
+    splash (black screen). Pin the two together so neither drifts.
+    """
+    vue = (WEBUI / "vue.min.js").read_text(encoding="utf-8", errors="replace")
+    server = (WEBUI.parent / "server.py").read_text(encoding="utf-8")
+
+    csp = server.split("Content-Security-Policy", 1)[1]
+    script_src = csp.split("script-src", 1)[1].split(";", 1)[0]
+
+    if "new Function" in vue or "compileToFunction" in vue:
+        assert "'unsafe-eval'" in script_src, (
+            "the bundled Vue build compiles templates at runtime with "
+            "new Function, so script-src must allow 'unsafe-eval' or the "
+            "WebUI will never mount")
+
+    # Regardless of the Vue build, inline script must stay blocked — that is
+    # what actually neutralises HTML injected through v-html.
+    assert "'unsafe-inline'" not in script_src, (
+        "script-src must never allow inline scripts")
+
+
+def test_index_splash_is_removed_by_the_bundled_app():
+    """The boot splash is only removed after Vue mounts; keep the contract."""
+    assert "boot-splash" in INDEX
+    assert "boot-splash" in APP_JS, (
+        "app.js must remove the splash, otherwise a mount failure shows as a "
+        "permanent black screen")
+
+
 def test_polish_layer_targets_real_classes():
     """Selectors in polish.css should reference markup that actually exists."""
     css = (WEBUI / "polish.css").read_text(encoding="utf-8")

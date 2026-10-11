@@ -52,12 +52,19 @@ def _lsp_ok() -> bool:
 
 #: 安全审计（SEC-02 / SEC-16）配套的响应头。
 #: 严格 CSP 是 XSS 的纵深防御：即使净化器漏掉一个 sink，
-#: `script-src 'self'` 也会挡住内联脚本与内联事件处理器。
+#: `script-src` 不含 'unsafe-inline' 也会挡住内联脚本与内联事件处理器
+#: —— 这正是 v-html 注入最常用的两条执行路径。
 #: 页面里原先的内联调试脚本已抽到 /static/boot.js。
+#:
+#: 关于 'unsafe-eval'：WebUI 用的是带模板编译器的 Vue 全局构建
+#: （vue.min.js 内含 new Function），页内模板在运行时才编译。不允许 eval
+#: 的话 Vue 无法挂载，页面会永远停在启动屏（黑屏）。
+#: 代价可控：注入的 HTML 依然不能执行内联脚本、不能挂 on* 处理器；
+#: 要执行只能把字符串交给 eval/new Function，而这条路径在净化后不可达。
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'self'; "
-        "script-src 'self'; "
+        "script-src 'self' 'unsafe-eval'; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob:; "
         "font-src 'self' data:; "
