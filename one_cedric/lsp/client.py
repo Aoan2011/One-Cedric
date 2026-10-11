@@ -6,11 +6,11 @@ import os
 import subprocess
 import threading
 import time
-from concurrent.futures import Future, TimeoutError as FutureTimeout
+from concurrent.futures import Future
+from concurrent.futures import TimeoutError as FutureTimeout
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
-
 
 LANG_ID = {
     ".py": "python", ".pyi": "python",

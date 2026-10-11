@@ -9,12 +9,9 @@
 """
 from __future__ import annotations
 
-import base64
 import shutil
 import subprocess
 import sys
-from pathlib import Path
-
 
 IS_WINDOWS = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
@@ -82,13 +79,16 @@ def _windows_notify(title: str, body: str, level: str,
                 pass
 
     # 降级：Windows Forms NotifyIcon
-    sound_ps = "1" if sound else "0"
+    # 之前这里算出了 `sound_ps` 却从未用上，等于 `sound=False` 被静默忽略。
+    sound_line = ("[System.Media.SystemSounds]::Asterisk.Play()"
+                  if sound else "Start-Sleep -Milliseconds 1")
     ps = f"""
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $n = New-Object System.Windows.Forms.NotifyIcon
 $n.Icon = [System.Drawing.SystemIcons]::Information
 $n.Visible = $true
+{sound_line}
 $n.ShowBalloonTip({int(timeout) * 1000}, '{_esc_ps(full_title)}',
                   '{_esc_ps(body)}',
                   [System.Windows.Forms.ToolTipIcon]::Info)

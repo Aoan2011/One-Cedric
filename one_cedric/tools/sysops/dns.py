@@ -9,8 +9,7 @@ from __future__ import annotations
 import json
 import re
 
-from ._platform import IS_WINDOWS, IS_MAC, IS_LINUX, has_cmd, run_cmd, powershell
-
+from ._platform import IS_LINUX, IS_MAC, IS_WINDOWS, has_cmd, powershell, run_cmd
 
 _IPV4 = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 _IPV6 = re.compile(r"^[0-9a-fA-F:]+$")

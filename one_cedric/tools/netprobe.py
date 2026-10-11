@@ -54,7 +54,7 @@ def _probe_port(host: str, port: int, timeout: float) -> tuple:
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return port, True
-    except (socket.timeout, ConnectionRefusedError, OSError):
+    except (TimeoutError, ConnectionRefusedError, OSError):
         return port, False
 
 
@@ -145,7 +145,7 @@ def traceroute(host: str, max_hops: int = 20) -> str:
     except FileNotFoundError:
         return "ERROR: 找不到 traceroute/tracert 命令"
     except subprocess.TimeoutExpired:
-        return f"ERROR: 超时"
+        return "ERROR: 超时"
 
     return (r.stdout or "").strip() or "(无输出)"
 
@@ -253,4 +253,4 @@ def get_public_ip() -> str:
                 return f"公网 IP: {r.text.strip()}"
         except Exception as exc:
             errors.append(str(exc))
-    return f"ERROR: 所有服务都失败\n" + "\n".join(errors)
+    return "ERROR: 所有服务都失败\n" + "\n".join(errors)

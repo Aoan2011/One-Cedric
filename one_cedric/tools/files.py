@@ -6,7 +6,6 @@ import os
 from collections import defaultdict
 from pathlib import Path
 
-from ..config import MAX_SEARCH_FILE_SIZE
 from .sandbox import _as_int, _resolve_path
 
 

@@ -3,13 +3,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .audio import volume_get, volume_set, volume_mute
+from .audio import volume_get, volume_mute, volume_set
+from .bluetooth import bt_list, bt_status, bt_toggle
 from .display import brightness_get, brightness_set, theme_get, theme_set
-from .network import wifi_status, wifi_list, wifi_connect, wifi_disconnect
-from .bluetooth import bt_status, bt_toggle, bt_list
-from .printer import printer_list, printer_default, printer_print
+from .network import wifi_connect, wifi_disconnect, wifi_list, wifi_status
+from .printer import printer_default, printer_list, printer_print
 from .update import check_update
-
 
 READONLY_OPS = {
     "volume_get",

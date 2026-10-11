@@ -5,14 +5,24 @@ from rich import box
 from rich.table import Table
 
 from ...config import (
-    BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C,
-    THINK_LEVELS, ACCESS_MODES, ACCESS_MODE_DESC,
-    DEFAULT_ACCESS_MODE, DEFAULT_THINK_LEVEL,
+    ACCESS_MODE_DESC,
+    ACCESS_MODES,
+    BRAND,
+    DEFAULT_ACCESS_MODE,
+    DEFAULT_THINK_LEVEL,
+    THINK_LEVELS,
 )
 from ..keys import (
-    read_key, has_readchar, wait_for_return,
-    KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_ENTER, KEY_ESC,
     KEY_BACKSPACE,
+    KEY_DOWN,
+    KEY_ENTER,
+    KEY_ESC,
+    KEY_LEFT,
+    KEY_RIGHT,
+    KEY_UP,
+    has_readchar,
+    read_key,
+    wait_for_return,
 )
 from ..menu import selection_progress
 
@@ -86,7 +96,6 @@ def run_settings_screen(console, copilot) -> None:
         tbl.add_column("当前值", style="accent")
         tbl.add_column("说明", style="dim")
 
-        cfg = copilot.config.get("default", {})
         rows = [
             ("model", copilot.model, "模型名"),
             ("host", copilot.host, "API 地址"),
@@ -131,11 +140,11 @@ def run_settings_screen(console, copilot) -> None:
         console.print(selection_progress(selected, len(rows)))
         console.print()
         console.print(
-            f"  [dim]↑↓ 选择 · [/][accent]Enter[/][dim] 修改 · "
-            f"[/][accent]c[/][dim] 配置文件 · "
-            f"[/][accent]s[/][dim] 保存到全局 · "
-            f"[/][accent]t[/][dim] 测试连接 · "
-            f"[/][accent]q[/][dim] 返回[/]"
+            "  [dim]↑↓ 选择 · [/][accent]Enter[/][dim] 修改 · "
+            "[/][accent]c[/][dim] 配置文件 · "
+            "[/][accent]s[/][dim] 保存到全局 · "
+            "[/][accent]t[/][dim] 测试连接 · "
+            "[/][accent]q[/][dim] 返回[/]"
         )
 
         if has_readchar():
@@ -207,15 +216,15 @@ def run_settings_screen(console, copilot) -> None:
             continue
 
         if idx == 1:
-            v = console.input(f"  [dim]model =[/] ").strip()
+            v = console.input("  [dim]model =[/] ").strip()
             if v:
                 copilot.model = v
         elif idx == 2:
-            v = console.input(f"  [dim]host =[/] ").strip()
+            v = console.input("  [dim]host =[/] ").strip()
             if v:
                 copilot.host = v
                 copilot._save_config("global")
-                console.print(f"  [ok]✓ API 地址已保存[/]")
+                console.print("  [ok]✓ API 地址已保存[/]")
         elif idx == 3:
             v = _masked_input(console)
             if v:
@@ -225,13 +234,13 @@ def run_settings_screen(console, copilot) -> None:
             else:
                 console.print("  [dim]已取消（未修改）[/]")
         elif idx == 4:
-            v = console.input(f"  [dim]temperature =[/] ").strip()
+            v = console.input("  [dim]temperature =[/] ").strip()
             try:
                 copilot.temperature = float(v)
             except ValueError:
                 console.print("  [err]✗ 需要数字[/]")
         elif idx == 5:
-            v = console.input(f"  [dim]max_steps =[/] ").strip()
+            v = console.input("  [dim]max_steps =[/] ").strip()
             try:
                 copilot.max_steps = max(1, int(v))
             except ValueError:
@@ -242,7 +251,7 @@ def run_settings_screen(console, copilot) -> None:
             copilot.show_reasoning = not copilot.show_reasoning
         elif idx == 8:
             console.print(f"  [dim]可选：[/]{' / '.join(THINK_LEVELS)}")
-            v = console.input(f"  [dim]think_level =[/] ").strip().lower()
+            v = console.input("  [dim]think_level =[/] ").strip().lower()
             if v in THINK_LEVELS:
                 copilot.think_level = v
         elif idx == 9:
@@ -250,7 +259,7 @@ def run_settings_screen(console, copilot) -> None:
             for m in ACCESS_MODES:
                 console.print(f"    [accent]{m:<14}[/] "
                               f"[dim]{ACCESS_MODE_DESC[m]}[/]")
-            v = console.input(f"  [dim]access_mode =[/] ").strip().lower()
+            v = console.input("  [dim]access_mode =[/] ").strip().lower()
             if v in ACCESS_MODES:
                 from ...tools.sandbox import set_access_mode
                 copilot.access_mode = v

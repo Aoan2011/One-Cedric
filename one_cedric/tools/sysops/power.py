@@ -1,7 +1,7 @@
 """电源管理：关机/重启/睡眠/休眠/锁屏/注销。危险操作，全部需确认。"""
 from __future__ import annotations
 
-from ._platform import IS_WINDOWS, IS_MAC, IS_LINUX, has_cmd, run_cmd, powershell
+from ._platform import IS_LINUX, IS_MAC, IS_WINDOWS, has_cmd, powershell, run_cmd
 
 
 def _windows_shutdown(flag: str, timeout: int = 0) -> str:
@@ -50,7 +50,7 @@ def power_action(action: str, delay: int = 0) -> str:
             try:
                 r = subprocess.run(["rundll32.exe", "user32.dll,LockWorkStation"],
                                    capture_output=True, text=True, timeout=10)
-                return "已锁屏" if r.returncode == 0 else f"ERROR: 锁屏失败"
+                return "已锁屏" if r.returncode == 0 else "ERROR: 锁屏失败"
             except Exception as exc:
                 return f"ERROR: {exc}"
         if a == "logout":

@@ -5,9 +5,7 @@
   - 所有数据不离开本机（除非用户主动调用高德等 API）
 """
 from __future__ import annotations
-import json
-import time
-from pathlib import Path
+
 # 全局：本次会话用户是否同意提供精确位置
 _EXACT_LOCATION: dict = {}
 _USER_CONSENT: bool = False

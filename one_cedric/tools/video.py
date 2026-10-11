@@ -54,7 +54,7 @@ def video_probe(path: str, root: Path) -> str:
     try:
         data = json.loads(r.stdout)
     except json.JSONDecodeError:
-        return f"ERROR: 无法解析 ffprobe 输出"
+        return "ERROR: 无法解析 ffprobe 输出"
 
     fmt = data.get("format", {})
     streams = data.get("streams", [])

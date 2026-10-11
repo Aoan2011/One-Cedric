@@ -9,13 +9,18 @@ from rich.progress_bar import ProgressBar
 from rich.rule import Rule
 from rich.text import Text
 
-from .keys import (
-    read_key, has_readchar,
-    KEY_UP, KEY_DOWN, KEY_ENTER, KEY_ESC,
-    KEY_LEFT, KEY_RIGHT,
-)
-from ..config import BRAND, ACCENT, DIM_C
+from ..config import ACCENT, BRAND, DIM_C
 from ..i18n import t
+from .keys import (
+    KEY_DOWN,
+    KEY_ENTER,
+    KEY_ESC,
+    KEY_LEFT,
+    KEY_RIGHT,
+    KEY_UP,
+    has_readchar,
+    read_key,
+)
 
 
 def selection_progress(selected: int, total: int):

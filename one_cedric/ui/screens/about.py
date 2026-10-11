@@ -9,8 +9,12 @@ from rich.panel import Panel
 from rich.table import Table
 
 from ...config import (
-    BRAND, ACCENT, DIM_C, BETA_VERSION,
-    PROJECT_NAME, PROJECT_AUTHOR, PROJECT_REPO, PROJECT_LICENSE,
+    BETA_VERSION,
+    BRAND,
+    PROJECT_AUTHOR,
+    PROJECT_LICENSE,
+    PROJECT_NAME,
+    PROJECT_REPO,
 )
 from ..keys import wait_for_return
 
@@ -45,8 +49,8 @@ def run_about_screen(console: Console, copilot) -> None:
     console.print()
 
     console.print("  [dim]依赖与运行环境检查 → [/]"
-                  f"[accent]主菜单 · 诊断（diagnose）[/]")
+                  "[accent]主菜单 · 诊断（diagnose）[/]")
     console.print("  [dim]许可证全文 → [/]"
-                  f"[accent]python -m one_cedric --license[/]")
+                  "[accent]python -m one_cedric --license[/]")
     console.print()
     wait_for_return(console)

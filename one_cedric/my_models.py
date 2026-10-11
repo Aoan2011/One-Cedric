@@ -178,7 +178,8 @@ def apply_to_copilot(copilot, profile: dict) -> None:
     if params and copilot.model:
         try:
             from .ui.screens.models import (
-                _load_overrides, _save_overrides,
+                _load_overrides,
+                _save_overrides,
             )
             overrides = _load_overrides()
             merged = dict(overrides.get(copilot.model, {}))

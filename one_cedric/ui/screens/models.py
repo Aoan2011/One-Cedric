@@ -2,17 +2,21 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from rich import box
 from rich.table import Table
 
-from ...config import BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C
+from ...config import ACCENT, BRAND, DIM_C, OK_C
 from ...my_models import (
-    list_profiles, get_profile, upsert_profile, remove_profile,
-    switch_profile, apply_to_copilot,
+    apply_to_copilot,
+    get_profile,
+    list_profiles,
+    remove_profile,
+    switch_profile,
+    upsert_profile,
 )
 from ..keys import wait_for_return
 from ..menu import selection_progress
-
 
 OVERRIDE_PATH = Path.home() / ".one-cedric" / "model_overrides.toml"
 
@@ -90,8 +94,14 @@ THINK_LEVELS = ["minimal", "low", "medium", "max", "xhigh", "ultra"]
 
 def run_models_screen(console, copilot) -> None:
     from ..keys import (
-        read_key, has_readchar, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
-        KEY_ENTER, KEY_ESC,
+        KEY_DOWN,
+        KEY_ENTER,
+        KEY_ESC,
+        KEY_LEFT,
+        KEY_RIGHT,
+        KEY_UP,
+        has_readchar,
+        read_key,
     )
 
     selected = 0
@@ -216,16 +226,16 @@ def run_models_screen(console, copilot) -> None:
         console.print(selection_progress(selected, len(items)))
         console.print()
         console.print(
-            f"  [dim]操作：[/][accent]↑↓[/][dim] 选择 · "
-            f"[/][accent]Enter[/][dim] 切换 · "
-            f"[/][accent]n[/][dim] 新增档案 · "
-            f"[/][accent]e[/][dim] 编辑档案 · "
-            f"[/][accent]d[/][dim] 删除 · "
-            f"[/][accent]p[/][dim] 调参 · "
-            f"[/][accent]c[/][dim] 价格 · "
-            f"[/][accent]t[/][dim] 测试 · "
-            f"[/][accent]r[/][dim] 刷新 · "
-            f"[/][accent]q[/][dim] 返回[/]"
+            "  [dim]操作：[/][accent]↑↓[/][dim] 选择 · "
+            "[/][accent]Enter[/][dim] 切换 · "
+            "[/][accent]n[/][dim] 新增档案 · "
+            "[/][accent]e[/][dim] 编辑档案 · "
+            "[/][accent]d[/][dim] 删除 · "
+            "[/][accent]p[/][dim] 调参 · "
+            "[/][accent]c[/][dim] 价格 · "
+            "[/][accent]t[/][dim] 测试 · "
+            "[/][accent]r[/][dim] 刷新 · "
+            "[/][accent]q[/][dim] 返回[/]"
         )
 
         if not items:
@@ -483,8 +493,14 @@ def _test_connection(console, copilot):
 
 def _edit_model_params(console, copilot, model: str):
     from ..keys import (
-        read_key, has_readchar, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
-        KEY_ENTER, KEY_ESC,
+        KEY_DOWN,
+        KEY_ENTER,
+        KEY_ESC,
+        KEY_LEFT,
+        KEY_RIGHT,
+        KEY_UP,
+        has_readchar,
+        read_key,
     )
 
     overrides = _load_overrides()
@@ -527,10 +543,10 @@ def _edit_model_params(console, copilot, model: str):
         console.print(selection_progress(selected, field_count))
         console.print()
         console.print(
-            f"  [dim]↑↓ 选择 · [/][accent]Enter[/][dim] 修改字段 · "
-            f"[/][accent]r[/][dim] 重置全部 · "
-            f"[/][accent]s[/][dim] 保存并返回 · "
-            f"[/][accent]q[/][dim] 放弃[/]"
+            "  [dim]↑↓ 选择 · [/][accent]Enter[/][dim] 修改字段 · "
+            "[/][accent]r[/][dim] 重置全部 · "
+            "[/][accent]s[/][dim] 保存并返回 · "
+            "[/][accent]q[/][dim] 放弃[/]"
         )
 
         if has_readchar():

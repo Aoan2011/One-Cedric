@@ -1,10 +1,9 @@
 """杂项：时区/时间同步/通知/hosts/代理/DNS/显示器/温度。"""
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
-from ._platform import IS_WINDOWS, IS_MAC, IS_LINUX, has_cmd, run_cmd, powershell
+from ._platform import IS_LINUX, IS_MAC, IS_WINDOWS, has_cmd, powershell, run_cmd
 
 
 def timezone_get() -> str:

@@ -59,7 +59,7 @@ def ssl_check(url: str, port: int = 0) -> str:
                 cipher = ssock.cipher()
     except socket.gaierror as exc:
         return f"ERROR: DNS 失败: {exc}"
-    except socket.timeout:
+    except TimeoutError:
         return f"ERROR: 连接 {host}:{port} 超时"
     except ssl.SSLError as exc:
         return f"ERROR: SSL 错误: {exc}"

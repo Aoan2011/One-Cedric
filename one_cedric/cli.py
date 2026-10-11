@@ -6,18 +6,32 @@ import time
 from pathlib import Path
 
 from .config import (
-    DEFAULT_HOST, DEFAULT_MODEL, DEFAULT_API_KEY,
-    THINK_LEVELS, DEFAULT_THINK_LEVEL,
-    ACCESS_MODES, ACCESS_MODE_ALIASES, DEFAULT_ACCESS_MODE,
-    BETA_VERSION, PROJECT_NAME, PROJECT_AUTHOR, PROJECT_REPO,
-    PROJECT_LICENSE, PROJECT_LICENSE_NOTICE,
-    PROJECT_VERSION, RELEASE_NAME,
+    ACCESS_MODE_ALIASES,
+    ACCESS_MODES,
+    DEFAULT_ACCESS_MODE,
+    DEFAULT_API_KEY,
+    DEFAULT_HOST,
+    DEFAULT_MODEL,
+    DEFAULT_THINK_LEVEL,
+    PROJECT_AUTHOR,
+    PROJECT_LICENSE,
+    PROJECT_LICENSE_NOTICE,
+    PROJECT_NAME,
+    PROJECT_REPO,
+    PROJECT_VERSION,
+    RELEASE_NAME,
+    THINK_LEVELS,
 )
 from .core import OneCedric
 from .storage import (
-    default_config_path, project_config_path, compose_config,
-    find_session_by_id_or_title, list_session_files,
-    load_profile, apply_profile, profile_preset_tag,
+    apply_profile,
+    compose_config,
+    default_config_path,
+    find_session_by_id_or_title,
+    list_session_files,
+    load_profile,
+    profile_preset_tag,
+    project_config_path,
 )
 from .tools.shell import merge_bash_prefixes
 
@@ -355,7 +369,8 @@ def _run_with_menu(copilot) -> None:
 
         if choice == "cli-chat":
             from .ui.screens.chat import (
-                configure_new_session, run_cli_chat_menu,
+                configure_new_session,
+                run_cli_chat_menu,
             )
             chat_choice = run_cli_chat_menu(console, copilot)
 
@@ -433,7 +448,7 @@ def _run_with_menu(copilot) -> None:
 
 
 def _toggle_language(console, copilot) -> None:
-    from .i18n import set_lang, get_lang, t
+    from .i18n import get_lang, set_lang, t
     from .storage import save_config_file
 
     new = "en" if get_lang() == "zh" else "zh"

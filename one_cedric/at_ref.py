@@ -13,7 +13,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 AT_PATTERN = re.compile(r"@([^\s@]+)")
 
 
@@ -40,7 +39,6 @@ def build_attachment(root: Path, path_str: str) -> tuple:
             raw = path_part
 
     is_dir_recursive = raw.endswith("/**")
-    is_dir = raw.endswith("/") or is_dir_recursive
     if is_dir_recursive:
         raw = raw[:-3]
 
@@ -106,7 +104,6 @@ def expand_at_refs(root: Path, text: str) -> tuple:
 
         # 处理目录通配
         is_dir_recursive = raw.endswith("/**")
-        is_dir = raw.endswith("/") or is_dir_recursive
         if is_dir_recursive:
             raw = raw[:-3]
 

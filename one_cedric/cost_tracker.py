@@ -9,7 +9,6 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
-
 COST_LOG = Path.home() / ".one-cedric" / "costs.jsonl"
 BUDGET_PATH = Path.home() / ".one-cedric" / "budget.toml"
 
@@ -47,7 +46,7 @@ def _read_all(max_lines: int = 100000) -> list:
         return []
     entries = []
     try:
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             for i, line in enumerate(f):
                 if i >= max_lines:
                     break
@@ -376,7 +375,7 @@ def clear_log() -> int:
     if not p.exists():
         return 0
     try:
-        n = sum(1 for _ in open(p, "r", encoding="utf-8"))
+        n = sum(1 for _ in open(p, encoding="utf-8"))
         p.unlink()
         return n
     except OSError:
@@ -660,8 +659,8 @@ def format_forecast(days_ahead: int = 30) -> str:
 def export_csv(path: str = "", period: str = "all",
                detail: str = "turn") -> tuple:
     import csv as _csv
-    import io
     import datetime as _dt
+    import io
 
     entries = _read_all()
 

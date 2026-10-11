@@ -16,7 +16,7 @@ from pathlib import Path
 
 import requests
 from rich import box
-from rich.console import Console, Group
+from rich.console import Group
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.markup import escape
@@ -25,38 +25,73 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
+from . import ui
 from .cache import ToolCache
 from .config import (
-    BRAND, ACCENT, USER_C, TOOL_C, WARN_C, PLAN_C, OK_C, ERR_C, DIM_C, THEME,
-    CURSOR_MARK, CURSOR_STYLE,
-    SYSTEM_PROMPT, PLAN_SYSTEM_PROMPT, COMPACT_PROMPT, TITLE_PROMPT,
-    MAX_WRITE_BYTES, SHELL_OUTPUT_LIMIT, DEFAULT_SHELL_TIMEOUT,
-    REASONING_MODEL_KEYWORDS, DEEPSEEK_BUGGY_MODEL_KEYWORDS,
-    THINK_LEVELS, THINK_LEVEL_DESC, THINK_TO_REASONING_EFFORT,
-    THINK_TO_BUDGET, THINK_PROMPT_HINTS, DEFAULT_THINK_LEVEL,
-    SHELL_WHITELIST,
-    ACCESS_MODES, ACCESS_MODE_ALIASES, ACCESS_MODE_DESC,
+    ACCENT,
+    ACCESS_MODE_ALIASES,
+    ACCESS_MODE_DESC,
+    ACCESS_MODES,
+    BRAND,
+    COMPACT_PROMPT,
+    CURSOR_MARK,
+    CURSOR_STYLE,
+    DEEPSEEK_BUGGY_MODEL_KEYWORDS,
     DEFAULT_ACCESS_MODE,
+    DEFAULT_SHELL_TIMEOUT,
+    DEFAULT_THINK_LEVEL,
+    DIM_C,
+    ERR_C,
+    MAX_WRITE_BYTES,
+    PLAN_C,
+    PLAN_SYSTEM_PROMPT,
+    SHELL_OUTPUT_LIMIT,
+    SYSTEM_PROMPT,
+    THEME,
+    THINK_LEVEL_DESC,
+    THINK_LEVELS,
+    THINK_PROMPT_HINTS,
+    THINK_TO_BUDGET,
+    THINK_TO_REASONING_EFFORT,
+    TITLE_PROMPT,
+    TOOL_C,
+    USER_C,
+    WARN_C,
 )
 from .git_snap import _git_available, git_make_snapshot, git_rollback
 from .storage import (
-    save_session_file, load_session_file, list_session_files,
-    delete_session_file, find_session_by_id_or_title,
-    default_config_path, project_config_path as _project_config_path,
+    PROFILE_NAME_RE,
     _fresh_config,
-    _read_config_file, save_config_file,
-    save_profile, load_profile, profile_path, list_profiles,
-    delete_profile, PROFILE_NAME_RE, profile_preset_tag,
     _new_session_id,
-    load_tools_config, save_tools_config, tools_config_path,
+    default_config_path,
+    delete_profile,
+    delete_session_file,
+    find_session_by_id_or_title,
+    list_profiles,
+    list_session_files,
+    load_profile,
+    load_tools_config,
+    profile_path,
+    profile_preset_tag,
+    save_config_file,
+    save_profile,
+    save_session_file,
+    tools_config_path,
+)
+from .storage import (
+    project_config_path as _project_config_path,
 )
 from .tools import (
-    dispatch_tool, prepare_tool_call,
-    TOOLS as _ALL_TOOLS, TOOLS_READONLY, WRITE_TOOLS, CACHEABLE_TOOLS,
-    _resolve_path, _as_int,
+    CACHEABLE_TOOLS,
+    TOOLS_READONLY,
+    WRITE_TOOLS,
+    _resolve_path,
+    dispatch_tool,
+    prepare_tool_call,
 )
-from . import ui
-
+from .tools import (
+    TOOLS as _ALL_TOOLS,
+)
 
 # ═══════════════════════════════════════════════════════════════════════ #
 # 外部编辑器
@@ -131,7 +166,7 @@ def _open_in_editor(initial_text: str, suffix: str) -> str | None:
                         [sys.executable, str(lite), str(tmp_path)],
                         timeout=1800).returncode
                     if ret == 0:
-                        with open(tmp_path, "r",
+                        with open(tmp_path,
                                   encoding="utf-8") as f2:
                             return f2.read()
             except (subprocess.TimeoutExpired,
@@ -153,7 +188,7 @@ def _open_in_editor(initial_text: str, suffix: str) -> str | None:
             return None
         if ret != 0:
             return None
-        with open(tmp_path, "r", encoding="utf-8") as f:
+        with open(tmp_path, encoding="utf-8") as f:
             return f.read()
     except OSError:
         return None
@@ -409,7 +444,7 @@ class OneCedric:
                  think_level: str = DEFAULT_THINK_LEVEL,
                  access_mode: str = DEFAULT_ACCESS_MODE,
                  sandbox_terminal: bool | None = None):
-        from .winvt import enable_vt_terminal, ClearConsole
+        from .winvt import ClearConsole, enable_vt_terminal
         enable_vt_terminal()
         self.console = ClearConsole(theme=THEME, highlight=False)
         self.model = model
@@ -464,7 +499,8 @@ class OneCedric:
         self.title_source = ""
 
         try:
-            from .computer import SafetyPolicy, set_policy as _set_cp
+            from .computer import SafetyPolicy
+            from .computer import set_policy as _set_cp
             self._computer_policy = SafetyPolicy(
                 enabled=enable_computer_use)
             _set_cp(self._computer_policy)
@@ -850,7 +886,8 @@ class OneCedric:
             tools_list = tools_override
         else:
             from .integrations import (
-                external_tool_schemas, is_mutating_tool,
+                external_tool_schemas,
+                is_mutating_tool,
             )
             tools_list = list(
                 TOOLS_READONLY if self.plan_mode else _ALL_TOOLS
@@ -1185,7 +1222,7 @@ class OneCedric:
                     default_yes=False,
                     show_dog=True,
                 ) else "n"
-            from .ui.confirm import confirm_5, ConfirmResult
+            from .ui.confirm import ConfirmResult, confirm_5
             r = confirm_5(
                 self.console,
                 title=f"允许执行 {name}？",
@@ -1217,7 +1254,7 @@ class OneCedric:
             self.console.print("  [dim]· 全部允许模式，已自动确认[/]")
             return "yes"
         try:
-            from .ui.confirm import confirm_5, ConfirmResult
+            from .ui.confirm import ConfirmResult, confirm_5
             r = confirm_5(
                 self.console,
                 title=f"shell · Level {level}",
@@ -1331,7 +1368,7 @@ class OneCedric:
                                "content": result})
 
     def _handle_apply_patch_tool(self, tc: dict) -> None:
-        from .tools.write import _parse_unified_diff, _apply_hunks_to_text
+        from .tools.write import _apply_hunks_to_text, _parse_unified_diff
         args = json.loads(tc["function"]["arguments"] or "{}")
         patch_text = args.get("patch", "")
         if not isinstance(patch_text, str) or not patch_text.strip():
@@ -1448,7 +1485,7 @@ class OneCedric:
                                "content": summary})
 
     def _handle_file_ops_tool(self, tc: dict) -> None:
-        from .tools.fileops import file_ops, _execute_file_ops
+        from .tools.fileops import _execute_file_ops, file_ops
         args = json.loads(tc["function"]["arguments"] or "{}")
         op = str(args.get("op", "")).strip().lower()
         src = str(args.get("src", "") or "")
@@ -1578,7 +1615,8 @@ class OneCedric:
 
     def _handle_shell_tool(self, tc: dict) -> None:
         from .tools.shell import (
-            _parse_shell_command, classify_command,
+            _parse_shell_command,
+            classify_command,
         )
         args = json.loads(tc["function"]["arguments"] or "{}")
         command = str(args.get("command", "")).strip()
@@ -1669,9 +1707,7 @@ class OneCedric:
             if self.preset_tag == "SAFE":
                 need_confirm = True
         elif level == "known":
-            if base_cmd in self.session_allowed_cmds:
-                pass
-            elif self.auto_yes:
+            if base_cmd in self.session_allowed_cmds or self.auto_yes:
                 pass
             else:
                 need_confirm = True
@@ -1808,7 +1844,7 @@ class OneCedric:
                                "content": result})
 
     def _handle_bash_bg_tool(self, tc: dict) -> None:
-        from .tools.shell import _parse_shell_command, _match_allow_prefix
+        from .tools.shell import _match_allow_prefix, _parse_shell_command
         from .ui.confirm import confirm_yes_no
         args = json.loads(tc["function"]["arguments"] or "{}")
         command = str(args.get("command", "")).strip()
@@ -1915,7 +1951,7 @@ class OneCedric:
                                "content": result})
 
     def _handle_git_tool(self, tc: dict) -> None:
-        from .git_snap import git_tool, _run_git, _format_git_result
+        from .git_snap import _format_git_result, _run_git, git_tool
         args = json.loads(tc["function"]["arguments"] or "{}")
         sub = str(args.get("subcommand", "")).strip()
         extra = args.get("args") or []
@@ -1977,7 +2013,7 @@ class OneCedric:
                                "content": result})
 
     def _handle_docker_tool(self, tc: dict) -> None:
-        from .tools.dev import docker_tool, _run_docker
+        from .tools.dev import _run_docker, docker_tool
         args = json.loads(tc["function"]["arguments"] or "{}")
         sub = str(args.get("subcommand", "")).strip()
         extra = args.get("args") or []
@@ -2088,8 +2124,9 @@ class OneCedric:
 
     def _handle_archive_tool(self, tc: dict) -> None:
         from .tools.archive import (
-            archive_op, archive_extract_apply,
             archive_create_apply,
+            archive_extract_apply,
+            archive_op,
         )
         args = json.loads(tc["function"]["arguments"] or "{}")
         op = str(args.get("op", "")).strip().lower()
@@ -2173,8 +2210,7 @@ class OneCedric:
                 return
             self._ensure_snapshot()
             with ui.ToolStatus(self.console, "archive", target):
-                from .tools.archive import (
-                    archive_extract_apply, archive_create_apply)
+                from .tools.archive import archive_create_apply, archive_extract_apply
                 if op == "extract":
                     result = archive_extract_apply(
                         archive, dst, self.root)
@@ -2191,7 +2227,7 @@ class OneCedric:
                                "content": result})
 
     def _handle_clipboard_tool(self, tc: dict) -> None:
-        from .tools.system import clipboard_op, _clipboard_write
+        from .tools.system import _clipboard_write, clipboard_op
         args = json.loads(tc["function"]["arguments"] or "{}")
         op = str(args.get("op", "")).strip().lower()
         text = str(args.get("text", "") or "")
@@ -2412,7 +2448,11 @@ class OneCedric:
 
     def _handle_sysop_tool(self, tc: dict) -> None:
         from .tools.sysops import (
-            sysop_op, sysop_apply, READONLY_OPS as SYSOP_READONLY_OPS,
+            READONLY_OPS as SYSOP_READONLY_OPS,
+        )
+        from .tools.sysops import (
+            sysop_apply,
+            sysop_op,
         )
         args = json.loads(tc["function"]["arguments"] or "{}")
         op = str(args.get("op", "")).lower()
@@ -2698,7 +2738,7 @@ class OneCedric:
     # ================================================================== #
 
     def _handle_memory_tool(self, tc: dict) -> None:
-        from .tools import memory_remember, memory_forget
+        from .tools import memory_forget, memory_remember
         name = tc["function"]["name"]
         args = json.loads(tc["function"]["arguments"] or "{}")
         if name == "memory_remember":
@@ -2745,7 +2785,7 @@ class OneCedric:
             return
 
     def _handle_cron_tool(self, tc: dict) -> None:
-        from .tools import cron_add, cron_remove, cron_enable
+        from .tools import cron_add, cron_enable, cron_remove
         name = tc["function"]["name"]
         args = json.loads(tc["function"]["arguments"] or "{}")
         if name == "cron_add":
@@ -2815,8 +2855,9 @@ class OneCedric:
 
     def _handle_notify_tool(self, tc: dict) -> None:
         from .tools.notify_tool import (
-            send_notification, send_notification_with_actions,
             notify_with_buttons_preview,
+            send_notification,
+            send_notification_with_actions,
         )
         name = tc["function"]["name"]
         args = json.loads(tc["function"]["arguments"] or "{}")
@@ -2858,8 +2899,10 @@ class OneCedric:
 
     def _handle_pkg_tool(self, tc: dict) -> None:
         from .tools.apps import (
-            install_preview, install_apply,
-            uninstall_preview, uninstall_apply,
+            install_apply,
+            install_preview,
+            uninstall_apply,
+            uninstall_preview,
         )
         name = tc["function"]["name"]
         args = json.loads(tc["function"]["arguments"] or "{}")
@@ -2939,8 +2982,11 @@ class OneCedric:
 
     def _handle_spawn_agent(self, tc: dict, args: dict) -> None:
         from .tools.subagent import (
-            run_subagent, SUBAGENT_MODES, DEFAULT_MODE,
-            DEFAULT_MAX_STEPS, DEFAULT_TIMEOUT,
+            DEFAULT_MAX_STEPS,
+            DEFAULT_MODE,
+            DEFAULT_TIMEOUT,
+            SUBAGENT_MODES,
+            run_subagent,
         )
         task = str(args.get("task", "")).strip()
         if not task:
@@ -3368,10 +3414,15 @@ class OneCedric:
 
     def _handle_qrcode_advanced(self, tc: dict) -> None:
         from .tools.qrcode_advanced import (
-            qrcode_styled, qrcode_styled_apply,
-            qrcode_batch, qrcode_batch_apply,
-            qrcode_wifi, qrcode_vcard, qrcode_email,
-            qrcode_sms, qrcode_geo,
+            qrcode_batch,
+            qrcode_batch_apply,
+            qrcode_email,
+            qrcode_geo,
+            qrcode_sms,
+            qrcode_styled,
+            qrcode_styled_apply,
+            qrcode_vcard,
+            qrcode_wifi,
         )
         name = tc["function"]["name"]
         args = json.loads(tc["function"]["arguments"] or "{}")
@@ -3609,7 +3660,7 @@ class OneCedric:
                                    "content": result})
 
     def _handle_python_exec(self, tc: dict) -> None:
-        from .tools.python_exec import python_exec_preview, python_exec_apply
+        from .tools.python_exec import python_exec_apply, python_exec_preview
         args = json.loads(tc["function"]["arguments"] or "{}")
         code = str(args.get("code", ""))
         work_dir = str(args.get("work_dir", ".") or ".")
@@ -3842,13 +3893,20 @@ class OneCedric:
 
     def _handle_media_write_tool(self, tc: dict) -> None:
         from .tools import (
-            image_process, image_apply,
-            qrcode_generate, qrcode_generate_apply,
-            symmetric_encrypt, symmetric_encrypt_apply,
-            symmetric_decrypt, symmetric_decrypt_apply,
-            rsa_generate_keypair, rsa_generate_keypair_apply,
-            rsa_encrypt, rsa_encrypt_apply,
-            rsa_decrypt, rsa_decrypt_apply,
+            image_apply,
+            image_process,
+            qrcode_generate,
+            qrcode_generate_apply,
+            rsa_decrypt,
+            rsa_decrypt_apply,
+            rsa_encrypt,
+            rsa_encrypt_apply,
+            rsa_generate_keypair,
+            rsa_generate_keypair_apply,
+            symmetric_decrypt,
+            symmetric_decrypt_apply,
+            symmetric_encrypt,
+            symmetric_encrypt_apply,
         )
         name = tc["function"]["name"]
         args = json.loads(tc["function"]["arguments"] or "{}")
@@ -4133,12 +4191,17 @@ class OneCedric:
 
     def _handle_email_write_tool(self, tc: dict) -> None:
         from .tools import (
-            email_send_preview, email_send_apply,
-            email_reply_preview, email_reply_apply,
-            imap_mark_preview, imap_mark_apply,
-            imap_move_preview, imap_move_apply,
-            imap_delete_preview, imap_delete_apply,
+            email_reply_apply,
+            email_reply_preview,
+            email_send_apply,
+            email_send_preview,
+            imap_delete_apply,
+            imap_delete_preview,
             imap_download_attachment,
+            imap_mark_apply,
+            imap_mark_preview,
+            imap_move_apply,
+            imap_move_preview,
         )
         name = tc["function"]["name"]
         args = json.loads(tc["function"]["arguments"] or "{}")
@@ -4305,9 +4368,12 @@ class OneCedric:
 
     def _handle_file_attrs_tool(self, tc: dict) -> None:
         from .tools.fileattrs import (
-            file_attrs_preview, file_attrs_apply,
-            file_perms_preview, file_perms_apply,
-            file_owner_preview, file_owner_apply,
+            file_attrs_apply,
+            file_attrs_preview,
+            file_owner_apply,
+            file_owner_preview,
+            file_perms_apply,
+            file_perms_preview,
         )
         args = json.loads(tc["function"]["arguments"] or "{}")
         op = str(args.get("op", "")).lower()
@@ -4382,7 +4448,7 @@ class OneCedric:
 
     def _handle_db_write(self, tc: dict, args: dict, name: str,
                           keyword: str) -> None:
-        from .tools.database import postgres_query, mysql_query
+        from .tools.database import mysql_query, postgres_query
         query = str(args.get("query", ""))
         target = query.strip().splitlines()[0][:80] if query else ""
         preview = (f"数据库写操作: {keyword}\n工具: {name}\n"
@@ -4431,7 +4497,7 @@ class OneCedric:
     # ================================================================== #
 
     def _download(self, tc: dict, args: dict) -> None:
-        from .tools.downloader import download_preview, download
+        from .tools.downloader import download, download_preview
         url = args.get("url", "")
         out = args.get("out", "")
         threads = args.get("threads", 0)
@@ -4764,10 +4830,11 @@ class OneCedric:
             "uninstall <名>|gen <描述>][/]")
 
     def _tools_list(self) -> None:
-        from .tools.schema import TOOLS
         from .integrations import (
-            external_tool_schemas, list_custom_tools,
+            external_tool_schemas,
+            list_custom_tools,
         )
+        from .tools.schema import TOOLS
         try:
             extras = external_tool_schemas()
         except Exception as exc:
@@ -4911,6 +4978,7 @@ class OneCedric:
         """
         import json as _json
         from pathlib import Path as _Path
+
         from .integrations import load_integrations, save_integrations
         try:
             import requests as _requests
@@ -5365,7 +5433,7 @@ class OneCedric:
             return
         for s in list_session_files(root=self.root):
             if s.get("title") == name and s.get("id") != self.session_id:
-                self.console.print(f"[err]✗ 本目录下已有同名会话[/]")
+                self.console.print("[err]✗ 本目录下已有同名会话[/]")
                 return
         self.session_title = name
         self.title_source = "user"
@@ -5589,7 +5657,9 @@ class OneCedric:
             "  [dim]│[/] " + "  [dim]·[/]  ".join(parts))
         try:
             from .cost_tracker import (
-                record, check_budget, check_turn_anomaly,
+                check_budget,
+                check_turn_anomaly,
+                record,
             )
             record(self.model, in_tok, out_tok, cached_tok,
                    turn_cost, session_id=self.session_id)
@@ -6568,7 +6638,8 @@ class OneCedric:
                 # 执行各批次
                 # ====================================================== #
                 from concurrent.futures import (
-                    ThreadPoolExecutor, as_completed,
+                    ThreadPoolExecutor,
+                    as_completed,
                 )
 
                 for batch in batches:
@@ -6864,6 +6935,7 @@ class OneCedric:
     def ask_no_ui(self, prompt: str,
                    auto_approve: bool = False) -> dict:
         from io import StringIO
+
         from rich.console import Console as _Console
 
         old_console = self.console
@@ -6941,7 +7013,7 @@ class OneCedric:
         import queue
         import threading
 
-        q: "queue.Queue" = queue.Queue()
+        q: queue.Queue = queue.Queue()
 
         def _hook(evt: dict):
             try:
@@ -7243,8 +7315,8 @@ class OneCedric:
             self.repl_ui = None
 
     def run(self, in_menu: bool = False) -> None:
-        from .ui.input_box import ask_with_box
         from .pricing import compute_cost
+        from .ui.input_box import ask_with_box
 
         self.banner()
         self._init_repl_ui()
@@ -7651,7 +7723,7 @@ class OneCedric:
 
             # ── /lang ──
             if line.startswith("/lang"):
-                from .i18n import set_lang, get_lang, t
+                from .i18n import set_lang, t
                 parts = line.split(maxsplit=1)
                 if len(parts) == 1:
                     self.console.print(
@@ -7688,7 +7760,7 @@ class OneCedric:
 
             # ── /amap-key ──
             if line.startswith("/amap-key"):
-                from .tools import amap_key_status, _set_amap_key
+                from .tools import _set_amap_key, amap_key_status
                 parts = line.split(maxsplit=1)
                 if len(parts) == 1:
                     self.console.print(
@@ -7704,8 +7776,7 @@ class OneCedric:
 
             # ── /email-key ──
             if line.startswith("/email-key"):
-                from .tools import _set_email_password
-                from .tools import _reset_email_accounts
+                from .tools import _reset_email_accounts, _set_email_password
                 parts = line.split(maxsplit=2)
                 if len(parts) < 3:
                     self.console.print(
@@ -7721,8 +7792,7 @@ class OneCedric:
 
             # ── /email ──
             if line.startswith("/email"):
-                from .tools import email_config_status
-                from .tools import _reset_email_accounts
+                from .tools import _reset_email_accounts, email_config_status
                 parts = line.split(maxsplit=1)
                 if len(parts) == 1:
                     self.console.print(email_config_status())
@@ -7947,7 +8017,7 @@ class OneCedric:
                     self.console.print(f"[ok]✓ 已清空 {n} 条[/]")
                     continue
                 if sub in ("batch", "batch-delete"):
-                    from .ui.confirm import multi_delete, confirm_yes_no
+                    from .ui.confirm import confirm_yes_no, multi_delete
                     items = _mem.list_all()
                     if not items:
                         self.console.print("[dim]暂无记忆[/]")
@@ -8033,7 +8103,7 @@ class OneCedric:
                         f"  [warn]⚠ {escape(w)}[/]")
                 if ref_ok:
                     self.console.print(
-                        f"  [dim]· 已附加引用:[/] "
+                        "  [dim]· 已附加引用:[/] "
                         + "  ".join(
                             f"[accent]@{escape(p)}[/]"
                             for p in ref_ok))

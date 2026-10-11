@@ -10,13 +10,25 @@ import importlib
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
-    BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn,
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
 )
 from rich.table import Table
 
 from ...config import (
-    BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C, BETA_VERSION,
-    PROJECT_NAME, PROJECT_REPO, PROJECT_LICENSE,
+    ACCENT,
+    BETA_VERSION,
+    BRAND,
+    DIM_C,
+    ERR_C,
+    OK_C,
+    PROJECT_LICENSE,
+    PROJECT_NAME,
+    PROJECT_REPO,
+    WARN_C,
 )
 from ..keys import wait_for_return
 
@@ -196,7 +208,7 @@ def run_diagnose_screen(console: Console, copilot) -> None:
         console.print(f"  [err]✗ 缺少核心依赖：{', '.join(missing_core)}[/]")
         console.print(f"  [dim]安装：pip install {' '.join(missing_core)}[/]")
     else:
-        console.print(f"  [ok]✓ 核心依赖完整[/]")
+        console.print("  [ok]✓ 核心依赖完整[/]")
 
     if missing_optional:
         console.print(f"  [dim]· 可选依赖缺失 {len(missing_optional)} 个"

@@ -5,13 +5,12 @@
 """
 from __future__ import annotations
 
-import os
 import shutil
 import tarfile
 import zipfile
 from pathlib import Path
 
-from .sandbox import _as_int, _resolve_path
+from .sandbox import _resolve_path
 
 EXT_MAP = {
     ".zip": "zip",
@@ -190,8 +189,8 @@ def archive_extract(p: Path, dst: Path,
                         return f"ERROR: 不安全的路径: {m.name}"
                 t.extractall(str(dst))
         elif kind in ("gz", "bz2", "xz"):
-            import gzip
             import bz2
+            import gzip
             import lzma
             stem = p.name.rsplit(".", 1)[0]
             out = dst / stem
@@ -245,9 +244,7 @@ def _create_tar(sources: list, out: Path,
     try:
         with tarfile.open(out, mode) as t:
             for src in sources:
-                if src.is_dir():
-                    t.add(src, arcname=src.name)
-                elif src.is_file():
+                if src.is_dir() or src.is_file():
                     t.add(src, arcname=src.name)
     except Exception as exc:
         return f"ERROR: 打包失败: {exc}"

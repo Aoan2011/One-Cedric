@@ -8,7 +8,6 @@ import secrets
 import time
 from pathlib import Path
 
-
 DREAM_DIR = Path.home() / ".one-cedric" / "dreams"
 
 

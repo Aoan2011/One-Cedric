@@ -116,7 +116,7 @@ def csv_query(root: Path, path: str, columns: list | None = None,
     if not p.exists() or not p.is_file():
         return f"ERROR: 文件不存在: {path}"
     try:
-        with open(p, "r", encoding="utf-8", errors="replace",
+        with open(p, encoding="utf-8", errors="replace",
                   newline="") as f:
             reader = csv.reader(
                 f, delimiter=delimiter[0] if delimiter else ",")
@@ -233,8 +233,8 @@ def sqlite_query(root: Path, path: str, query: str,
         return "", False, f"ERROR: 数据库不存在: {path}"
     is_write, kw = _sql_is_write(query)
     if is_write and not allow_write:
-        return "", False, (f"ERROR: 当前为只读模式。若要执行写操作，"
-                           f"请传 allow_write=true 并等待用户确认。")
+        return "", False, ("ERROR: 当前为只读模式。若要执行写操作，"
+                           "请传 allow_write=true 并等待用户确认。")
     if is_write and allow_write:
         return "", True, ""
     try:

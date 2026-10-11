@@ -13,7 +13,7 @@ import shutil
 import threading
 import time
 from collections import deque
-from typing import Callable
+from collections.abc import Callable
 
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
@@ -21,7 +21,13 @@ from rich.panel import Panel
 from rich.text import Text
 
 from ..config import (
-    BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C, TOOL_C,
+    ACCENT,
+    BRAND,
+    DIM_C,
+    ERR_C,
+    OK_C,
+    TOOL_C,
+    WARN_C,
 )
 from .accessibility import motion_enabled
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 import codecs
 from pathlib import Path
 
-
 BOM_SIGNATURES = [
     (codecs.BOM_UTF8, "utf-8-sig"),
     (codecs.BOM_UTF32_LE, "utf-32-le"),

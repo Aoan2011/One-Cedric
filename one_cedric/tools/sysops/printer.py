@@ -4,8 +4,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from ._platform import (
-    IS_WINDOWS, IS_MAC, IS_LINUX,
-    has_cmd, run_cmd, powershell, unsupported,
+    IS_LINUX,
+    IS_MAC,
+    IS_WINDOWS,
+    has_cmd,
+    powershell,
+    run_cmd,
+    unsupported,
 )
 
 

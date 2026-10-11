@@ -1,7 +1,6 @@
 """LSP 工具实现。所有工具都返回字符串。"""
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 

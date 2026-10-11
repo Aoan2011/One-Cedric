@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import json as _json
-import os
 import re
 import shutil
 import threading
@@ -22,7 +21,6 @@ from urllib.parse import unquote, urlparse
 import requests
 
 from .sandbox import _resolve_path
-
 
 CHUNK_SIZE = 512 * 1024
 DEFAULT_THREADS = 4
@@ -383,7 +381,7 @@ def download_preview(url: str, out: str = "", threads: int = 0,
         f"类型: {info['content_type'] or '未知'}",
         f"Range: {accept}",
         f"计划线程: {auto_threads}",
-        f"断点续传: 是",
+        "断点续传: 是",
     ]
     meta = {
         "url": url,

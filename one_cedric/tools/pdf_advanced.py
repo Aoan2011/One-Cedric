@@ -53,9 +53,9 @@ def pdf_watermark(path: str, out: str = "", text: str = "CONFIDENTIAL",
 def pdf_watermark_apply(path, out, text, opacity, font_size, angle, color,
                         root) -> str:
     from pypdf import PdfReader, PdfWriter
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.pagesizes import letter
     from reportlab.lib.colors import HexColor
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
 
     p, _ = _resolve_path(root, path)
     out_p, _ = _resolve_path(root, out)

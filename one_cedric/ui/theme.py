@@ -13,10 +13,16 @@ from rich.text import Text
 from rich.tree import Tree
 
 from ..config import (
-    BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C,
-    TOOL_C, USER_C, PLAN_C, THEME,
+    ACCENT,
+    BRAND,
+    DIM_C,
+    ERR_C,
+    OK_C,
+    PLAN_C,
+    TOOL_C,
+    USER_C,
+    WARN_C,
 )
-
 
 # ── Panel 语义类型 ────────────────────────────────────────────────────
 

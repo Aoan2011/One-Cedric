@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import ctypes
 import os
-import sys
 from ctypes import wintypes
 
 try:

@@ -10,11 +10,10 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from .schema import WRITE_TOOLS
-
 
 _HANDLERS: dict[str, Callable[[Path, dict], str]] = {}
 
@@ -63,7 +62,7 @@ def dispatch_tool(name: str, args: dict, root: Path) -> str:
     if not isinstance(args, dict):
         args = {}
 
-    from ..integrations import is_external_tool, call_external_tool
+    from ..integrations import call_external_tool, is_external_tool
     if is_external_tool(name):
         return call_external_tool(name, args, root)
 

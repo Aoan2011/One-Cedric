@@ -1,7 +1,7 @@
 """系统服务管理（Windows: Get-Service；Linux: systemctl；macOS: launchctl）。"""
 from __future__ import annotations
 
-from ._platform import IS_WINDOWS, IS_MAC, IS_LINUX, has_cmd, run_cmd, powershell
+from ._platform import IS_LINUX, IS_MAC, IS_WINDOWS, has_cmd, powershell, run_cmd
 
 
 def services_list(filter: str = "", limit: int = 40) -> str:
@@ -65,7 +65,7 @@ def services_action(name: str, action: str) -> str:
         return "ERROR: name 不能为空"
     a = (action or "").lower()
     if a not in ("start", "stop", "restart", "enable", "disable"):
-        return f"ERROR: action 必须是 start/stop/restart/enable/disable"
+        return "ERROR: action 必须是 start/stop/restart/enable/disable"
 
     if IS_WINDOWS:
         cmd_map = {

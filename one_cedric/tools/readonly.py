@@ -7,8 +7,11 @@ import time
 from pathlib import Path
 
 from ..config import (
-    MAX_BYTES, MAX_LINES, MAX_SEARCH_RESULTS,
-    MAX_SEARCH_FILE_SIZE, MAX_GLOB_RESULTS,
+    MAX_BYTES,
+    MAX_GLOB_RESULTS,
+    MAX_LINES,
+    MAX_SEARCH_FILE_SIZE,
+    MAX_SEARCH_RESULTS,
 )
 from .sandbox import _as_int, _resolve_path
 

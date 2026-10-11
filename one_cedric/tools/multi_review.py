@@ -6,7 +6,6 @@ from pathlib import Path
 
 from .sandbox import _resolve_path
 
-
 DEFAULT_DIMENSIONS = [
     {
         "key": "security",
@@ -92,8 +91,9 @@ def multi_review(path: str, root: Path,
         if not dims:
             dims = DEFAULT_DIMENSIONS
 
-    from .subagent import run_subagent
     import time as _time
+
+    from .subagent import run_subagent
 
     # 临时屏蔽 stream hook，避免并行推送乱序
     old_hook = getattr(parent, "_stream_hook", None)

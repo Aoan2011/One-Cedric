@@ -15,7 +15,6 @@ from pathlib import Path
 
 from .sandbox import _as_int, _resolve_path
 
-
 MAX_ROWS = 500
 QUERY_TIMEOUT = 30
 

@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import re
 import sys
-import tomllib
 from pathlib import Path
 
 import pytest
+import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -72,13 +72,14 @@ def test_version_has_a_single_source():
     assert attr == "one_cedric._version.__version__"
 
     from one_cedric import __version__ as pkg_version
-    from one_cedric._version import __release_name__, __version__ as leaf_version
     from one_cedric import config
+    from one_cedric._version import __release_name__
+    from one_cedric._version import __version__ as leaf_version
 
     assert leaf_version, "_version.__version__ must not be empty"
     assert pkg_version == leaf_version
-    assert config.PROJECT_VERSION == leaf_version
-    assert config.BETA_VERSION == __release_name__
+    assert leaf_version == config.PROJECT_VERSION
+    assert __release_name__ == config.BETA_VERSION
 
 
 def test_version_module_has_no_imports():

@@ -10,9 +10,6 @@ import platform
 import time
 from pathlib import Path
 
-from .sandbox import _resolve_path
-
-
 IS_WINDOWS = platform.system() == "Windows"
 
 

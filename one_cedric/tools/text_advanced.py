@@ -221,8 +221,8 @@ def text_similarity(text1: str = "", text2: str = "",
         denom = len(ta) + len(tb)
         score = 2 * inter / denom if denom else 0
     elif algo == "cosine":
-        from collections import Counter as _Counter
         import math
+        from collections import Counter as _Counter
 
         def _count(s):
             eng = re.findall(r"[a-z0-9]+", s.lower())

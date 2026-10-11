@@ -14,21 +14,28 @@ from rich.console import Group
 from rich.live import Live
 from rich.markup import escape
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.rule import Rule
 from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 
 from ..config import (
-    BRAND, ACCENT, USER_C, TOOL_C, WARN_C, PLAN_C, OK_C, ERR_C, DIM_C,
-    BETA_VERSION, DIFF_CONTEXT, REASONING_MODEL_KEYWORDS,
+    ACCENT,
+    BETA_VERSION,
+    BRAND,
+    DIFF_CONTEXT,
+    DIM_C,
+    ERR_C,
+    OK_C,
+    PLAN_C,
+    TOOL_C,
+    USER_C,
+    WARN_C,
 )
-from ..tools.schema import TOOLS, WRITE_TOOLS as SCHEMA_WRITE_TOOLS
-from ..tools.shell import _shell_allow_display
 from ..i18n import t
+from ..tools.schema import TOOLS
+from ..tools.shell import _shell_allow_display
 from .accessibility import motion_enabled
-
 
 # ═══════════════════════════════════════════════════════════════════════ #
 # 工具图标 / 动词 / spinner

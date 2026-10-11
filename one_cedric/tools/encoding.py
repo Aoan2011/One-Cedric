@@ -80,9 +80,7 @@ def password_gen(length: int = 20, count: int = 1,
         pool = string.ascii_letters
     elif cs == "digits":
         pool = string.digits
-    elif cs == "alnum":
-        pool = string.ascii_letters + string.digits
-    elif cs == "mixed":
+    elif cs == "alnum" or cs == "mixed":
         pool = string.ascii_letters + string.digits
     else:
         pool = cs

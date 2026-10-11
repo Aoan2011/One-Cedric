@@ -16,8 +16,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from .sandbox import _as_int, _resolve_path
-
+from .sandbox import _resolve_path
 
 # 允许的第三方库（用于白名单提示 AI）
 ALLOWED_LIBS = [
@@ -169,11 +168,8 @@ def python_exec_preview(code: str, work_dir: str = ".",
     except (TypeError, ValueError):
         t = 30
 
-    wd = str(_resolve_path(root, work_dir)[0]) if work_dir else str(root)
-
     # 统计行数
     n_lines = len(code.strip().splitlines())
-
     # 扫描未知第三方模块（非白名单、非标准库）
     stdlib = set(getattr(sys, "stdlib_module_names", ()))
     unknown = [m for m in _scan_imports(code)
@@ -207,8 +203,6 @@ def python_exec_preview(code: str, work_dir: str = ".",
     if len(lines) > 30:
         preview.append(f"    ... 还有 {len(lines) - 30} 行")
 
-    # 是写操作吗？
-    is_write = bool(save_code)
     return "\n".join(preview), needs_confirm, "", meta
 
 
@@ -307,7 +301,7 @@ def python_exec_apply(code: str, work_dir: str = ".", timeout: int = 30,
     if len(stdout) > MAX_OUT:
         stdout = stdout[:MAX_OUT] + f"\n...（stdout 截断，原始 {len(stdout)} 字符）"
     if len(stderr) > 10000:
-        stderr = stderr[:10000] + f"\n...（stderr 截断）"
+        stderr = stderr[:10000] + "\n...（stderr 截断）"
 
     # 组装结果
     parts = [f"退出码: {r.returncode}   耗时: {elapsed:.2f}s"]

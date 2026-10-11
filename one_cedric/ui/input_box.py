@@ -9,8 +9,8 @@ from rich.panel import Panel
 from rich.progress_bar import ProgressBar
 from rich.text import Text
 
-from .dog import dog_inline
 from ..config import ACCENT, BRAND, OK_C, WARN_C
+from .dog import dog_inline
 
 
 def human_tok(n) -> str:

@@ -8,12 +8,13 @@ from pathlib import Path
 
 import requests
 from rich import box
-from rich.panel import Panel
 from rich.table import Table
 
-from ...config import BRAND, DIM_C
+from ...config import BRAND
 from ...integrations import (
-    CONFIG_PATH, external_tool_schemas, load_integrations,
+    CONFIG_PATH,
+    external_tool_schemas,
+    load_integrations,
     save_integrations,
 )
 from ..keys import wait_for_return

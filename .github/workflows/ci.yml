@@ -43,10 +43,14 @@ jobs:
       - name: Byte-compile every module
         run: python -m compileall -q one_cedric one_editor_lite
 
-      - name: Lint (ruff)
+      - name: Lint (blocking: bug-level rules)
         run: python -m ruff check .
 
-      - name: Check formatting (ruff format)
+      - name: Lint (advisory: style rules)
+        run: python -m ruff check . --select I,UP,B,C4,SIM
+        continue-on-error: true
+
+      - name: Check formatting (advisory)
         run: python -m ruff format --check .
         continue-on-error: true
 

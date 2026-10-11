@@ -27,6 +27,7 @@ import os
 import sys
 from pathlib import Path
 
+from lsp import LANG_SERVERS, LspClient, path_to_uri
 from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -35,8 +36,6 @@ from textual.geometry import Offset
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, OptionList, RichLog, Static, TextArea
 from textual.widgets.option_list import Option
-
-from lsp import LANG_SERVERS, LspClient, path_to_uri
 
 VERSION = "1.1.0-lite"
 
@@ -646,9 +645,7 @@ class OneEditorLite(App):
         bid = event.button.id
         if bid == "btn-about":
             self.push_screen(AboutScreen())
-        elif bid == "btn-save":
-            self._save_and_quit()
-        elif bid == "btn-quit":
+        elif bid == "btn-save" or bid == "btn-quit":
             self._save_and_quit()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:

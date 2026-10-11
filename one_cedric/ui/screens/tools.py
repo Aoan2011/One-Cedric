@@ -6,17 +6,23 @@ import time
 from rich import box
 from rich.table import Table
 
-from ...config import BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C
+from ...config import BRAND, ERR_C, OK_C, WARN_C
 from ...storage import save_tools_config
 from ..menu import selection_progress
 
 
 def run_tools_screen(console, copilot) -> None:
-    from ..keys import (
-        read_key, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
-        KEY_ENTER, KEY_ESC, has_readchar,
-    )
     from ..confirm import confirm_yes_no
+    from ..keys import (
+        KEY_DOWN,
+        KEY_ENTER,
+        KEY_ESC,
+        KEY_LEFT,
+        KEY_RIGHT,
+        KEY_UP,
+        has_readchar,
+        read_key,
+    )
 
     selected_category = 0
     while True:
@@ -76,14 +82,14 @@ def run_tools_screen(console, copilot) -> None:
 
         console.print()
         console.print(
-            f"  [dim]操作：[/]"
-            f"[accent]Enter[/][dim] 进入分类 · [/]"
-            f"[accent]t[/][dim] 单工具切换 · [/]"
-            f"[accent]T[/][dim] 批量切换 · [/]"
-            f"[accent]a[/][dim] 全部启用 · [/]"
-            f"[accent]n[/][dim] 全部禁用 · [/]"
-            f"[accent]c[/][dim] 自定义工具 · [/]"
-            f"[accent]q[/][dim] 返回[/]"
+            "  [dim]操作：[/]"
+            "[accent]Enter[/][dim] 进入分类 · [/]"
+            "[accent]t[/][dim] 单工具切换 · [/]"
+            "[accent]T[/][dim] 批量切换 · [/]"
+            "[accent]a[/][dim] 全部启用 · [/]"
+            "[accent]n[/][dim] 全部禁用 · [/]"
+            "[accent]c[/][dim] 自定义工具 · [/]"
+            "[accent]q[/][dim] 返回[/]"
         )
 
         if not has_readchar():

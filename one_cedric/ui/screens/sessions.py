@@ -2,15 +2,15 @@
 from __future__ import annotations
 
 import time
+
 from rich import box
 from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 
-from ...config import BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C, TOOL_C
-from ...storage import list_session_files, delete_session_file
-from ..menu import selection_progress
+from ...config import BRAND, DIM_C, OK_C
+from ...storage import delete_session_file, list_session_files
 from ..keys import wait_for_return
+from ..menu import selection_progress
 
 
 def _session_summary(s: dict) -> dict:
@@ -39,8 +39,14 @@ def _session_summary(s: dict) -> dict:
 
 def run_sessions_screen(console, copilot) -> None:
     from ..keys import (
-        read_key, KEY_UP, KEY_DOWN, KEY_ENTER, KEY_ESC,
-        KEY_LEFT, KEY_RIGHT, has_readchar,
+        KEY_DOWN,
+        KEY_ENTER,
+        KEY_ESC,
+        KEY_LEFT,
+        KEY_RIGHT,
+        KEY_UP,
+        has_readchar,
+        read_key,
     )
 
     root = copilot.root
@@ -48,7 +54,7 @@ def run_sessions_screen(console, copilot) -> None:
     if not sessions_raw:
         console.clear()
         console.print()
-        console.print(f"  [dim]当前工作目录下没有已保存的会话。[/]")
+        console.print("  [dim]当前工作目录下没有已保存的会话。[/]")
         wait_for_return(console)
         return
 
@@ -131,11 +137,11 @@ def run_sessions_screen(console, copilot) -> None:
         if items:
             console.print(selection_progress(idx, len(items)))
         console.print(
-            f"  [dim]↑↓←→ 选择 · [/]"
-            f"[accent]Enter[/][dim] 恢复 · [/]"
-            f"[accent]d[/][dim] 删除 · [/]"
-            f"[accent]/[/][dim] 搜索 · [/]"
-            f"[accent]Esc[/][dim]/[/][accent]q[/][dim] 返回[/]"
+            "  [dim]↑↓←→ 选择 · [/]"
+            "[accent]Enter[/][dim] 恢复 · [/]"
+            "[accent]d[/][dim] 删除 · [/]"
+            "[accent]/[/][dim] 搜索 · [/]"
+            "[accent]Esc[/][dim]/[/][accent]q[/][dim] 返回[/]"
         )
 
         if not has_readchar():

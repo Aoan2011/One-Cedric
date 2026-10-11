@@ -396,8 +396,8 @@ def _pdf_ocr(root: Path, args: dict):
 
 def _pdf_ocr_apply(root: Path, args: dict) -> str:
     try:
-        from pdf2image import convert_from_path
         import pytesseract
+        from pdf2image import convert_from_path
     except ImportError:
         return "ERROR: 需要 pdf2image + pytesseract + Pillow"
 

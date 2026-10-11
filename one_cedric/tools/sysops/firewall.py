@@ -6,10 +6,7 @@ macOS:   pfctl / socketfilterfw
 """
 from __future__ import annotations
 
-import subprocess
-
-from ._platform import IS_WINDOWS, IS_MAC, IS_LINUX, has_cmd, run_cmd, powershell
-
+from ._platform import IS_LINUX, IS_MAC, IS_WINDOWS, has_cmd, powershell, run_cmd
 
 # ═══════════════════════════════════════════════════════════════════════ #
 # 只读
@@ -194,7 +191,7 @@ def firewall_port_deny(port: int, protocol: str = "tcp") -> str:
     if IS_LINUX:
         if has_cmd("ufw"):
             rc, _, err = run_cmd(["ufw", "delete", "allow", f"{p}/{proto}"])
-            return f"已移除规则" if rc == 0 else f"ERROR: {err}"
+            return "已移除规则" if rc == 0 else f"ERROR: {err}"
         if has_cmd("firewall-cmd"):
             rc, _, err = run_cmd(["firewall-cmd", "--permanent",
                                   f"--remove-port={p}/{proto}"])

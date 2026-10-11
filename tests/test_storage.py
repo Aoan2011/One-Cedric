@@ -5,8 +5,6 @@ Storage writes to ``~/.one-cedric``; every test here runs under the
 """
 from __future__ import annotations
 
-import pytest
-
 from one_cedric import storage
 
 

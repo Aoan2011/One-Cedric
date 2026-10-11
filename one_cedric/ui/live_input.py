@@ -21,7 +21,6 @@ from __future__ import annotations
 import os
 import select
 import sys
-import threading
 import time
 from dataclasses import dataclass, field
 
@@ -506,10 +505,11 @@ class ReplInputSession:
     def start(self) -> None:
         if not self.enabled:
             return
-        from rich.live import Live
         # 鼠标追踪必须保证被关掉，否则终端会一直处于鼠标上报模式。
         # atexit 兜底覆盖所有 return 路径（包括异常退出）。
         import atexit
+
+        from rich.live import Live
         atexit.register(self.stop)
         self._mouse = MouseMode(self.console).__enter__()
         self._live = Live(self.render(), console=self.console,

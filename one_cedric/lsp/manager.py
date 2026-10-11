@@ -7,12 +7,11 @@ from pathlib import Path
 from .client import LSPClient
 from .config import load_lsp_config
 
-
 _MANAGER_LOCK = threading.Lock()
-_MANAGER_INSTANCE: "LSPManager | None" = None
+_MANAGER_INSTANCE: LSPManager | None = None
 
 
-def get_manager(root: Path) -> "LSPManager":
+def get_manager(root: Path) -> LSPManager:
     global _MANAGER_INSTANCE
     with _MANAGER_LOCK:
         if _MANAGER_INSTANCE is None:

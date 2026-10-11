@@ -3,14 +3,12 @@ from __future__ import annotations
 
 import base64
 import io
-import platform
 import threading
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 _backend_lock = threading.Lock()
-_backend_instance: "ComputerBackend | None" = None
+_backend_instance: ComputerBackend | None = None
 
 
 class BackendError(RuntimeError):

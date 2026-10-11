@@ -83,7 +83,7 @@ def json_diff(a: str = "", b: str = "",
     lines: list = []
 
     def _walk(prefix, va, vb):
-        if type(va) != type(vb):
+        if type(va) is not type(vb):
             lines.append(f"~ {prefix}: 类型 "
                          f"{type(va).__name__} → "
                          f"{type(vb).__name__}")
@@ -127,7 +127,7 @@ def csv_to_json(path: str, root: Path, delimiter: str = ",",
     if not p.exists():
         return f"ERROR: 文件不存在: {path}"
     try:
-        with open(p, "r", encoding=encoding, newline="") as f:
+        with open(p, encoding=encoding, newline="") as f:
             reader = csv.DictReader(
                 f, delimiter=delimiter[0] if delimiter else ",")
             rows = [dict(r) for r in reader]

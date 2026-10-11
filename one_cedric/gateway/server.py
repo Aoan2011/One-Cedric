@@ -10,10 +10,9 @@ import json
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
 
 from ..config import (
-    BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C, BETA_VERSION,
+    BETA_VERSION,
 )
 
 # 串行化 cron 任务文件的写操作（WebUI 并发访问时避免与调度线程竞争）
@@ -348,10 +347,12 @@ class Gateway:
 
     def _build_app(self):
         try:
-            from fastapi import FastAPI, HTTPException, Request, Depends
+            from fastapi import Depends, FastAPI, HTTPException, Request
             from fastapi.responses import (
-                StreamingResponse, JSONResponse, HTMLResponse,
                 FileResponse,
+                HTMLResponse,
+                JSONResponse,
+                StreamingResponse,
             )
         except ImportError:
             class _NoApp:
@@ -382,9 +383,9 @@ class Gateway:
             think_level: str = ""
             particle_hue1: int = -1
             particle_hue2: int = -1
-            sandbox_terminal: Optional[bool] = None
+            sandbox_terminal: bool | None = None
             access_mode: str = ""
-            plan_mode: Optional[bool] = None
+            plan_mode: bool | None = None
             assisted_model: str = ""
 
         class CustomToolRequest(BaseModel):
@@ -592,8 +593,8 @@ class Gateway:
         async def api_tools(request: Request):
             _auth(request)
             try:
-                from ..tools.schema import TOOLS
                 from ..integrations import external_tool_schemas
+                from ..tools.schema import TOOLS
                 tools = []
                 disabled = getattr(gw.copilot, "disabled_tools", set())
                 all_tools = [*TOOLS, *external_tool_schemas()]
@@ -1107,7 +1108,7 @@ class Gateway:
                     "sandbox_terminal"] = bool(req.sandbox_terminal)
                 changed.append("sandbox_terminal")
             if req.access_mode:
-                from ..config import ACCESS_MODES, ACCESS_MODE_ALIASES
+                from ..config import ACCESS_MODE_ALIASES, ACCESS_MODES
                 m = ACCESS_MODE_ALIASES.get(
                     req.access_mode.lower(), req.access_mode.lower())
                 if m in ACCESS_MODES:

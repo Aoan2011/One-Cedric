@@ -13,7 +13,6 @@ import socket
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from typing import Dict, Set
 from urllib.parse import urljoin, urlparse, urlunparse
 
 import requests
@@ -26,9 +25,12 @@ except ImportError:
     _HAS_BS4 = False
 
 from ..config import (
-    MAX_WEB_BYTES, WEB_TIMEOUT,
-    MAX_HTTP_RESP_BYTES, MAX_HTTP_BODY_BYTES, HTTP_DEFAULT_TIMEOUT,
+    HTTP_DEFAULT_TIMEOUT,
+    MAX_HTTP_BODY_BYTES,
+    MAX_HTTP_RESP_BYTES,
     MAX_SEARCH_QUERY_LEN,
+    MAX_WEB_BYTES,
+    WEB_TIMEOUT,
 )
 from .extract import extract_main_content
 from .rerank import bm25_scores, fuse, url_dedup_keep_best
@@ -193,7 +195,7 @@ class SearchResult:
     url: str
     snippet: str = ""
     score: float = 0.0
-    sources: Set[str] = field(default_factory=set)
+    sources: set[str] = field(default_factory=set)
     bm25: float = 0.0
     final_score: float = 0.0
 
@@ -407,9 +409,9 @@ def _fetch_baidu(query: str, timeout: int):
 
 
 def _merge_and_rerank(query: str,
-                      sources: Dict[str, list],
-                      weights: Dict[str, float]) -> list:
-    merged: Dict[str, SearchResult] = {}
+                      sources: dict[str, list],
+                      weights: dict[str, float]) -> list:
+    merged: dict[str, SearchResult] = {}
     for source, results in sources.items():
         weight = weights.get(source, 0.0)
         for r in results:
@@ -443,9 +445,9 @@ def _merge_and_rerank(query: str,
 
 
 def _format_search_output(query: str, ranked: list,
-                          sources: Dict[str, list],
-                          aggregates: Dict[str, list],
-                          weights: Dict[str, float],
+                          sources: dict[str, list],
+                          aggregates: dict[str, list],
+                          weights: dict[str, float],
                           max_results: int,
                           include_aggregates: bool,
                           errors: list) -> str:
@@ -521,8 +523,8 @@ def web_search(query: str,
     else:
         wanted = list(DEFAULT_ENGINES)
 
-    sources: Dict[str, list] = {}
-    aggregates: Dict[str, list] = {}
+    sources: dict[str, list] = {}
+    aggregates: dict[str, list] = {}
     errors: list = []
 
     for name in wanted:
@@ -644,8 +646,8 @@ def web_research(query: str,
     else:
         wanted = list(DEFAULT_ENGINES)
 
-    sources: Dict[str, list] = {}
-    aggregates: Dict[str, list] = {}
+    sources: dict[str, list] = {}
+    aggregates: dict[str, list] = {}
     errors: list = []
 
     for name in wanted:

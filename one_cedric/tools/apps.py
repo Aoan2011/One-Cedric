@@ -7,13 +7,10 @@ Linux:   xdg-open / .desktop / apt / snap / flatpak / pacman
 from __future__ import annotations
 
 import json
-import os
 import platform
-import re
 import shutil
 import subprocess
 from pathlib import Path
-
 
 IS_WINDOWS = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
@@ -59,7 +56,7 @@ def open_app(target: str, args: list | None = None) -> str:
         parts.append(target)
         parts.extend(extra)
         try:
-            r = subprocess.Popen(
+            subprocess.Popen(
                 parts, shell=False,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
@@ -81,7 +78,7 @@ def open_app(target: str, args: list | None = None) -> str:
         else:
             cmd = ["open", target]
         try:
-            r = subprocess.Popen(
+            subprocess.Popen(
                 cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             return f"已启动: {target}"
@@ -93,7 +90,7 @@ def open_app(target: str, args: list | None = None) -> str:
             return "ERROR: 需要 xdg-open（通常由 xdg-utils 提供）"
         cmd = ["xdg-open", target] + extra
         try:
-            r = subprocess.Popen(
+            subprocess.Popen(
                 cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             return f"已启动: {target}"

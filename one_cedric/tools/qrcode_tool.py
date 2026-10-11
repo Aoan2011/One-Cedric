@@ -52,8 +52,10 @@ def qrcode_generate_apply(content: str, out: str, size: int,
     try:
         import qrcode
         from qrcode.constants import (
-            ERROR_CORRECT_L, ERROR_CORRECT_M,
-            ERROR_CORRECT_Q, ERROR_CORRECT_H,
+            ERROR_CORRECT_H,
+            ERROR_CORRECT_L,
+            ERROR_CORRECT_M,
+            ERROR_CORRECT_Q,
         )
     except ImportError:
         return "ERROR: 需要 qrcode（pip install qrcode[pil]）"

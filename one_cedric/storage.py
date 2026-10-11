@@ -15,8 +15,12 @@ except ImportError:
     tomllib = None
 
 from .config import (
-    SESSION_DIRNAME, SESSION_SUBDIR, PROJECTS_SUBDIR, PROFILES_SUBDIR,
-    CONFIG_FILENAME, DEFAULT_CONFIG,
+    CONFIG_FILENAME,
+    DEFAULT_CONFIG,
+    PROFILES_SUBDIR,
+    PROJECTS_SUBDIR,
+    SESSION_DIRNAME,
+    SESSION_SUBDIR,
 )
 
 
@@ -159,7 +163,7 @@ def _apply_config(cfg: dict, raw: dict) -> None:
                 if v in ("zh", "en"):
                     cfg["default"][k] = v
             elif k == "mode":
-                from .config import ACCESS_MODES, ACCESS_MODE_ALIASES
+                from .config import ACCESS_MODE_ALIASES, ACCESS_MODES
                 m = ACCESS_MODE_ALIASES.get(v.lower(), v.lower())
                 if m in ACCESS_MODES:
                     cfg["default"][k] = m

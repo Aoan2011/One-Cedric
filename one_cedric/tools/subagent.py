@@ -13,7 +13,6 @@ import io
 import json
 import time
 
-
 SUBAGENT_MODES = ("explore", "code", "plan")
 DEFAULT_MODE = "explore"
 DEFAULT_MAX_STEPS = 6
@@ -82,7 +81,7 @@ def _clamp(value, default, lo, hi):
 
 def _build_tools_for_subagent():
     """构造子 agent 可用的工具列表（全部只读工具，排除 spawn_agent）。"""
-    from .schema import TOOLS, READONLY_TOOL_NAMES
+    from .schema import READONLY_TOOL_NAMES, TOOLS
     out = []
     for t in TOOLS:
         name = t["function"]["name"]
@@ -114,7 +113,7 @@ def run_subagent(parent, task: str, mode: str = DEFAULT_MODE,
         "log": str,
       }
     """
-    from rich.console import Console as _Console
+
     from . import dispatch_tool
     from .schema import CACHEABLE_TOOLS
 
@@ -139,8 +138,6 @@ def run_subagent(parent, task: str, mode: str = DEFAULT_MODE,
     ]
 
     buf = io.StringIO()
-    sub_console = _Console(file=buf, width=110, no_color=True,
-                           force_terminal=False, soft_wrap=True)
 
     # 临时屏蔽父的 stream hook
     old_hook = getattr(parent, "_stream_hook", None)

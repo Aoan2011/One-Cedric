@@ -100,7 +100,7 @@ def pdf_extract(root: Path, path: str,
             remaining = char_limit - out_len
             if remaining > 200:
                 lines.append(block[:remaining])
-                lines.append(f"\n... (截断，还有更多内容)")
+                lines.append("\n... (截断，还有更多内容)")
             break
         lines.append(block)
         out_len += len(block)

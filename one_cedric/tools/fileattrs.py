@@ -101,7 +101,8 @@ def file_attrs_get(path: str, root: Path) -> str:
         lines.append(f"  可执行: {'是' if os.access(p, os.X_OK) else '否'}")
 
         try:
-            import pwd, grp
+            import grp
+            import pwd
             lines.append("")
             lines.append(f"属主: {pwd.getpwuid(st.st_uid).pw_name} (uid={st.st_uid})")
             lines.append(f"属组: {grp.getgrgid(st.st_gid).gr_name} (gid={st.st_gid})")
@@ -331,7 +332,8 @@ def file_owner_preview(path: str, user: str = "", group: str = "",
 
     try:
         st = p.stat()
-        import pwd, grp
+        import grp
+        import pwd
         old_user = pwd.getpwuid(st.st_uid).pw_name
         old_group = grp.getgrgid(st.st_gid).gr_name
     except (ImportError, KeyError):

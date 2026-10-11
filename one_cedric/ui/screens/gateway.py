@@ -4,10 +4,9 @@ from __future__ import annotations
 import time
 
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
-from ...config import BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C
+from ...config import ACCENT, BRAND, DIM_C, ERR_C, OK_C, WARN_C
 from ..keys import wait_for_return
 from ..menu import Menu, MenuItem
 
@@ -29,7 +28,7 @@ def _fmt_uptime(seconds) -> str:
 
 
 def run_gateway_screen(console: Console, copilot) -> None:
-    from ...gateway import get_gateway, reset_gateway
+    from ...gateway import get_gateway
 
     while True:
         console.clear()
@@ -126,7 +125,7 @@ def run_gateway_screen(console: Console, copilot) -> None:
                 ):
                     ok, msg = gw.start(host=host, port=port, token=token)
                 if ok:
-                    console.print(f"  [ok]✓ 已启动[/]")
+                    console.print("  [ok]✓ 已启动[/]")
                     console.print(f"  [dim]访问: [/][accent]{msg}[/]")
                 else:
                     console.print(f"  [err]✗ {msg}[/]")

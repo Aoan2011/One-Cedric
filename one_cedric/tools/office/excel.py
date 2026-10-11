@@ -5,8 +5,11 @@ from pathlib import Path
 
 from ..sandbox import _resolve_path
 from .common import (
-    check_file, format_size, system_print,
-    win32_com_available, encrypt_with_msoffcrypto,
+    check_file,
+    encrypt_with_msoffcrypto,
+    format_size,
+    system_print,
+    win32_com_available,
 )
 
 XLSX_EXTS = (".xlsx", ".xlsm", ".xltx", ".xltm")

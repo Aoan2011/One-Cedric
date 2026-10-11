@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import atexit
-from collections import deque
 import json
 import os
 import queue
@@ -10,13 +9,13 @@ import re
 import subprocess
 import threading
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any
 
-
 CONFIG_PATH = Path.home() / ".one-cedric" / "integrations.json"
 _NAME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,47}$")
-_CLIENTS: dict[str, "_McpProcess"] = {}
+_CLIENTS: dict[str, _McpProcess] = {}
 _CLIENTS_LOCK = threading.RLock()
 _TOOL_MAP: dict[str, tuple[str, str]] = {}
 

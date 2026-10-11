@@ -9,13 +9,26 @@ from __future__ import annotations
 import pytest
 
 from one_cedric.ui.live_input import (
-    DECISION_CANCEL, DECISION_INTERJECT, DECISION_QUEUE,
-    KEY_BACKSPACE, KEY_DELETE, KEY_END, KEY_ENTER, KEY_ESC, KEY_HOME,
-    KEY_LEFT, KEY_RIGHT, ENABLE_MOUSE, DISABLE_MOUSE,
-    KeyPoller, LineEditor, MidTurnQueue, ReplInputSession,
-    apply_key, parse_sgr_mouse, render_prompt,
+    DECISION_CANCEL,
+    DECISION_INTERJECT,
+    DECISION_QUEUE,
+    DISABLE_MOUSE,
+    ENABLE_MOUSE,
+    KEY_BACKSPACE,
+    KEY_DELETE,
+    KEY_END,
+    KEY_ENTER,
+    KEY_ESC,
+    KEY_HOME,
+    KEY_LEFT,
+    KeyPoller,
+    LineEditor,
+    MidTurnQueue,
+    ReplInputSession,
+    apply_key,
+    parse_sgr_mouse,
+    render_prompt,
 )
-
 
 # --------------------------------------------------------------------------- #
 # LineEditor

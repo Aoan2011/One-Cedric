@@ -64,14 +64,20 @@ git clone https://github.com/Aoan2011/One-Cedric.git
 cd One-Cedric
 
 # 2. Install dependencies
-pip install -r requirements.txt
+pip install -r requirements.txt          # core + gateway + commonly used tools
+pip install -r requirements-optional.txt # databases, archives, Chinese NLP… (optional)
 ```
 
-> Missing optional packages are not fatal — the 
+> Missing optional packages are not fatal — the
 >
 > **Diagnose**
 >
->  screen lists exactly what is missing and how to install it (see [Troubleshooting](#6-troubleshooting--diagnose)).
+> screen lists exactly what is missing and how to install it (see [Troubleshooting](#6-troubleshooting--diagnose)).
+>
+> Dependency files: `requirements.txt` (runtime), `requirements-optional.txt`
+> (packages that need system libraries), `requirements-dev.txt` (pytest, ruff,
+> mypy, black — never needed at runtime). Or install everything at once with
+> `pip install -e ".[all]"`.
 
 ### Verify it runs
 
@@ -122,9 +128,19 @@ python -m one_cedric --gateway
 
 You get a Liquid Glass chat interface: session sidebar, message tree, ask threads, tool output with syntax highlighting, an in-composer think-level selector, embedded Settings/Stats/Cron/Dream panels, a sandbox-terminal switch, a Diagnose panel, and a Custom Tools manager.
 
-> When running on a remote machine, use 
+> The gateway binds to `127.0.0.1` by default. To reach it from another device
+> on your LAN, use `--bind 0.0.0.0` **and** a token:
 >
-> `--host 0.0.0.0` and  `--token <secret>` to protect the UI.
+> ```
+> python -m one_cedric --gateway --bind 0.0.0.0 --token <secret>
+> ```
+>
+> Note that `--host` is the **model** endpoint (Ollama/DeepSeek), not the
+> gateway bind address. The gateway address is `--bind`.
+>
+> Tool calls that write files or run commands are confirmed by you. The
+> WebUI's auto-confirm switch is **off** by default — turn it on only when
+> you trust the material the model is reading.
 
 ### 2.1 Uploading files vs. `@` references
 
@@ -215,15 +231,42 @@ in the CLI; the **Settings** page in the WebUI.
 python -m one_cedric [options]
 
 --chat                 jump straight into the chat REPL
---gateway / --gw       start the WebUI gateway (default http://127.0.0.1:2043)
+--gateway, --gw        start the WebUI gateway and keep running (Ctrl+C stops)
+--bind <addr>          gateway bind address (default from config, 127.0.0.1)
+--port <port>          gateway port (default from config, 2043)
+--token <secret>       require a Bearer token on the gateway
+--host <addr>          model/API endpoint, NOT the gateway address
 --license              print the GPL-3.0 license text and exit
 --version              print version and project info
---host <addr>          gateway bind address (default 127.0.0.1)
---port <port>          gateway port (default 2043)
---token <secret>       require a Bearer token on the gateway
 --sandbox-terminal     force the shell sandbox on
 --no-sandbox-terminal  force the shell sandbox off
+-y, --yes              auto-confirm write/shell actions (unattended runs)
+-p, --prompt <text>    run one prompt and exit (needs -y to be unattended)
 ```
+
+> `--prompt` no longer auto-confirms tool calls. If you script One Cedric,
+> pass `-y` explicitly — otherwise a model-generated command would run with
+> no confirmation at all.
+
+### The chat input box
+
+The terminal REPL keeps the input box **pinned to the bottom** while output
+scrolls above it, and it supports:
+
+* **Mouse** — click anywhere in the line to move the cursor there.
+* **Editing** — arrows, Home/End, Delete, Ctrl+W-style word movement.
+* **Talking mid-turn** — while the agent is still working you can type and
+  press Enter; you are then asked how to deliver it:
+  * **queue** (Enter) — the message runs immediately after the current turn;
+  * **interject** (`i`) — the in-flight answer is cut short and the model
+    handles your message right away;
+  * **cancel** (Esc) — drop it.
+  Already-queued messages are shown in the box, and the prompt returns to
+  normal editing once the turn ends.
+
+> Mouse and the pinned box need a real terminal (TTY). When stdin is a pipe —
+> CI, `echo … | one-cedric`, an editor task — the CLI transparently falls back
+> to the classic line prompt.
 
 ### CLI slash commands
 
@@ -476,14 +519,26 @@ Separation pays off in four ways:
 
 ```
 one_cedric/
-├── cli.py                # CLI entry (--license / --gateway / sandbox flags)
-├── core.py               # agent loop, tool dispatch, sandbox terminal, REPL
-├── config.py             # version, project metadata, defaults
+├── _version.py           # single source of truth for the version
+├── cli.py                # CLI entry (--gateway / --bind / --port / --token …)
+├── core.py               # agent loop, permission layer, sandbox terminal, REPL
+├── config.py             # project metadata, defaults, shell policy tables
+├── storage.py            # sessions, global/project config, profiles
 ├── integrations.py       # MCP servers, hooks, custom tools (install/uninstall)
 ├── lsp/                  # LSP client & language tooling
-├── gateway/              # FastAPI gateway + WebUI (index/settings/stats)
-├── tools/                # 240+ tool implementations
-└── ui/                   # TUI screens (chat / about / diagnose / settings …)
+├── gateway/
+│   ├── server.py         # FastAPI app, auth, security headers
+│   └── webui/            # index.html + app.js
+│                         # styles are layered: tokens.css → style.css → polish.css
+├── tools/                # 250 tool schemas + handlers
+│   ├── schema.py         # the model-facing contract (pure data)
+│   ├── _dispatch.py      # schema name → handler routing
+│   └── _handlers_*.py    # implementations, grouped by area
+└── ui/                   # TUI screens + live_input.py (bottom-pinned prompt)
+
+tests/                    # pytest suite (registry, security, gateway, e2e)
+requirements*.txt         # runtime / optional / dev dependency sets
+SECURITY_AUDIT.md         # audit findings and their status
 ```
 
 ## 10. Contributing
@@ -508,10 +563,33 @@ python -m one_cedric --license
 
 Copyright (C) 2026 **Aoan2011** · [https://github.com/Aoan2011/One-Cedric](https://github.com/Aoan2011/One-Cedric)
 
-## 12. Buy me a coffee
+## 12. Development
+
+```bash
+pip install -r requirements-dev.txt
+
+python -m pytest -q              # 247 tests
+python -m ruff check .           # lint (bug-level rules are enforced in CI)
+python -m compileall -q one_cedric
+```
+
+The test suite covers the tool registry (all 250 schemas ↔ handlers ↔
+dispatch), the three-layer shell policy and sandbox env scrubbing, config
+storage layering, token enforcement on every gateway route, real end-to-end
+calls to local tools, the CLI surface, the REPL input editor, and the WebUI
+asset/CSP invariants.
+
+CI (`.github/workflows/ci.yml`) runs compileall + ruff + pytest on Python
+3.10–3.13 plus one Windows job, and builds the wheel to assert that the
+packaged version comes from `one_cedric/_version.py`.
+
+Security notes and the full audit report live in
+[SECURITY_AUDIT.md](SECURITY_AUDIT.md).
+
+## 13. Buy me a coffee
 ![Buy me a coffee](buy_me_a_coffee.png)
 
-## 12. Star History
+## 14. Star History
 
 <a href="https://www.star-history.com/?repos=aoan2011%2Fone-cedric&type=date&legend=top-left">
  <picture>

@@ -43,15 +43,12 @@ import re
 import smtplib
 import ssl
 import subprocess
-import time
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
-from typing import Any
 
 from .sandbox import _resolve_path
-
 
 EMAIL_CONFIG_FILENAME = "email.toml"
 IMAP_TIMEOUT = 30
@@ -746,7 +743,7 @@ def imap_list_attachments(account: str = "", folder: str = "INBOX",
         M.select(folder, readonly=True)
         status, data = M.uid("FETCH", str(uid), "(BODY.PEEK[])")
         if status != "OK" or not data:
-            return f"ERROR: FETCH 失败"
+            return "ERROR: FETCH 失败"
         raw = b""
         for item in data:
             if isinstance(item, tuple) and len(item) >= 2:
@@ -1120,7 +1117,7 @@ def email_reply_preview(account: str, folder: str, uid: str,
         M.select(folder, readonly=True)
         status, data = M.uid("FETCH", str(uid), "(BODY.PEEK[])")
         if status != "OK" or not data:
-            return "", False, f"ERROR: FETCH 失败", {}
+            return "", False, "ERROR: FETCH 失败", {}
         raw = b""
         for item in data:
             if isinstance(item, tuple) and len(item) >= 2:
@@ -1137,8 +1134,6 @@ def email_reply_preview(account: str, folder: str, uid: str,
     orig_subject = _decode_header(orig.get("Subject", ""))
     orig_msgid = (orig.get("Message-ID") or "").strip()
     orig_refs = orig.get("References", "") or ""
-    orig_to = _fmt_addr(orig.get("To", ""))
-    orig_cc = _fmt_addr(orig.get("Cc", ""))
 
     _, from_addr = email.utils.getaddresses([orig.get("From", "")])[0]
     if not from_addr:

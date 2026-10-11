@@ -166,18 +166,28 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-# The existing code base predates any linting; start with the high-signal
-# rules that catch real bugs and keep the style rules advisory for now.
-select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B", "C4", "SIM"]
+# 存量代码早于任何 lint 工具；阻断集只保留"能抓到真 bug"的规则
+# (pycodestyle 错误 + pyflakes)。风格类规则放在咨询步骤里，见 CI。
+select = ["E4", "E7", "E9", "F", "W"]
 ignore = [
-    "E501",   # long lines: line-length is enforced by the formatter, not lint
-    "B008",   # function call in default argument (used by FastAPI deps)
-    "SIM105", # contextlib.suppress: verbose for the many tiny try/except blocks
+    "E501",   # 行长由 formatter 负责，不作为 lint 错误
+    "E701",   # 单行多语句（存量 27 处，改动面大于收益）
+    "E741",   # 变量名 l/I/O（存量 25 处，同上）
+    "E402",   # 模块级 import 不在文件顶部：run.py / 可选依赖探测需要
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["B011"]
+# 这些 import 只为探测可选依赖是否存在，名称本身不用是有意的。
+"one_cedric/gateway/server.py" = ["F401"]
+"one_cedric/tools/amap.py" = ["F401"]
+"one_cedric/tools/office/common.py" = ["F401"]
+"one_cedric/tools/office/word.py" = ["F401"]
 "one_cedric/tools/schema.py" = ["E501"]
+"tests/*" = ["B011"]
+
+# 咨询用规则集（CI 里 continue-on-error，不阻断）
+[tool.ruff.lint.isort]
+known-first-party = ["one_cedric"]
 
 [tool.ruff.format]
 quote-style = "double"

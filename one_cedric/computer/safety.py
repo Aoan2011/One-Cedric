@@ -5,7 +5,6 @@ import time
 from collections import deque
 from dataclasses import dataclass
 
-
 MAX_ACTIONS_PER_MINUTE = 60
 MAX_TYPE_CHARS = 500
 MAX_DRAG_PIXELS = 1500

@@ -24,8 +24,7 @@ SOFTWARE.
 import asyncio
 import json
 import os
-import subprocess
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 LANG_SERVERS = {
     "python": ["pylsp"],
@@ -157,7 +156,7 @@ class LspClient:
             "contentChanges": [{"text": text}],
         })
 
-    async def complete(self, line: int, col: int) -> List[Dict[str, Any]]:
+    async def complete(self, line: int, col: int) -> list[dict[str, Any]]:
         if not self._uri or not self.running:
             return []
         try:
@@ -184,7 +183,7 @@ class LspClient:
             completions.append(comp)
         return completions
 
-    async def goto_definition(self, line: int, col: int) -> Optional[Dict[str, Any]]:
+    async def goto_definition(self, line: int, col: int) -> dict[str, Any] | None:
         if not self._uri or not self.running:
             return None
         try:
@@ -208,7 +207,7 @@ class LspClient:
             pos = target.get("range", {}).get("start", {"line": 0, "character": 0})
         return {"uri": uri, "line": pos.get("line", 0), "col": pos.get("character", 0)}
 
-    async def hover(self, line: int, col: int) -> Optional[str]:
+    async def hover(self, line: int, col: int) -> str | None:
         if not self._uri or not self.running:
             return None
         try:
@@ -230,7 +229,7 @@ class LspClient:
             return "\n".join(str(c) for c in contents)
         return str(contents)
 
-    async def document_symbol(self) -> List[Dict[str, Any]]:
+    async def document_symbol(self) -> list[dict[str, Any]]:
         if not self._uri or not self.running:
             return []
         try:
@@ -263,13 +262,13 @@ class LspClient:
                 symbols.append({"name": name, "kind": kind, "line": line, "col": col})
         return symbols
 
-    def get_diagnostics(self) -> List[Dict[str, Any]]:
+    def get_diagnostics(self) -> list[dict[str, Any]]:
         return self._diagnostics.get(self._uri, [])
 
     def set_diagnostics_callback(self, callback):
         self._diag_callback = callback
 
-    async def code_action(self, line: int, col: int) -> List[Dict[str, Any]]:
+    async def code_action(self, line: int, col: int) -> list[dict[str, Any]]:
         if not self._uri or not self.running:
             return []
         try:
@@ -288,7 +287,7 @@ class LspClient:
             return []
         if not result:
             return []
-        
+
         # 保持原样返回，让 one-editor.py 去处理它
         return result
 
@@ -308,7 +307,7 @@ class LspClient:
         except Exception:
             return None
 
-    async def rename(self, line: int, col: int, new_name: str) -> Optional[Dict[str, Any]]:
+    async def rename(self, line: int, col: int, new_name: str) -> dict[str, Any] | None:
         if not self._uri or not self.running:
             return None
         try:
@@ -324,7 +323,7 @@ class LspClient:
             return None
         return result
 
-    async def format_document(self) -> List[Dict[str, Any]]:
+    async def format_document(self) -> list[dict[str, Any]]:
         if not self._uri or not self.running:
             return []
         try:

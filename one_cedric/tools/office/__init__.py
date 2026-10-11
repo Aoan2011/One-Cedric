@@ -6,14 +6,16 @@
 from __future__ import annotations
 
 from .common import (
-    IS_WINDOWS, IS_MAC, IS_LINUX,
-    system_print, check_file,
+    IS_LINUX,
+    IS_MAC,
+    IS_WINDOWS,
+    check_file,
+    system_print,
 )
-from .word import docx_op
+from .excel import excel_op
 from .pdf import pdf_op
 from .pptx import pptx_op
-from .excel import excel_op
-
+from .word import docx_op
 
 # 每个格式的"只读 op"清单，其他 op 都视为写操作
 OFFICE_READ_OPS = {

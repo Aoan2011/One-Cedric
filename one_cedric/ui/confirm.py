@@ -15,12 +15,24 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.text import Text
 
-from .keys import (
-    read_key, has_readchar,
-    KEY_ENTER, KEY_ESC, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
-)
 from ..config import (
-    BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C, TOOL_C,
+    ACCENT,
+    BRAND,
+    DIM_C,
+    ERR_C,
+    OK_C,
+    TOOL_C,
+    WARN_C,
+)
+from .keys import (
+    KEY_DOWN,
+    KEY_ENTER,
+    KEY_ESC,
+    KEY_LEFT,
+    KEY_RIGHT,
+    KEY_UP,
+    has_readchar,
+    read_key,
 )
 from .menu import selection_progress
 

@@ -10,11 +10,11 @@ from __future__ import annotations
 import shlex
 
 from ..config import (
-    SHELL_WHITELIST,
-    SHELL_KNOWN_COMMANDS,
     SHELL_BLACKLIST,
     SHELL_DANGEROUS_PATTERNS,
     SHELL_FORBIDDEN_TOKENS,
+    SHELL_KNOWN_COMMANDS,
+    SHELL_WHITELIST,
 )
 
 

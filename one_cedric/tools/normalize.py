@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import re
 
-
 TOOL_ALIASES: dict = {
     "readfile": "read_file", "read": "read_file", "cat": "read_file",
     "view": "read_file", "open_file": "read_file",

@@ -157,9 +157,7 @@ def image_apply(op: str, path: str, out: str, width=None, height=None,
         elif fmt == "WEBP":
             q = _as_int(quality, 85)
             save_kwargs["quality"] = max(1, min(q, 100))
-        elif fmt == "PNG":
-            save_kwargs["optimize"] = True
-        elif fmt == "GIF":
+        elif fmt == "PNG" or fmt == "GIF":
             save_kwargs["optimize"] = True
 
         im.save(out_p, format=fmt, **save_kwargs)

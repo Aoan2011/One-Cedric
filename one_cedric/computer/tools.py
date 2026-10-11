@@ -6,8 +6,7 @@ import time
 from pathlib import Path
 
 from .backend import BackendError, get_backend
-from .safety import SafetyPolicy, SafetyCheck
-
+from .safety import SafetyCheck, SafetyPolicy
 
 _POLICY: SafetyPolicy = SafetyPolicy(enabled=False)
 

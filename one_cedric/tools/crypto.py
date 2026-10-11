@@ -118,6 +118,7 @@ def symmetric_encrypt(plaintext: str = "", file: str = "",
 def symmetric_encrypt_apply(plaintext: str, file: str, key: str,
                             password: str, out: str, root: Path) -> str:
     import os
+
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     if file:
         p, _ = _resolve_path(root, file)
@@ -127,8 +128,8 @@ def symmetric_encrypt_apply(plaintext: str, file: str, key: str,
     key_b64 = ""
     if password:
         salt = os.urandom(16)
-        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
         from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
         kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32,
                          salt=salt, iterations=200_000)
         key_bytes = kdf.derive(password.encode("utf-8"))
@@ -196,8 +197,8 @@ def symmetric_decrypt_apply(file: str, key: str, password: str,
         ct = payload[32:]
         if not password:
             return "ERROR: 该密文用 password 加密，需要提供 password"
-        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
         from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
         kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32,
                          salt=salt, iterations=200_000)
         key_bytes = kdf.derive(password.encode("utf-8"))
@@ -253,9 +254,10 @@ def rsa_generate_keypair(bits: int = 2048, out_dir: str = ".",
 
 
 def rsa_generate_keypair_apply(bits, out_dir, name, password, root) -> str:
-    from cryptography.hazmat.primitives.asymmetric import rsa
-    from cryptography.hazmat.primitives import serialization
     import os
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
     key = rsa.generate_private_key(public_exponent=65537,
                                     key_size=int(bits))
     if password:

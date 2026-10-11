@@ -1,8 +1,8 @@
 """主菜单。"""
 from __future__ import annotations
 
-from ..menu import Menu, MenuItem
 from ...i18n import t
+from ..menu import Menu, MenuItem
 
 
 def run_main_menu(console, copilot) -> str:

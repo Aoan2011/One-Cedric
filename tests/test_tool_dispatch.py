@@ -1,13 +1,9 @@
 """Tool dispatcher behaviour: error containment and permission routing."""
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
 from one_cedric.tools import dispatch_tool
-from one_cedric.tools._dispatch import is_core_handled
 from one_cedric.tools import schema as S
+from one_cedric.tools._dispatch import is_core_handled
 
 
 def test_unknown_tool_returns_error_instead_of_raising(workspace):
