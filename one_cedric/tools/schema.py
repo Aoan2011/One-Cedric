@@ -2677,6 +2677,17 @@ WRITE_TOOLS = {
 }
 
 
+# Tools listed in both sets on purpose: they expose a read-only "preview"/"get"
+# op *and* a writing "apply"/"set" op (image_process, pdf_metadata, sysop).
+# WRITE_TOOLS must always win, otherwise plan mode and sub-agents would be
+# allowed to run a tool that can modify the user's files.
+AMBIGUOUS_READONLY_WRITE_TOOLS = READONLY_TOOL_NAMES & WRITE_TOOLS
+
+# Invariant enforced from here on: a tool name is never both write and
+# read-only. Everything downstream (plan mode, sub-agent tools, cacheability)
+# consumes this corrected set.
+READONLY_TOOL_NAMES = READONLY_TOOL_NAMES - WRITE_TOOLS
+
 TOOLS_READONLY = [
     t for t in TOOLS
     if t["function"]["name"] in READONLY_TOOL_NAMES

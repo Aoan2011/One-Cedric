@@ -124,10 +124,18 @@ def _base64_codec(root: Path, args: dict) -> str:
 
 
 def _hash_text(root: Path, args: dict) -> str:
-    mod = _imp("encoding")
-    return mod.hash_text(
-        args.get("text", ""),
-        args.get("algorithm", "sha256"))
+    """计算文本或文件的哈希。
+
+    schema 声明的参数是 ``data`` / ``file`` / ``algorithm`` / ``hmac_key``。
+    这里曾经读取一个并不存在的 ``text`` 键，导致无论传什么都对空字符串求哈希；
+    现在与 ``hash_data`` 共用同一份实现，完整遵循 schema。
+    """
+    return _imp("crypto").hash_data(
+        data=args.get("data", args.get("text", "")),
+        file=args.get("file", ""),
+        algorithm=args.get("algorithm", "sha256"),
+        hmac_key=args.get("hmac_key", ""),
+        root=root)
 
 
 def _url_codec(root: Path, args: dict) -> str:

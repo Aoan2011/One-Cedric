@@ -9,7 +9,9 @@ import time as _time
 
 def now_info() -> str:
     now = _dt.datetime.now()
-    utc = _dt.datetime.utcnow()
+    # utcnow() is deprecated since Python 3.12 and returns a naive datetime;
+    # build an explicit UTC datetime instead.
+    utc = _dt.datetime.now(_dt.timezone.utc)
     ts = _time.time()
     weekday = ["周一", "周二", "周三", "周四", "周五",
                "周六", "周日"][now.weekday()]

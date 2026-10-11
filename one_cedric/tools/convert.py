@@ -216,7 +216,11 @@ def _md_simple(md: str) -> str:
             out.append(f"<li>{_inline(line[2:])}</li>")
             continue
         if re.match(r"^\d+\.\s+", line):
-            out.append(f"<li>{_inline(re.sub(r'^\d+\.\s+', '', line))}</li>")
+            # NOTE: the regex must stay outside the f-string — backslashes
+            # inside f-string expressions are only allowed from Python 3.12
+            # (PEP 701), while this project supports 3.10+.
+            item = _inline(re.sub(r"^\d+\.\s+", "", line))
+            out.append(f"<li>{item}</li>")
             continue
         if re.match(r"^[-*_]{3,}\s*$", line):
             out.append("<hr>")

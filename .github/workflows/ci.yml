@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: tests (py${{ matrix.python-version }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          # The project is primarily developed on Windows; cover it once.
+          - os: windows-latest
+            python-version: "3.12"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: Byte-compile every module
+        run: python -m compileall -q one_cedric one_editor_lite
+
+      - name: Lint (ruff)
+        run: python -m ruff check .
+
+      - name: Check formatting (ruff format)
+        run: python -m ruff format --check .
+        continue-on-error: true
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Upload coverage to the job summary
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        run: |
+          python -m pytest --cov=one_cedric --cov-report=term-missing -q || true
+        continue-on-error: true
+
+  packaging:
+    name: build the distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build twine
+      - name: Build sdist and wheel
+        run: python -m build
+      - name: Verify the metadata and that the version is resolvable
+        run: python -m twine check dist/*
+      - name: Assert the version comes from the package
+        run: |
+          python - <<'PY'
+          import pathlib, subprocess, sys, tarfile, tomllib, zipfile
+          expected = subprocess.run(
+              [sys.executable, "-c",
+               "import one_cedric._version as v; print(v.__version__)"],
+              capture_output=True, text=True, check=True).stdout.strip()
+          wheels = list(pathlib.Path("dist").glob("*.whl"))
+          assert wheels, "no wheel produced"
+          meta = tomllib.loads(
+              zipfile.ZipFile(wheels[0]).read(
+                  [n for n in zipfile.ZipFile(wheels[0]).namelist()
+                   if n.endswith("METADATA")][0]).decode())
+          assert meta["version"] == expected, (meta["version"], expected)
+          print("version ok:", expected)
+          PY

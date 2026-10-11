@@ -120,7 +120,10 @@ def classify_command(command: str) -> tuple:
         if base.endswith(suffix):
             base = base[: -len(suffix)]
             break
-    if base in SHELL_BLACKLIST:
+    if base in SHELL_BLACKLIST or base.split(".")[0] in SHELL_BLACKLIST:
+        # `base.split(".")` also catches versioned/variant binaries such as
+        # mkfs.ext4, mkfs.ntfs or rm.exe, which would otherwise bypass the
+        # exact-name blacklist and be downgraded to "unknown".
         return "blocked", f"命令 '{base}' 在永久拒绝名单"
     if _match_whitelist(argv):
         return "whitelist", ""

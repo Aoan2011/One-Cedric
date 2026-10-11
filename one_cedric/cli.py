@@ -80,6 +80,17 @@ def main() -> None:
     parser.add_argument("--cron-daemon", action="store_true",
                         help="启动时自动运行 cron 调度器")
 
+    gw_grp = parser.add_argument_group("gateway")
+    gw_grp.add_argument("--gateway", "--gw", dest="gateway",
+                        action="store_true",
+                        help="启动 WebUI 网关并保持运行（Ctrl+C 停止）")
+    gw_grp.add_argument("--bind", default=None, metavar="ADDR",
+                        help="网关绑定地址（默认取配置，通常 127.0.0.1）")
+    gw_grp.add_argument("--port", type=int, default=None, metavar="PORT",
+                        help="网关端口（默认取配置，通常 2043）")
+    gw_grp.add_argument("--token", default=None, metavar="SECRET",
+                        help="网关 Bearer token（不设则不鉴权）")
+
     args = parser.parse_args()
 
     if args.license:
@@ -238,6 +249,10 @@ def main() -> None:
     if args.save_config:
         copilot._save_config("global")
 
+    if args.gateway:
+        return _run_gateway(copilot, bind=args.bind, port=args.port,
+                            token=args.token)
+
     if args.prompt:
         copilot.ask_once(args.prompt)
         return
@@ -250,6 +265,53 @@ def main() -> None:
         return
 
     _run_with_menu(copilot)
+
+
+def _run_gateway(copilot, bind: str | None = None, port: int | None = None,
+                 token: str | None = None) -> int:
+    """启动 WebUI 网关并阻塞运行，直到 Ctrl+C。
+
+    这是 README 中 `python -m one_cedric --gateway` 的实现入口。
+    绑定地址默认取配置里的 ``gateway.host``（通常 127.0.0.1）；
+    传 ``--bind 0.0.0.0`` 才允许局域网访问，此时应同时设置 ``--token``。
+    """
+    from .gateway import get_gateway
+
+    console = copilot.console
+    gw_cfg = (copilot.config or {}).get("gateway", {}) or {}
+
+    host = bind or str(gw_cfg.get("host", "127.0.0.1") or "127.0.0.1")
+    port = int(port if port is not None else gw_cfg.get("port", 2043) or 2043)
+    token = token if token is not None else str(gw_cfg.get("token", "") or "")
+
+    try:
+        gw = get_gateway(copilot)
+    except Exception as exc:
+        console.print(f"[err]✗ 网关初始化失败: {exc}[/]")
+        return 1
+
+    ok, msg = gw.start(host=host, port=port, token=token)
+    if not ok:
+        console.print(f"[err]✗ 网关启动失败: {msg}[/]")
+        return 1
+
+    console.print(f"[ok]✓ One Cedric WebUI 已启动：[/][accent]{msg}[/]")
+    if not token and host not in ("127.0.0.1", "localhost"):
+        console.print(
+            f"[warn]⚠ 绑定在 {host} 且未设置 token："
+            f"同一网络内的任何人都能访问。建议加 --token <密钥>。[/]"
+        )
+    console.print("[dim]按 Ctrl+C 停止网关。[/]")
+
+    try:
+        while gw.is_running():
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        console.print()
+    finally:
+        ok, msg = gw.stop()
+    console.print(f"[dim]{msg}[/]")
+    return 0
 
 
 def _run_with_menu(copilot) -> None:

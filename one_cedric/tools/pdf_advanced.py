@@ -427,7 +427,7 @@ def pdf_metadata_get(path: str, root: Path) -> str:
         return f"ERROR: 文件不存在: {path}"
 
     try:
-        reader = PdfReader(str(p))
+        reader = R(str(p))
     except Exception as exc:
         return f"ERROR: {exc}"
 

@@ -992,7 +992,6 @@ def _build_message(acc: dict, to: str, subject: str, body: str,
         maintype, subtype = (ctype or "application/octet-stream").split("/", 1)
         part = MIMEBase(maintype, subtype)
         part.set_payload(data)
-        import email.encoders
         email.encoders.encode_base64(part)
         safe = _safe_filename(fname)
         try:
