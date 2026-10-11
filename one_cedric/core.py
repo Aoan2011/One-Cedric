@@ -1876,6 +1876,9 @@ class OneCedric:
         try:
             proc = subprocess.Popen(
                 argv, cwd=str(self.root),
+                # 与前台 bash 一致：沙箱开启时必须使用清洗过的环境，
+                # 否则后台命令会继承完整 env（含 API key 等敏感变量）。
+                env=_sandbox_env() if self.sandbox_terminal else None,
                 stdout=log_fp, stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
                 start_new_session=True,

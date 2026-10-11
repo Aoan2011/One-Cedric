@@ -208,6 +208,14 @@ ENV_SENSITIVE_KEYWORDS = {
     "token", "key", "secret", "password", "passwd", "pwd",
     "auth", "credential", "session", "cookie", "signature",
     "private", "apikey", "api_key",
+    # 2026-06 审计补充：以下类别此前会被沙箱环境原样继承
+    "pass",        # PASSPHRASE / DB_PASS / *_PASS
+    "webhook",     # SLACK_WEBHOOK / GITHUB_WEBHOOK_SECRET
+    "bearer",      # BEARER_TOKEN 类
+    "dsn",         # DATABASE_DSN / SENTRY_DSN
+    "conn",        # *_CONNECTION / *_CONN_STR
+    "smtp", "imap",  # 邮箱凭据
+    "access_id", "secret_id",  # 云厂商凭据
 }
 
 SHELL_WHITELIST: list[list[str]] = [

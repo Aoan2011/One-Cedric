@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════ */
 /*  One Cedric WebUI · app.js                                       */
 /* ═══════════════════════════════════════════════════════════════ */
 const { createApp, ref, reactive, computed, onMounted, onUnmounted,
@@ -751,7 +751,7 @@ createApp({
     const gatewayOnline = ref(false);
     const gatewayStats = ref({ requests: 0, errors: 0, uptime: 0 });
     const cwd = ref('');
-    const autoApprove = ref(true);
+    const autoApprove = ref(false);
     const tools = ref([]);
     const toolsFilter = ref('');
     const toolsCategory = ref('all');
@@ -1147,9 +1147,9 @@ createApp({
       if (_stEl('stmCards')) {
         _stEl('stmCards').innerHTML = cards.map(c =>
           `<div class="card${c.accent ? ' accent' : ''}">
-             <div class="num">${c.n}</div>
-             <div class="label">${c.l}</div>
-             <div class="sub">${c.sub}</div>
+             <div class="num">${_escapeHtml(c.n)}</div>
+             <div class="label">${_escapeHtml(c.l)}</div>
+             <div class="sub">${_escapeHtml(c.sub)}</div>
            </div>`).join('');
       }
       // session bars
@@ -1162,8 +1162,10 @@ createApp({
           const max = Math.max(...st.perSession.map(x => x.total), 1);
           el.innerHTML = '<div class="bars">' + st.perSession.map(s => {
             const w = Math.max(2, Math.round(s.total / max * 100));
+            // 会话标题由模型生成，必须转义后再插入 innerHTML
+            const title = _escapeHtml(s.title || '(未命名)');
             return `<div class="bar-row">
-              <div class="name" title="${String(s.title).replace(/"/g, '&quot;')}">${s.title || '(未命名)'}</div>
+              <div class="name" title="${title}">${title}</div>
               <div class="track"><div class="fill" style="width:${w}%"></div></div>
               <div class="val">${s.total}</div>
             </div>`;
@@ -1200,7 +1202,7 @@ createApp({
           const max = arr[0][1];
           el.innerHTML = '<div class="bars">' + arr.map(([n, c]) =>
             `<div class="bar-row">
-               <div class="name">${n}</div>
+               <div class="name">${_escapeHtml(n)}</div>
                <div class="track"><div class="fill" style="width:${Math.max(2, Math.round(c / max * 100))}%"></div></div>
                <div class="val">${c}</div>
              </div>`).join('') + '</div>';
@@ -1218,9 +1220,9 @@ createApp({
                      <th>${lang.value === 'zh' ? '状态' : 'Status'}</th>
                      <th>${lang.value === 'zh' ? '描述' : 'Description'}</th></tr>
                  ${tools.map(t => `<tr>
-                   <td>${t.name || '?'}</td>
+                   <td>${_escapeHtml(t.name || '?')}</td>
                    <td><span class="pill ${t.enabled ? 'on' : 'off'}">${t.enabled ? (lang.value === 'zh' ? '启用' : 'On') : (lang.value === 'zh' ? '停用' : 'Off')}</span></td>
-                   <td>${(t.description || '').slice(0, 80)}</td>
+                   <td>${_escapeHtml((t.description || '').slice(0, 80))}</td>
                  </tr>`).join('')}
                </table>`
             : '<div class="empty">' + (lang.value === 'zh' ? '暂无工具' : 'No tools') + '</div>';
@@ -1643,9 +1645,53 @@ createApp({
       }
     }
 
+    /* ── XSS 防护 ──────────────────────────────────────────────────────
+       模型输出、工具输出与 ask_user 文本最终都会经过
+       `marked.parse() → v-html` 渲染。渲染前必须净化：删掉可执行标签、
+       事件属性与 javascript:/data: 协议。否则一个恶意文件或一次提示注入
+       就能在 WebUI 的同源上下文里执行任意 JS，再反过来调用网关 API
+       （审计 SEC-02 / SEC-10 / SEC-11）。 */
+    const _BLOCKED_TAGS = new Set([
+      'script', 'style', 'iframe', 'object', 'embed', 'link', 'meta',
+      'base', 'form', 'input', 'button', 'textarea', 'select', 'option',
+      'svg', 'math', 'template', 'noscript', 'frame', 'frameset', 'applet',
+    ]);
+    const _SAFE_URL = /^(?:https?:|mailto:|tel:|#|\/|\.\/|\.\.\/)/i;
+
+    function sanitizeHtml(html) {
+      const tpl = document.createElement('template');
+      tpl.innerHTML = String(html == null ? '' : html);
+      const walk = (node) => {
+        for (const child of Array.from(node.childNodes)) {
+          if (child.nodeType === 8) { child.remove(); continue; }  // 注释
+          if (child.nodeType !== 1) continue;
+          const tag = child.tagName ? child.tagName.toLowerCase() : '';
+          if (_BLOCKED_TAGS.has(tag)) { child.remove(); continue; }
+          for (const attr of Array.from(child.attributes)) {
+            const name = attr.name.toLowerCase();
+            const value = String(attr.value || '');
+            if (name.startsWith('on') || name === 'style'
+                || name === 'srcdoc' || name === 'formaction') {
+              child.removeAttribute(attr.name);
+              continue;
+            }
+            if (name === 'href' || name === 'src' || name === 'xlink:href'
+                || name === 'action') {
+              // 去掉控制字符后再判断协议，挡掉 `java\nscript:` 之类绕过。
+              const probe = value.replace(/[\u0000-\u0020]+/g, '').toLowerCase();
+              if (!_SAFE_URL.test(probe)) child.removeAttribute(attr.name);
+            }
+          }
+          walk(child);
+        }
+      };
+      walk(tpl.content);
+      return tpl.innerHTML;
+    }
+
     function renderMarkdown(text) {
       if (!text) return '';
-      try { return marked.parse(text); }
+      try { return sanitizeHtml(marked.parse(text)); }
       catch { return escapeHtml(text); }
     }
 

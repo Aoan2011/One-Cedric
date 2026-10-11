@@ -69,6 +69,30 @@ def _match_whitelist(argv: list) -> bool:
     return False
 
 
+#: 解释器的“内联执行”开关。`python -c "..."`、`node -e "..."` 这类命令
+#: 等价于执行任意代码，因此在词法层面就无法与普通脚本调用区分开：
+#: 元字符检查会被双引号绕过（审计 SEC-04）。这里把它们一律降级为
+#: "unknown"，让沙箱终端拦住、或在无沙箱时强制确认。
+#: 注意：`python -m pytest` 这类不在其中，仍然走白名单。
+INLINE_EXEC_FLAGS = {
+    "python": {"-c"}, "python3": {"-c"}, "py": {"-c"},
+    "node": {"-e", "--eval", "-p", "--print"},
+    "perl": {"-e"}, "ruby": {"-e"}, "php": {"-r"},
+    "bash": {"-c"}, "sh": {"-c"}, "zsh": {"-c"},
+    "powershell": {"-c", "-command", "-encodedcommand", "-enc"},
+    "pwsh": {"-c", "-command", "-encodedcommand", "-enc"},
+    "cmd": {"/c", "/k"},
+    "wscript": set(), "cscript": set(),
+}
+
+
+def _has_inline_exec(argv: list, base: str) -> bool:
+    flags = INLINE_EXEC_FLAGS.get(base)
+    if not flags:
+        return False
+    return any(a.lower() in flags for a in argv[1:])
+
+
 def _match_allow_prefix(argv: list) -> bool:
     return _match_whitelist(argv)
 
@@ -125,6 +149,8 @@ def classify_command(command: str) -> tuple:
         # mkfs.ext4, mkfs.ntfs or rm.exe, which would otherwise bypass the
         # exact-name blacklist and be downgraded to "unknown".
         return "blocked", f"命令 '{base}' 在永久拒绝名单"
+    if _has_inline_exec(argv, base):
+        return "unknown", f"解释器内联执行（{base}）"
     if _match_whitelist(argv):
         return "whitelist", ""
     if base in SHELL_KNOWN_COMMANDS:

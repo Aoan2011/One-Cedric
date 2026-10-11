@@ -51,6 +51,35 @@ def _lsp_ok() -> bool:
         return False
 
 
+#: 安全审计（SEC-02 / SEC-16）配套的响应头。
+#: 严格 CSP 是 XSS 的纵深防御：即使净化器漏掉一个 sink，
+#: `script-src 'self'` 也会挡住内联脚本与内联事件处理器。
+#: 页面里原先的内联调试脚本已抽到 /static/boot.js。
+SECURITY_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'none'; "
+        "form-action 'none'; "
+        "frame-ancestors 'none'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+    "Cross-Origin-Opener-Policy": "same-origin",
+}
+
+
+def _apply_security_headers(response) -> None:
+    for key, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(key, value)
+
+
 def get_gateway(copilot) -> "Gateway":
     global _GATEWAY_INSTANCE
     with _GATEWAY_LOCK:
@@ -406,6 +435,7 @@ class Gateway:
                 raise
             gw._log_request(request.method, request.url.path,
                             resp.status_code, time.time() - t0)
+            _apply_security_headers(resp)
             return resp
 
         # ---- 静态（WebUI） ----
@@ -912,6 +942,17 @@ class Gateway:
         async def api_call_tool(name: str, req: ToolCallRequest,
                                  request: Request):
             _auth(request)
+            # 安全（审计 SEC-12）：这个路由直接走 dispatch_tool，绕过了
+            # 权限层。写工具与需要 agent state 的工具（bash / write_file /
+            # python_exec …）必须经对话流程里的确认，不能由 HTTP 直通，
+            # 否则任何同源脚本都能零确认执行本机命令。
+            from ..tools._dispatch import is_core_handled
+            if is_core_handled(name):
+                raise HTTPException(
+                    403,
+                    f"工具 '{name}' 会写文件或需要确认，"
+                    f"请通过对话流程调用，不能由 /api/tools 直通。",
+                )
             try:
                 from ..tools import dispatch_tool
                 result = dispatch_tool(

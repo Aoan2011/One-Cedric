@@ -170,8 +170,10 @@ def main() -> None:
                        cfg["default"].get("temperature"))
     max_steps = pick(args.max_steps, 8, cfg["default"].get("max_steps"))
     auto_yes = args.yes or bool(cfg["default"].get("auto_yes", False))
-    if args.prompt:
-        auto_yes = True
+    # 安全：`--prompt` 不再隐式打开自动确认。
+    # 过去一次性任务模式会把所有写操作与 shell 命令变成零确认执行，
+    # 模型只要输出 `python -c "..."` 就能直接拿到本机代码执行。
+    # 需要无人值守时请显式传 -y / --yes。
 
     show_reasoning = bool(cfg["default"].get("show_reasoning", True))
     if args.no_reasoning:
