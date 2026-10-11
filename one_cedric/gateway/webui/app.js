@@ -1689,6 +1689,33 @@ createApp({
       return tpl.innerHTML;
     }
 
+    /* ── 无障碍收尾 ────────────────────────────────────────────────────
+       图标按钮只有 title 提示，屏幕阅读器不保证读得到；这里统一把 title
+       补成 aria-label，并给纯装饰元素标上 aria-hidden，同时确保每个
+       button 都有显式 type（避免在表单里意外提交）。 */
+    function applyAccessibility(scope) {
+      const root = scope || document;
+      root.querySelectorAll('button, [role="button"], a[href]').forEach(el => {
+        if (!el.hasAttribute('aria-label') && el.getAttribute('title')) {
+          el.setAttribute('aria-label', el.getAttribute('title'));
+        }
+        if (el.tagName === 'BUTTON' && !el.hasAttribute('type')) {
+          el.setAttribute('type', 'button');
+        }
+      });
+      root.querySelectorAll('.app-bg, .particle-canvas, canvas').forEach(el => {
+        el.setAttribute('aria-hidden', 'true');
+      });
+      root.querySelectorAll('svg').forEach(el => {
+        if (!el.hasAttribute('aria-hidden')
+            && !el.hasAttribute('aria-label')
+            && !el.getAttribute('role')) {
+          el.setAttribute('aria-hidden', 'true');
+          el.setAttribute('focusable', 'false');
+        }
+      });
+    }
+
     function renderMarkdown(text) {
       if (!text) return '';
       try { return sanitizeHtml(marked.parse(text)); }
@@ -4418,6 +4445,7 @@ createApp({
     onMounted(async () => {
       setLang(lang.value);
       _syncAllClasses();
+      applyAccessibility();
 
       /* 淡出启动加载屏 */
       const splash = document.getElementById('boot-splash');

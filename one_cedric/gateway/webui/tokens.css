@@ -1,0 +1,129 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   One Cedric WebUI · 设计令牌层 (design tokens)
+   ═══════════════════════════════════════════════════════════════════════
+
+   加载顺序（见 index.html）：
+     style.css      基础组件
+     tokens.css     本文件 —— 设计令牌与全局节奏
+     hljs-theme.css 代码高亮
+     polish.css     视觉/交互/响应式增强
+
+   本文件在 style.css 之后加载，因此同名令牌以这里为准。
+   它只定义变量与少量全局节奏，不含具体组件样式，改版时只需动这一处。
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── 间距节奏（4px 基准，替代散落的魔法数字） ───────────────────── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 40px;
+  --sp-8: 56px;
+
+  /* ── 圆角 ──────────────────────────────────────────────────────── */
+  --radius-xs: 6px;
+  --radius-pill: 999px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* ── 字体阶梯 ──────────────────────────────────────────────────── */
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 21px;
+  --fs-2xl: 27px;
+
+  --lh-tight: 1.35;
+  --lh-base: 1.65;
+  --lh-loose: 1.8;
+
+  /* ── 焦点环：键盘可见、鼠标不打扰（配合 :focus-visible） ────────── */
+  --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--brand);
+  --ring-soft: 0 0 0 3px var(--brand-glow);
+
+  /* ── 高度层次 ──────────────────────────────────────────────────── */
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.30), 0 1px 1px rgba(0, 0, 0, 0.20);
+  --elev-2: 0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.24);
+  --elev-3: 0 14px 40px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.30);
+  --elev-4: 0 28px 70px rgba(0, 0, 0, 0.55);
+
+  /* ── 动效 ──────────────────────────────────────────────────────── */
+  --dur-fast: 110ms;
+  --dur: 170ms;
+  --dur-slow: 280ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition: var(--dur) var(--ease);
+
+  /* ── 液态玻璃 ──────────────────────────────────────────────────── */
+  --glass-bg: rgba(22, 22, 26, 0.62);
+  --glass-bg-strong: rgba(22, 22, 26, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.075);
+  --glass-highlight: rgba(255, 255, 255, 0.06);
+  --glass-blur: 16px;
+  --glass-saturate: 140%;
+
+  /* ── 语义色补充（不覆盖 style.css 的既有变量） ──────────────────── */
+  --brand-gradient: linear-gradient(135deg, var(--brand) 0%, var(--brand-soft) 100%);
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--brand) 100%);
+  --focus-track: color-mix(in srgb, var(--text) 10%, transparent);
+  --surface-tint: color-mix(in srgb, var(--brand) 6%, transparent);
+}
+
+/* ── 亮色主题：抬高一点对比度，玻璃改为白底 ───────────────────────── */
+.theme-light {
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(0, 0, 0, 0.075);
+  --glass-highlight: rgba(255, 255, 255, 0.7);
+  --ring: 0 0 0 2px var(--bg-elev), 0 0 0 4px var(--brand);
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --elev-2: 0 4px 14px rgba(0, 0, 0, 0.09);
+  --elev-3: 0 14px 40px rgba(0, 0, 0, 0.14);
+  --elev-4: 0 28px 70px rgba(0, 0, 0, 0.18);
+}
+
+/* ── 亚克力强度：由 html.acrylic-* 控制玻璃层的通透度 ─────────────── */
+html.acrylic-off  { --glass-blur: 0px;  --glass-bg: var(--bg-elev); }
+html.acrylic-low  { --glass-blur: 8px;  --glass-saturate: 120%; }
+html.acrylic-medium { --glass-blur: 16px; --glass-saturate: 140%; }
+html.acrylic-high { --glass-blur: 26px; --glass-saturate: 170%; }
+
+/* ── 全局字体节奏 ─────────────────────────────────────────────────── */
+html, body {
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  text-rendering: optimizeLegibility;
+  font-synthesis-weight: none;
+}
+
+code, pre, kbd, samp, .mono {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
+h1, h2, h3, h4 {
+  line-height: var(--lh-tight);
+  letter-spacing: -0.012em;
+  font-weight: 650;
+}
+
+/* 让长单词/URL 不再撑破气泡与面板 */
+.msg-content, .assistant-body, .tool-output, .reasoning-body,
+.embed-body, .diagnose-body, .ask-body, .file-preview-body {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 数字在统计面板里等宽对齐，跳动时不会左右抖 */
+.stat-pill, .pill, .tool-duration, .stream-speed, .char-count,
+.cron-status, .sb-left, .sb-right, .st-tag {
+  font-variant-numeric: tabular-nums;
+}
