@@ -22,6 +22,9 @@ from .tools.shell import merge_bash_prefixes
 
 
 def main() -> None:
+    from .winvt import enable_vt_terminal
+    enable_vt_terminal()
+
     parser = argparse.ArgumentParser(
         description="One Cedric - An AI agent for beginners",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -41,14 +44,13 @@ def main() -> None:
     parser.add_argument("--list-sessions", action="store_true")
 
     parser.add_argument("--mode", default=None,
-                        help="访问模式: workspace | workspacesafe | "
-                             "workspaceyolo | fullaccess")
+                        help="访问模式: allow | ask | assisted")
 
     preset = parser.add_mutually_exclusive_group()
     preset.add_argument("--safe", action="store_true",
-                        help="等同 --mode workspacesafe")
+                        help="等同 --mode ask")
     preset.add_argument("--yolo", action="store_true",
-                        help="等同 --mode workspaceyolo")
+                        help="等同 --mode allow")
 
     parser.add_argument("--no-reasoning", action="store_true")
     parser.add_argument("--show-reasoning", action="store_true")
@@ -185,9 +187,9 @@ def main() -> None:
     )
 
     if args.safe:
-        access_mode = "workspacesafe"
+        access_mode = "ask"
     elif args.yolo:
-        access_mode = "workspaceyolo"
+        access_mode = "allow"
     elif args.mode:
         m = ACCESS_MODE_ALIASES.get(args.mode.lower(), args.mode.lower())
         if m not in ACCESS_MODES:

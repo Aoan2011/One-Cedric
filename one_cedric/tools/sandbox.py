@@ -7,7 +7,7 @@ from pathlib import Path
 _MODE_LOCK = threading.Lock()
 _ACCESS_MODE = "workspace"
 
-ALLOW_OUTSIDE_MODES = {"fullaccess"}
+ALLOW_OUTSIDE_MODES = {"allow", "fullaccess"}
 
 
 def set_access_mode(mode: str) -> None:
@@ -50,7 +50,7 @@ def _resolve_path(root: Path, path: str) -> tuple:
         return None, (
             f"ERROR: 拒绝访问工作目录之外的路径: {path}"
             f"（工作目录: {root}）\n"
-            f"提示：/mode fullaccess 或启动时 --mode fullaccess "
+            f"提示：/mode allow 或启动时 --mode allow "
             f"可放开。"
         )
 

@@ -137,6 +137,10 @@ MAX_GLOB_RESULTS = 200
 MAX_WEB_BYTES = 200_000
 WEB_TIMEOUT = 20
 
+# PDF 提取限制
+MAX_PDF_CHARS = 40_000
+MAX_PDF_PAGES = 50
+
 MAX_HTTP_RESP_BYTES = 200_000
 MAX_HTTP_BODY_BYTES = 100_000
 HTTP_DEFAULT_TIMEOUT = 20
@@ -263,27 +267,30 @@ PROJECTS_SUBDIR = "projects"
 PROFILES_SUBDIR = "profiles"
 CONFIG_FILENAME = "config.toml"
 
-ACCESS_MODES = ("workspace", "workspacesafe", "workspaceyolo", "fullaccess")
-DEFAULT_ACCESS_MODE = "workspace"
+ACCESS_MODES = ("allow", "ask", "assisted")
+DEFAULT_ACCESS_MODE = "ask"
 
 ACCESS_MODE_DESC = {
-    "workspace":     "工作目录内可读写，写操作需确认",
-    "workspacesafe": "工作目录内只读优先，任何写操作均需确认",
-    "workspaceyolo": "工作目录内完全放开，写操作自动确认",
-    "fullaccess":    "可访问任意路径，完全放开（危险）",
+    "allow":    "全部允许：所有操作自动放行（危险）",
+    "ask":      "按需确认：每个敏感操作都询问你",
+    "assisted": "AI 辅助判定：由另一个模型判断是否放行或是否需要你确认",
 }
 
 ACCESS_MODE_ALIASES = {
-    "safe": "workspacesafe",
-    "yolo": "workspaceyolo",
-    "full": "fullaccess",
+    # 旧模式 → 新模式
+    "workspace":     "ask",
+    "workspacesafe": "ask",
+    "workspaceyolo": "allow",
+    "fullaccess":    "allow",
+    "safe":          "ask",
+    "yolo":          "allow",
+    "full":          "allow",
 }
 
 ACCESS_MODE_COLOR = {
-    "workspace":     "dim",
-    "workspacesafe": "ok",
-    "workspaceyolo": "warn",
-    "fullaccess":    "err",
+    "allow":    "err",
+    "ask":      "dim",
+    "assisted": "accent",
 }
 
 DEFAULT_CONFIG: dict = {
@@ -302,7 +309,7 @@ DEFAULT_CONFIG: dict = {
         "enable_vision": False,
         "allow_arbitrary_shell": False,
         "sandbox_terminal": True,
-        "mode": "workspace",
+        "mode": "ask",
         "language": "zh",
     },
     "bash": {

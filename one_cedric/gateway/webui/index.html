@@ -1,12 +1,15 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>One Cedric</title>
 <link rel="icon" href="/static/favicon.ico">
-<link rel="stylesheet" href="/static/style.css?v=20261007c">
-<link rel="stylesheet" href="/static/hljs-theme.min.css?v=20261007c">
+<link rel="stylesheet" href="/static/style.css?v=20261011c">
+<link rel="stylesheet" href="/static/hljs-theme.min.css?v=20261011c">
 <!-- 内联兜底：库文件未加载时也保证页面不是黑屏 -->
 <style>
   html, body { background: #0b0b0d; }
@@ -20,9 +23,9 @@
   #boot-splash .bs { font-size: 11px; color: #6e6b67;
     font-family: Consolas, monospace; }
 </style>
-<script src="/static/vue.min.js?v=20261007c"></script>
-<script src="/static/marked.min.js?v=20261007c"></script>
-<script src="/static/highlight.min.js?v=20261007c"></script>
+<script src="/static/vue.min.js?v=20261011c"></script>
+<script src="/static/marked.min.js?v=20261011c"></script>
+<script src="/static/highlight.min.js?v=20261011c"></script>
 </head>
 <body>
 
@@ -145,6 +148,39 @@
              stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="undoChat"
+              :title="lang === 'zh' ? '撤销最近一次文件修改' : 'Undo last change'">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="compactChat"
+              :title="lang === 'zh' ? '压缩对话历史' : 'Compact history'">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" @click="clearChat"
+              :title="lang === 'zh' ? '清空对话历史' : 'Clear conversation'">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <line x1="10" y1="11" x2="10" y2="17"/>
+          <line x1="14" y1="11" x2="14" y2="17"/>
         </svg>
       </button>
 
@@ -577,7 +613,7 @@
           <!-- 用户消息 -->
           <template v-if="m.role === 'user'">
             <div class="msg-bubble user-bubble">
-              <div class="msg-content" v-html="renderMarkdown(m.content)"></div>
+              <div class="msg-content" v-html="msgHtml(m)"></div>
               <div class="bubble-actions">
                 <button class="ghost-btn pin-btn"
                         :class="{ pinned: isPinned(m._id) }"
@@ -655,13 +691,13 @@
                   </div>
                   <details v-if="tc.output" class="tool-output">
                     <summary>{{ lang === 'zh' ? '查看工具输出' : 'View tool output' }}</summary>
-                    <pre class="tool-output-pre" v-html="renderToolOutput(tc)"></pre>
+                    <pre class="tool-output-pre" v-html="toolOutputHtml(tc)"></pre>
                   </details>
                 </div>
               </div>
 
               <div v-if="m.content" class="msg-content"
-                   v-html="renderMarkdown(m.content)"></div>
+                   v-html="msgHtml(m)"></div>
               <span v-if="m.role === 'assistant' && m.content"
                     class="cursor-star"
                     :class="{ blink: m.streaming }">✦</span>
@@ -795,6 +831,9 @@
                     ? t('popover.noFiles')
                     : t('popover.noCommands') }}
               </div>
+            </div>
+            <div v-if="popover.overflowMore" class="popover-more">
+              {{ t('popover.more', { n: popover.items.length }) }}
             </div>
           </div>
         </transition>
@@ -1216,6 +1255,108 @@
             </div>
             <button class="btn-primary embed-save" @click="saveSettings()">
               {{ lang === 'zh' ? '保存设置' : 'Save settings' }}
+            </button>
+          </section>
+
+          <section class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">access</span>
+              {{ lang === 'zh' ? '权限模式' : 'Access mode' }}
+            </div>
+            <div class="embed-grid">
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '访问模式' : 'Mode' }}</span>
+                <select class="glass-input" v-model="settings.access_mode"
+                        @change="saveSettings()">
+                  <option v-for="m in accessModes" :key="m.value"
+                          :value="m.value">
+                    {{ m.zh }} · {{ m.en }}
+                  </option>
+                </select>
+              </label>
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '判定模型（assisted 用）' : 'Judge model (assisted)' }}</span>
+                <input class="glass-input" v-model="settings.assisted_model"
+                       placeholder="默认与主模型相同">
+              </label>
+              <label class="embed-check">
+                <input type="checkbox" v-model="settings.plan_mode"
+                       @change="saveSettings()">
+                <span>{{ lang === 'zh' ? '计划模式（只读工具）' : 'Plan mode (read-only tools)' }}</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="embed-section">
+            <div class="embed-section-title">
+              <span class="embed-tag">mine</span>
+              {{ lang === 'zh' ? '我的模型' : 'My Models' }}
+            </div>
+            <div v-if="myModels.length" class="embed-list">
+              <div v-for="m in myModels" :key="m.name"
+                   class="embed-list-row">
+                <div class="embed-list-main">
+                  <span class="embed-list-title">
+                    ★ {{ m.name }}
+                    <span v-if="myModelsActive === m.name"
+                          class="embed-tag ok-tag">
+                      {{ lang === 'zh' ? '当前' : 'active' }}
+                    </span>
+                  </span>
+                  <span class="embed-list-sub">
+                    {{ m.model }} · {{ m.host || '?' }}
+                    <span v-if="m.note"> · {{ m.note }}</span>
+                  </span>
+                </div>
+                <div class="embed-list-actions">
+                  <button class="btn-mini"
+                          @click="switchMyModel(m.name)">
+                    {{ lang === 'zh' ? '切换' : 'Switch' }}
+                  </button>
+                  <button class="btn-mini danger"
+                          @click="deleteMyModel(m.name)">
+                    {{ lang === 'zh' ? '删除' : 'Delete' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="embed-empty">
+              {{ lang === 'zh' ? '还没有模型档案，先保存一个连接，之后可一键切换。'
+                               : 'No profiles yet. Save a connection to switch quickly.' }}
+            </div>
+            <div class="embed-grid mymodel-form">
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '档案名称' : 'Profile name' }}</span>
+                <input class="glass-input" v-model="myModelForm.name"
+                       :placeholder="lang === 'zh' ? '如：本地 DeepSeek' : 'e.g. Local DeepSeek'">
+              </label>
+              <label class="embed-field">
+                <span>Host URL</span>
+                <input class="glass-input" v-model="myModelForm.host"
+                       placeholder="http://localhost:11434">
+              </label>
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '模型 ID' : 'Model ID' }}</span>
+                <input class="glass-input" v-model="myModelForm.model"
+                       placeholder="deepseek-flash">
+              </label>
+              <label class="embed-field">
+                <span>API Key</span>
+                <input class="glass-input" type="password"
+                       v-model="myModelForm.api_key">
+              </label>
+              <label class="embed-field">
+                <span>{{ lang === 'zh' ? '备注' : 'Note' }}</span>
+                <input class="glass-input" v-model="myModelForm.note">
+              </label>
+              <label class="embed-check">
+                <input type="checkbox" v-model="myModelForm.switch">
+                <span>{{ lang === 'zh' ? '保存后立即切换' : 'Switch after saving' }}</span>
+              </label>
+            </div>
+            <button class="btn-primary embed-save"
+                    :disabled="myModelBusy" @click="addMyModel()">
+              {{ lang === 'zh' ? '保存为我的模型' : 'Save as my model' }}
             </button>
           </section>
 
@@ -1817,7 +1958,27 @@
 
 </div>
 
-<script src="/static/app.js?v=20261007c"></script>
+<script src="/static/app.js?v=20261011c"></script>
+<script>
+  /* 版本自检徽标：显示浏览器实际加载的 app.js 版本号，用于排查缓存问题 */
+  (function () {
+    try {
+      var s = document.querySelector('script[src*="app.js"]');
+      var v = s ? ((s.src.match(/v=([\w]+)/) || [])[1] || '?') : 'NO-JS';
+      var b = document.createElement('div');
+      b.id = 'ver-badge';
+      b.textContent = '● app.js v=' + v;
+      b.style.cssText = 'position:fixed !important;left:12px !important;'
+        + 'top:12px !important;right:auto !important;bottom:auto !important;'
+        + 'z-index:2147483647 !important;background:#0b3d0b !important;'
+        + 'color:#7dff7d !important;font:bold 13px Consolas,monospace !important;'
+        + 'padding:4px 10px !important;border-radius:6px !important;'
+        + 'border:2px solid #4ade80 !important;box-shadow:0 0 12px #4ade8066 !important;'
+        + 'pointer-events:none !important;opacity:.98 !important;';
+      document.body.appendChild(b);
+    } catch (e) { /* 静默 */ }
+  })();
+</script>
 </body>
 </html>
 

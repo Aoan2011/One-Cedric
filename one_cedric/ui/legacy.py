@@ -585,12 +585,11 @@ def render_banner(console, *, model: str, host: str, root: Path, session_id: str
 
     from ..config import ACCESS_MODE_COLOR
     mode_label_map = {
-        "workspace":     "workspace",
-        "workspacesafe": "workspace · safe",
-        "workspaceyolo": "workspace · yolo",
-        "fullaccess":    "FULL ACCESS",
+        "allow":    "全部允许",
+        "ask":      "按需确认",
+        "assisted": "AI 辅助判定",
     }
-    if access_mode in mode_label_map and access_mode != "workspace":
+    if access_mode in mode_label_map:
         color = {"ok": OK_C, "warn": WARN_C, "err": ERR_C, "dim": DIM_C}.get(
             ACCESS_MODE_COLOR.get(access_mode, "dim"), DIM_C)
         badges.append(Text(mode_label_map[access_mode], style=f"bold {color}"))

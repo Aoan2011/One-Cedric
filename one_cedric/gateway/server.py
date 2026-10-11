@@ -354,6 +354,9 @@ class Gateway:
             particle_hue1: int = -1
             particle_hue2: int = -1
             sandbox_terminal: Optional[bool] = None
+            access_mode: str = ""
+            plan_mode: Optional[bool] = None
+            assisted_model: str = ""
 
         class CustomToolRequest(BaseModel):
             name: str = ""
@@ -366,6 +369,16 @@ class Gateway:
 
         class GenerateToolRequest(BaseModel):
             description: str = ""
+
+        class MyModelRequest(BaseModel):
+            name: str = ""
+            host: str = ""
+            model: str = ""
+            api_key: str = ""
+            note: str = ""
+            temperature: float = -1.0
+            think_level: str = ""
+            switch: bool = False
 
         def _auth(request: Request):
             token = gw.token
@@ -407,7 +420,11 @@ class Gateway:
                     "<p>WebUI 未找到。"
                     "请检查 gateway/webui/index.html 是否存在。</p>"
                 )
-            return HTMLResponse(f.read_text(encoding="utf-8"))
+            return HTMLResponse(
+                f.read_text(encoding="utf-8"),
+                headers={"Cache-Control":
+                         "no-store, no-cache, must-revalidate"},
+            )
 
         @app.get("/settings")
         async def settings_page():
@@ -483,6 +500,63 @@ class Gateway:
                 return {"models": models}
             except Exception as exc:
                 return {"error": str(exc), "models": []}
+
+        @app.get("/api/my-models")
+        async def api_my_models(request: Request):
+            _auth(request)
+            try:
+                from ..my_models import load
+                data = load()
+                return {
+                    "active": data.get("active", ""),
+                    "profiles": data.get("profiles", {}),
+                }
+            except Exception as exc:
+                return {"error": str(exc), "active": "", "profiles": {}}
+
+        @app.post("/api/my-models")
+        async def api_my_models_upsert(req: MyModelRequest,
+                                       request: Request):
+            _auth(request)
+            if not req.name.strip() or not req.model.strip():
+                raise HTTPException(400, "name 与 model 不能为空")
+            try:
+                from ..my_models import upsert_profile
+                fields: dict = {
+                    "host": req.host.strip(),
+                    "model": req.model.strip(),
+                    "api_key": req.api_key,
+                    "note": req.note.strip(),
+                }
+                if req.temperature >= 0:
+                    fields["temperature"] = req.temperature
+                if req.think_level.strip():
+                    fields["think_level"] = req.think_level.strip()
+                ok = upsert_profile(req.name.strip(), fields)
+                if ok and req.switch:
+                    ok2, msg = self._switch_my_model(req.name.strip())
+                    return {"ok": ok, "switched": ok2, "message": msg}
+                return {"ok": ok}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
+        @app.post("/api/my-models/{name}/switch")
+        async def api_my_models_switch(name: str, request: Request):
+            _auth(request)
+            try:
+                ok, msg = self._switch_my_model(name)
+                return {"ok": ok, "message": msg}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
+        @app.delete("/api/my-models/{name}")
+        async def api_my_models_delete(name: str, request: Request):
+            _auth(request)
+            try:
+                from ..my_models import remove_profile
+                return {"ok": remove_profile(name)}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
 
         @app.get("/api/tools")
         async def api_tools(request: Request):
@@ -866,6 +940,45 @@ class Gateway:
             except Exception as exc:
                 return {"error": str(exc), "sessions": []}
 
+        # ---- 会话操作：撤销 / 压缩 / 清空（与 CLI 对齐） ----
+
+        @app.post("/api/chat/undo")
+        async def api_chat_undo(request: Request):
+            _auth(request)
+            try:
+                if not gw.copilot.undo_stack:
+                    return {"ok": False, "error": "没有可撤销的操作"}
+                rec = gw.copilot.undo_stack[-1]
+                gw.copilot._do_undo()
+                return {"ok": True,
+                        "undo": rec["rel"], "remaining": len(
+                            gw.copilot.undo_stack)}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
+        @app.post("/api/chat/compact")
+        async def api_chat_compact(request: Request):
+            _auth(request)
+            try:
+                before = len(gw.copilot.messages)
+                gw.copilot._compact(keep_turns=None)
+                after = len(gw.copilot.messages)
+                return {"ok": True,
+                        "before": before, "after": after,
+                        "compactions": len(gw.copilot.compactions)}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
+        @app.post("/api/chat/clear")
+        async def api_chat_clear(request: Request):
+            _auth(request)
+            try:
+                gw.copilot.messages = [gw.copilot.system_msg]
+                gw.copilot._save_session()
+                return {"ok": True, "messages": 1}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+
         @app.get("/api/logs")
         async def api_logs(request: Request, n: int = 20):
             _auth(request)
@@ -915,6 +1028,10 @@ class Gateway:
                 "ui": ui_cfg,
                 "model": gw.copilot.model,
                 "host": gw.copilot.host,
+                "access_mode": getattr(gw.copilot, "access_mode", "ask"),
+                "plan_mode": bool(getattr(gw.copilot, "plan_mode", False)),
+                "assisted_model": (gw.copilot.config.setdefault(
+                    "default", {}).get("assisted_model") or ""),
             }
 
         @app.post("/api/config")
@@ -948,6 +1065,28 @@ class Gateway:
                 gw.copilot.config.setdefault("ui", {})[
                     "sandbox_terminal"] = bool(req.sandbox_terminal)
                 changed.append("sandbox_terminal")
+            if req.access_mode:
+                from ..config import ACCESS_MODES, ACCESS_MODE_ALIASES
+                m = ACCESS_MODE_ALIASES.get(
+                    req.access_mode.lower(), req.access_mode.lower())
+                if m in ACCESS_MODES:
+                    gw.copilot.access_mode = m
+                    from ..tools.sandbox import set_access_mode
+                    set_access_mode(m)
+                    gw.copilot.config.setdefault("default", {})[
+                        "mode"] = m
+                    changed.append("access_mode")
+            if req.plan_mode is not None:
+                gw.copilot.plan_mode = bool(req.plan_mode)
+                if not gw.copilot.plan_mode:
+                    gw.copilot.plan_active = False
+                gw.copilot.config.setdefault("default", {})[
+                    "plan_mode"] = bool(req.plan_mode)
+                changed.append("plan_mode")
+            if req.assisted_model:
+                gw.copilot.config.setdefault("default", {})[
+                    "assisted_model"] = req.assisted_model.strip()
+                changed.append("assisted_model")
 
             if not changed:
                 return {"ok": False, "error": "无可更新字段"}
@@ -1272,11 +1411,24 @@ class Gateway:
         with self._chat_lock:
             return self._do_chat(message, auto_approve)
 
+    def _switch_my_model(self, name: str) -> tuple:
+        """切换到「我的模型」档案并应用到 copilot。返回 (ok, message)。"""
+        from ..my_models import switch_profile
+        return switch_profile(self.copilot, name)
+
     def _do_chat(self, message: str, auto_approve: bool) -> dict:
         t0 = time.time()
         try:
             result = self.copilot.ask_no_ui(
                 message, auto_approve=auto_approve)
+        except SystemExit as exc:
+            self._stats["errors"] += 1
+            return {
+                "error": str(exc),
+                "answer": "",
+                "tool_calls": [],
+                "duration": round(time.time() - t0, 2),
+            }
         except Exception as exc:
             self._stats["errors"] += 1
             return {

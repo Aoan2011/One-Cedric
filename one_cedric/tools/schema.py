@@ -2545,6 +2545,8 @@ READONLY_TOOL_NAMES = {
     "regex_extract", "code_stats", "markdown_toc", "template_render",
     "word_frequency", "tokenize", "simplify_chinese",
     "dedupe_lines", "text_similarity", "strip_invisible",
+    # Python 静态检查（不执行代码）
+    "python_check", "python_libs",
     # 文件工具
     "hash_file", "find_duplicates", "pdf_extract",
     # 编码

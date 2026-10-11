@@ -1,13 +1,15 @@
-"""模型管理：列表 + 参数调节。"""
+"""模型管理：我的模型（持久化档案）+ 远端模型 + 参数调节。"""
 from __future__ import annotations
 
 from pathlib import Path
 from rich import box
-from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
-from ...config import BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C, TOOL_C
+from ...config import BRAND, ACCENT, OK_C, ERR_C, WARN_C, DIM_C
+from ...my_models import (
+    list_profiles, get_profile, upsert_profile, remove_profile,
+    switch_profile, apply_to_copilot,
+)
 from ..keys import wait_for_return
 from ..menu import selection_progress
 
@@ -97,81 +99,131 @@ def run_models_screen(console, copilot) -> None:
         console.clear()
         console.print()
         console.print(f"  [bold {BRAND}]◆ 模型管理[/]")
-        console.print(f"  [dim]当前模型: [accent]{copilot.model}[/]")
+        console.print(f"  [dim]当前模型: [accent]{copilot.model}[/]"
+                      f"  ·  [accent]{copilot.host}[/]")
         console.print()
 
         with console.status(
-            f"[{ACCENT}]正在获取模型列表…[/]", spinner="dots"
+            f"[{ACCENT}]正在获取远端模型列表…[/]", spinner="dots"
         ):
-            models = _fetch_models(copilot)
-        if not models:
+            remote = _fetch_models(copilot)
+        if not remote:
             console.print(
-                f"  [warn]⚠ 无法从 {copilot.host} 获取模型列表[/]"
+                f"  [warn]⚠ 无法从 {copilot.host} 获取远端模型[/]"
             )
             console.print(f"  [dim]当前模型：[accent]{copilot.model}[/]")
-            models = [copilot.model]
+            remote = [copilot.model]
 
+        mine = list_profiles()
         overrides = _load_overrides()
 
+        # ── 组装列表：我的模型 → 远端 → 新增 ──
         items = []
-        for m in models:
-            params = overrides.get(m, {})
-            n_overrides = len(params)
-            note = f"  [{ACCENT}]{n_overrides} 项自定义[/]" if n_overrides else ""
-            items.append({"model": m, "display": f"{m}{note}"})
-        items.append({"model": None, "display": "New model"})
+        for p in mine:
+            items.append({"kind": "mine", "profile": p})
+        for m in remote:
+            if any(p.get("model") == m for p in mine):
+                continue
+            items.append({"kind": "remote", "model": m})
+        items.append({"kind": "new"})
         selected = min(selected, len(items) - 1)
+
+        active_name = ""
+        from ...my_models import load as _mm_load
+        _mm = _mm_load()
+        active_name = _mm.get("active", "")
 
         tbl = Table(box=box.SIMPLE, header_style=f"bold {BRAND}",
                     padding=(0, 1))
         tbl.add_column("", width=2)
         tbl.add_column("模型", style="bold")
-        tbl.add_column("参数")
+        tbl.add_column("连接 / 参数")
         tbl.add_column("价格 / 1M tokens")
+
         from ...pricing import pricing_for
-        for i, it in enumerate(items):
-            if it["model"] is None:
+        if mine:
+            tbl.add_row("", f"[bold {ACCENT}]▣ 我的模型[/]",
+                        f"[dim]{len(mine)} 个档案[/]", "",
+                        end_section=True)
+            for i, it in enumerate(items):
+                if it["kind"] != "mine":
+                    continue
+                p = it["profile"]
+                model = p.get("model", "?")
+                label = f"★ {p['name']}"
+                if model:
+                    label += f"  [dim]({model})[/]"
+                if active_name == p["name"]:
+                    label += f"  [{OK_C}]当前[/]"
+                if i == selected:
+                    label = f"[bold {BRAND}]{label}[/]"
+                params = overrides.get(model, {})
+                n_params = len(params)
+                conn = f"[dim]{p.get('host') or '?'}[/]"
+                if n_params:
+                    conn += f"  ·  {n_params} 项参数"
+                if p.get("note"):
+                    conn += f"  ·  [dim]{p['note'][:18]}[/]"
+                _cached, ip, op = pricing_for(model)
                 tbl.add_row(
                     f"[{BRAND}]▸[/]" if i == selected else "",
-                    f"[bold {BRAND}]＋ New model[/]" if i == selected
-                    else "＋ New model",
-                    "[dim]Connect another OpenAI-compatible host[/]",
-                    "—",
+                    label, conn,
+                    f"${ip:g} / ${op:g}",
                 )
-                continue
-            params = overrides.get(it["model"], {})
-            model_label = it["model"]
-            if it["model"] == copilot.model:
-                model_label += f"  [{OK_C}]当前使用[/]"
-            if i == selected:
-                model_label = f"[bold {BRAND}]{model_label}[/]"
-            if params:
-                p_str = " · ".join(f"{k}={v}" for k, v in list(params.items())[:4])
-                _cached, input_price, output_price = pricing_for(it["model"])
+
+        # 远端模型
+        any_remote = any(it["kind"] == "remote" for it in items)
+        if any_remote:
+            tbl.add_row("", f"[bold {DIM_C}]◈ 远端模型[/]",
+                        f"[dim]{copilot.host}[/]", "",
+                        end_section=True)
+            for i, it in enumerate(items):
+                if it["kind"] != "remote":
+                    continue
+                model = it["model"]
+                label = model
+                if model == copilot.model:
+                    label += f"  [{OK_C}]当前使用[/]"
+                if i == selected:
+                    label = f"[bold {BRAND}]{label}[/]"
+                params = overrides.get(model, {})
+                if params:
+                    p_str = " · ".join(
+                        f"{k}={v}" for k, v in list(params.items())[:4])
+                    conn = f"[dim]{p_str}[/]"
+                else:
+                    conn = "[dim]默认[/]"
+                _cached, ip, op = pricing_for(model)
                 tbl.add_row(
                     f"[{BRAND}]▸[/]" if i == selected else "",
-                    model_label,
-                    f"[dim]{p_str}[/]",
-                    f"${input_price:g} / ${output_price:g}",
+                    label, conn,
+                    f"${ip:g} / ${op:g}",
                 )
-            else:
-                _cached, input_price, output_price = pricing_for(it["model"])
-                tbl.add_row(
-                    f"[{BRAND}]▸[/]" if i == selected else "",
-                    model_label,
-                    "[dim]默认[/]",
-                    f"${input_price:g} / ${output_price:g}",
-                )
+
+        # 新增
+        tbl.add_section()
+        tbl.add_row(
+            f"[{BRAND}]▸[/]" if items[-1]["kind"] == "new"
+            and selected == len(items) - 1 else "",
+            (f"[bold {BRAND}]＋ 新增我的模型[/]"
+             if selected == len(items) - 1 else "＋ 新增我的模型"),
+            "[dim]保存一个模型连接档案（可持久化、一键切换）[/]",
+            "—",
+            end_section=True,
+        )
 
         console.print(tbl)
         console.print(selection_progress(selected, len(items)))
         console.print()
         console.print(
             f"  [dim]操作：[/][accent]↑↓[/][dim] 选择 · "
-            f"[/][accent]Enter[/][dim] 选择 · "
+            f"[/][accent]Enter[/][dim] 切换 · "
+            f"[/][accent]n[/][dim] 新增档案 · "
+            f"[/][accent]e[/][dim] 编辑档案 · "
+            f"[/][accent]d[/][dim] 删除 · "
             f"[/][accent]p[/][dim] 调参 · "
-            f"[/][accent]c[/][dim] 设置价格 · "
-            f"[/][accent]t[/][dim] 测试连接 · "
+            f"[/][accent]c[/][dim] 价格 · "
+            f"[/][accent]t[/][dim] 测试 · "
             f"[/][accent]r[/][dim] 刷新 · "
             f"[/][accent]q[/][dim] 返回[/]"
         )
@@ -195,84 +247,182 @@ def run_models_screen(console, copilot) -> None:
         else:
             try:
                 sel = console.input(
-                    "  [dim]Enter 选择 · p 参数 · c 价格 · "
-                    "t 测试 · r 刷新 · q 返回 >[/] "
+                    "  [dim]Enter 切换 · n 新增 · e 编辑 · d 删除 · "
+                    "p 参数 · c 价格 · t 测试 · r 刷新 · q 返回 >[/] "
                 ).strip().lower()
             except (EOFError, KeyboardInterrupt):
                 return
 
-        if sel == "q" or sel == "":
+        if sel in ("q", ""):
             return
         if sel == "r":
             continue
         if sel == "t":
             _test_connection(console, copilot)
             continue
+
+        cur = items[selected]
+        cur_model = (cur["profile"].get("model") if cur["kind"] == "mine"
+                     else cur.get("model") if cur["kind"] == "remote"
+                     else None)
+        cur_profile = cur.get("profile") if cur["kind"] == "mine" else None
+
+        if sel == "n":
+            _add_model(console, copilot)
+            selected = 0
+            continue
+        if sel == "e":
+            if cur_profile:
+                _edit_profile(console, copilot, cur_profile["name"])
+            else:
+                console.print("  [warn]请先选择一个「我的模型」档案。[/]")
+                wait_for_return(console, "  [dim]按任意键继续…[/] ")
+            continue
+        if sel == "d":
+            if cur_profile:
+                _delete_profile(console, copilot, cur_profile["name"])
+            else:
+                console.print("  [warn]请先选择一个「我的模型」档案。[/]")
+                wait_for_return(console, "  [dim]按任意键继续…[/] ")
+            continue
         if sel == "p":
-            model = items[selected]["model"]
-            if model:
-                _edit_model_params(console, copilot, model)
+            if cur_model:
+                _edit_model_params(console, copilot, cur_model)
             else:
                 console.print("  [warn]请先选择一个模型。[/]")
             continue
         if sel == "c":
-            model = items[selected]["model"]
-            if model:
-                _edit_model_pricing(console, model)
+            if cur_model:
+                _edit_model_pricing(console, cur_model)
             else:
                 console.print("  [warn]请先选择一个模型。[/]")
             continue
-        if sel == "new":
-            _add_model(console, copilot)
-            continue
-        if sel not in ("enter", "select"):
-            model_match = next(
-                (it["model"] for it in items
-                 if it["model"] and it["model"].casefold() == sel.casefold()),
-                None,
-            )
-            if model_match is not None:
-                copilot.model = model_match
-                console.print(f"  [ok]✓ 已切换: {model_match}[/]")
-                continue
-
         if sel == "enter":
-            selected_model = items[selected]["model"]
-            if selected_model is None:
+            if cur["kind"] == "mine":
+                ok, msg = switch_profile(copilot, cur_profile["name"])
+                console.print(f"  [{'ok' if ok else 'err'}]"
+                              f"{'✓' if ok else '✗'} {msg}[/]")
+            elif cur["kind"] == "remote":
+                copilot.model = cur_model
+                copilot.config.setdefault("default", {})["model"] = cur_model
+                console.print(f"  [ok]✓ 已切换: {cur_model}[/]")
+            else:
                 _add_model(console, copilot)
-                continue
-            copilot.model = selected_model
-            console.print(f"  [ok]✓ 已切换: {selected_model}[/]")
+                selected = 0
             continue
 
         console.print("  [err]✗ 未知操作[/]")
 
 
+def _prompt_text(console, label: str, current: str = "") -> str:
+    try:
+        raw = console.input(f"  [dim]{label}[/] ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return "__CANCEL__"
+    if not raw and current:
+        return current
+    return raw
+
+
 def _add_model(console, copilot) -> None:
     console.clear()
     console.print()
-    console.print(f"  [bold {BRAND}]◆ New model[/]")
+    console.print(f"  [bold {BRAND}]◆ 新增我的模型[/]")
+    console.print("  [dim]保存一个模型连接档案，之后可一键切换。[/]")
+    console.print()
     try:
-        host = console.input("  [dim]Host URL =[/] ").strip().rstrip("/")
+        host = console.input(
+            "  [dim]API 地址（如 http://localhost:11434 或 "
+            "https://api.deepseek.com）=[/] "
+        ).strip().rstrip("/")
         if not host:
             return
-        model = console.input("  [dim]Model ID =[/] ").strip()
+        model = console.input("  [dim]模型 ID（如 deepseek-flash）=[/] ").strip()
         if not model:
             return
+        from .settings import _masked_input
+        api_key = _masked_input(console, "api_key（可留空）")
+        note = console.input("  [dim]备注（可留空）=[/] ").strip()
+        name = console.input(
+            f"  [dim]档案名称（Enter 使用 {model}）=[/] ").strip() or model
     except (EOFError, KeyboardInterrupt):
         return
-    from .settings import _masked_input
-    api_key = _masked_input(console, "api_key (leave blank to keep current)")
-    if not api_key:
-        api_key = copilot.api_key
-    copilot.host = host
-    copilot.api_key = api_key
-    copilot.model = model
-    copilot.config.setdefault("default", {}).update(
-        {"host": host, "model": model, "api_key": api_key}
-    )
-    copilot._save_config("global")
-    console.print(f"  [ok]✓ 已连接模型 {model}[/]")
+
+    if upsert_profile(name, {
+        "host": host, "model": model, "api_key": api_key,
+        "note": note, "created_at": 0,
+    }):
+        ok, msg = switch_profile(copilot, name)
+        console.print(f"  [ok]✓ 已保存档案「{name}」[/]")
+        console.print(f"  [{'ok' if ok else 'err'}]"
+                      f"{'✓' if ok else '✗'} {msg}[/]")
+    else:
+        console.print("  [err]✗ 保存失败[/]")
+    wait_for_return(console, "  [dim]按任意键继续…[/] ")
+
+
+def _edit_profile(console, copilot, name: str) -> None:
+    console.clear()
+    console.print()
+    console.print(f"  [bold {BRAND}]◆ 编辑档案 · {name}[/]")
+    console.print()
+    p = get_profile(name) or {}
+    fields = [
+        ("host", p.get("host", "")),
+        ("model", p.get("model", "")),
+        ("api_key", p.get("api_key", "")),
+        ("note", p.get("note", "")),
+    ]
+    labels = {
+        "host": "API 地址", "model": "模型 ID",
+        "api_key": "API Key", "note": "备注",
+    }
+    for key, cur in fields:
+        console.print(
+            f"  [dim]{labels[key]}[/]  [accent]{cur or '（空）'}[/]")
+    console.print()
+    console.print("  [dim]Enter 直接跳过保留原值，q 取消。[/]")
+    console.print()
+    updates: dict = {}
+    for key, cur in fields:
+        if key == "api_key":
+            from .settings import _masked_input
+            raw = _masked_input(console, f"{labels[key]}（Enter 保留）")
+            if raw:
+                updates[key] = raw
+            continue
+        raw = _prompt_text(console, f"{labels[key]}（Enter 保留）=", cur)
+        if raw == "__CANCEL__":
+            return
+        if raw != cur:
+            updates[key] = raw
+    if not updates:
+        console.print("  [dim]（无修改）[/]")
+        return
+    if upsert_profile(name, updates):
+        console.print(f"  [ok]✓ 已更新档案「{name}」[/]")
+        if get_profile(name) and get_profile(name).get("model"):
+            apply_to_copilot(copilot, get_profile(name))
+            console.print("  [dim]已同步到当前会话。[/]")
+    else:
+        console.print("  [err]✗ 保存失败[/]")
+    wait_for_return(console, "  [dim]按任意键继续…[/] ")
+
+
+def _delete_profile(console, copilot, name: str) -> None:
+    console.print(f"  [warn]删除档案「{name}」？[/]")
+    try:
+        ans = console.input("  [dim]y 删除 / n 取消 >[/] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return
+    if ans != "y":
+        console.print("  [dim]已取消。[/]")
+        return
+    if remove_profile(name):
+        console.print(f"  [ok]✓ 已删除「{name}」[/]")
+    else:
+        console.print("  [err]✗ 删除失败[/]")
+    wait_for_return(console, "  [dim]按任意键继续…[/] ")
 
 
 def _edit_model_pricing(console, model: str) -> None:

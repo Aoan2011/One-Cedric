@@ -218,6 +218,7 @@ const I18N = {
     'popover.items': '项',
     'popover.noCommands': '无匹配命令',
     'popover.noFiles': '无匹配文件',
+    'popover.more': '还有 {n} 项 · ↑↓ 浏览',
     'search.matches': '条匹配',
     'search.regexTitle': '正则表达式',
     'search.caseTitle': '区分大小写',
@@ -455,6 +456,7 @@ const I18N = {
     'popover.items': 'items',
     'popover.noCommands': 'No matching commands',
     'popover.noFiles': 'No matching files',
+    'popover.more': '{n} more · ↑↓ to browse',
     'search.matches': 'matches',
     'search.regexTitle': 'Regular expression',
     'search.caseTitle': 'Case sensitive',
@@ -789,6 +791,25 @@ createApp({
       temperature: savedSettings.temperature ?? 0.2,
       think_level: savedSettings.think_level || 'medium',
       show_reasoning: savedSettings.show_reasoning !== false,
+      access_mode: savedSettings.access_mode || '',
+      plan_mode: savedSettings.plan_mode !== false,
+      assisted_model: savedSettings.assisted_model || '',
+    });
+
+    /* ── 权限模式（与 CLI /mode 对齐） ── */
+    const accessModes = [
+      { value: 'allow',    zh: '全部允许',   en: 'Allow all (dangerous)' },
+      { value: 'ask',      zh: '按需确认',   en: 'Ask on demand' },
+      { value: 'assisted', zh: 'AI 辅助判定', en: 'AI-assisted' },
+    ];
+
+    /* ── 我的模型（持久化档案） ── */
+    const myModels = ref([]);
+    const myModelsActive = ref('');
+    const myModelBusy = ref(false);
+    const myModelForm = reactive({
+      name: '', host: '', model: '', api_key: '', note: '',
+      switch: true,
     });
 
     /* ── 自定义工具管理 ── */
@@ -1022,6 +1043,8 @@ createApp({
     function openSettingsModal() {
       showSettingsModal.value = true;
       loadNetworkInfo();
+      loadMyModels();
+      loadConfigFromServer();
     }
     function openStatsModal() {
       showStatsModal.value = true;
@@ -1730,6 +1753,26 @@ createApp({
       }
     }
 
+    /* ── 渲染缓存：流式输出时避免全量重解析 markdown / 工具输出 ── */
+    function msgHtml(m) {
+      const key = (m && m.content) || '';
+      if (!m) return '';
+      if (m.__htmlKey !== key || m.__html === undefined) {
+        m.__htmlKey = key;
+        m.__html = renderMarkdown(m.content);
+      }
+      return m.__html;
+    }
+    function toolOutputHtml(tc) {
+      const key = (tc && tc.status || '') + '\u0000' + (tc.output || '');
+      if (!tc) return '';
+      if (tc.__outKey !== key || tc.__outHtml === undefined) {
+        tc.__outKey = key;
+        tc.__outHtml = renderToolOutput(tc);
+      }
+      return tc.__outHtml;
+    }
+
     function fmtTime(ts) {
       if (!ts) return '';
       const diff = (Date.now() - ts) / 1000;
@@ -1882,6 +1925,11 @@ createApp({
         const ctx = _particleCtx;
         const c = _particleCvs;
         if (!ctx || !c) return;
+        // 标签页隐藏时暂停动画（省 CPU / 电池）
+        if (document.hidden) {
+          _particleRAF = requestAnimationFrame(tick);
+          return;
+        }
         ctx.clearRect(0, 0, c.width, c.height);
 
         for (const p of _particleList) {
@@ -2214,6 +2262,7 @@ createApp({
     const popover = reactive({
       show: false, kind: '', items: [], selected: 0,
       triggerStart: -1, triggerEnd: -1, query: '',
+      overflowMore: false,
     });
     let _fileFetchTimer = null;
     let _fileFetchSeq = 0;
@@ -2265,7 +2314,9 @@ createApp({
       let i = cursor - 1;
       while (i >= 0 && !/\s/.test(text[i])) i--;
       const tokenStart = i + 1;
-      const token = text.slice(tokenStart, cursor);
+      let token = text.slice(tokenStart, cursor);
+      // 全角标点（中文输入法）→ 半角，保证 / 和 @ 补全在任意输入法下可用
+      token = token.replace(/／/g, '/').replace(/＠/g, '@');
 
       if (token.startsWith('@') && token.length >= 1) {
         const q = token.slice(1);
@@ -2291,9 +2342,28 @@ createApp({
         popover.triggerStart = tokenStart;
         popover.triggerEnd = cursor;
         popover.query = q;
+        _updatePopoverOverflow();
         return;
       }
       _hidePopover();
+    }
+    function _updatePopoverOverflow() {
+      nextTick(() => {
+        const list = popoverListEl.value;
+        if (!list) return;
+        // 动态高度：能放下全部项时一次看全，空间不足才滚动
+        const el = inputEl.value;
+        let avail = 360;
+        if (el) {
+          const r = el.getBoundingClientRect();
+          avail = Math.max(160, Math.floor(r.top - 14));
+        }
+        const ITEM_H = 34;
+        const want = popover.items.length * ITEM_H + 12;
+        const maxH = Math.min(avail, want);
+        list.style.maxHeight = maxH + 'px';
+        popover.overflowMore = list.scrollHeight > list.clientHeight + 2;
+      });
     }
     function _hidePopover() {
       popover.show = false;
@@ -2301,6 +2371,7 @@ createApp({
       popover.selected = 0;
       popover.triggerStart = -1;
       popover.triggerEnd = -1;
+      popover.overflowMore = false;
       hideFilePreview();
     }
     function _showFilePopover(q, start, end) {
@@ -2456,6 +2527,7 @@ createApp({
         if (!list) return;
         const active = list.querySelector('.popover-item.active');
         if (active) active.scrollIntoView({ block: 'nearest' });
+        popover.overflowMore = list.scrollHeight > list.clientHeight + 2;
       });
       if (popover.kind === 'file') {
         scheduleFilePreview(popover.selected);
@@ -3388,6 +3460,13 @@ createApp({
         if (typeof ui.sandbox_terminal === 'boolean') {
           sandboxTerminal.value = ui.sandbox_terminal;
         }
+        if (data.access_mode) settings.access_mode = data.access_mode;
+        if (typeof data.plan_mode === 'boolean') {
+          settings.plan_mode = data.plan_mode;
+        }
+        if (data.assisted_model) {
+          settings.assisted_model = data.assisted_model;
+        }
         _syncAllClasses();
       } catch {}
     }
@@ -3404,6 +3483,9 @@ createApp({
             think_level: settings.think_level,
             particle_hue1: particleHue1.value,
             particle_hue2: particleHue2.value,
+            access_mode: settings.access_mode || '',
+            plan_mode: settings.plan_mode,
+            assisted_model: settings.assisted_model || '',
           }),
         });
         if (!r.ok) {
@@ -3881,6 +3963,16 @@ createApp({
           if (!msg.content && evt.answer) {
             msg.content = String(evt.answer);
           }
+          if (!msg.content) {
+            // 模型真的没有返回任何文本：给一个可读的提示，而不是死白的空消息
+            msg.content = msg.toolCalls && msg.toolCalls.length
+              ? (lang.value === 'zh'
+                ? '_（已调用工具，但模型未返回文本回复。可重试或换一个问法。）_'
+                : '_（Tools ran, but the model returned no text. Try again.）_')
+              : (lang.value === 'zh'
+                ? '_（模型未返回文本回复。）_'
+                : '_（The model returned no text.）_');
+          }
           if (evt.duration) {
             msg.meta = (lang.value === 'zh' ? '耗时 ' : 'took ')
               + evt.duration + 's';
@@ -4081,8 +4173,149 @@ createApp({
     /* ── 设置 ─────────────────────────── */
     function saveSettings() {
       persistSettings({ ...settings });
+      syncConfigToServer();
       toast(t('toast.settingsSaved'));
       _broadcast('settings-updated', {});
+    }
+
+    /* ── 会话操作：撤销 / 压缩 / 清空（与 CLI 对齐） ── */
+    async function undoChat() {
+      try {
+        const r = await fetch('/api/chat/undo', {
+          method: 'POST', credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (d.ok) {
+          toast(lang.value === 'zh'
+            ? '已撤销: ' + d.undo : 'Undone: ' + d.undo);
+        } else {
+          toast(lang.value === 'zh'
+            ? '撤销失败: ' + (d.error || '无记录')
+            : 'Undo failed: ' + (d.error || 'nothing to undo'));
+        }
+      } catch (e) { toast(String(e)); }
+    }
+    async function compactChat() {
+      try {
+        const r = await fetch('/api/chat/compact', {
+          method: 'POST', credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (d.ok) {
+          toast(lang.value === 'zh'
+            ? `已压缩历史（${d.before} → ${d.after} 条）`
+            : `Compacted (${d.before} → ${d.after} msgs)`);
+          loadCurrentSession();
+        } else {
+          toast(lang.value === 'zh'
+            ? '压缩失败: ' + (d.error || '')
+            : 'Compact failed: ' + (d.error || ''));
+        }
+      } catch (e) { toast(String(e)); }
+    }
+    async function clearChat() {
+      if (!confirm(lang.value === 'zh'
+        ? '清空当前对话历史？此操作不可撤销。'
+        : 'Clear current conversation? This cannot be undone.')) return;
+      try {
+        const r = await fetch('/api/chat/clear', {
+          method: 'POST', credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (d.ok) {
+          toast(lang.value === 'zh' ? '对话已清空' : 'Conversation cleared');
+          loadCurrentSession();
+        } else {
+          toast(lang.value === 'zh'
+            ? '清空失败: ' + (d.error || '')
+            : 'Clear failed: ' + (d.error || ''));
+        }
+      } catch (e) { toast(String(e)); }
+    }
+    /* ── 我的模型 ─────────────────────── */
+    async function loadMyModels() {
+      try {
+        const r = await fetch('/api/my-models', { credentials: 'same-origin' });
+        const d = await r.json();
+        myModels.value = d.profiles ? Object.values(d.profiles) : [];
+        myModelsActive.value = d.active || '';
+      } catch { myModels.value = []; }
+    }
+    async function addMyModel() {
+      const name = myModelForm.name.trim();
+      const model = myModelForm.model.trim();
+      if (!name || !model) {
+        toast(lang.value === 'zh'
+          ? '请填写档案名称与模型 ID' : 'Name and model ID required');
+        return;
+      }
+      myModelBusy.value = true;
+      try {
+        const r = await fetch('/api/my-models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            host: myModelForm.host.trim(),
+            model,
+            api_key: myModelForm.api_key,
+            note: myModelForm.note.trim(),
+            switch: myModelForm.switch,
+          }),
+          credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (d.ok) {
+          toast(lang.value === 'zh' ? '已保存模型档案' : 'Model profile saved');
+          myModelForm.name = ''; myModelForm.host = '';
+          myModelForm.model = ''; myModelForm.api_key = '';
+          myModelForm.note = '';
+          await loadMyModels();
+          if (d.switched && d.message) toast(d.message);
+        } else {
+          toast(d.error || (lang.value === 'zh'
+            ? '保存失败' : 'Save failed'));
+        }
+      } catch (e) { toast('保存失败: ' + e); }
+      myModelBusy.value = false;
+    }
+    async function switchMyModel(name) {
+      try {
+        const r = await fetch(
+          '/api/my-models/' + encodeURIComponent(name) + '/switch', {
+            method: 'POST', credentials: 'same-origin',
+          });
+        const d = await r.json();
+        if (d.ok) {
+          toast(d.message || (lang.value === 'zh' ? '已切换' : 'Switched'));
+          myModelsActive.value = name;
+          const m = myModels.value.find(p => p.name === name);
+          if (m) {
+            if (m.model) settings.model = m.model;
+            if (m.host) settings.host = m.host;
+            if (m.api_key) settings.api_key = m.api_key;
+          }
+          _broadcast('settings-updated', {});
+        } else {
+          toast(d.message || d.error || (lang.value === 'zh'
+            ? '切换失败' : 'Switch failed'));
+        }
+      } catch (e) { toast('切换失败: ' + e); }
+    }
+    async function deleteMyModel(name) {
+      if (!confirm(lang.value === 'zh'
+        ? '删除档案「' + name + '」？' : 'Delete profile "' + name + '"?')) return;
+      try {
+        const r = await fetch(
+          '/api/my-models/' + encodeURIComponent(name), {
+            method: 'DELETE', credentials: 'same-origin',
+          });
+        const d = await r.json();
+        if (d.ok) {
+          toast(lang.value === 'zh' ? '已删除' : 'Deleted');
+          await loadMyModels();
+        } else { toast(d.error || '删除失败'); }
+      } catch (e) { toast('删除失败: ' + e); }
     }
     function toggleSidebar() {
       sidebarOpen.value = !sidebarOpen.value;
@@ -4241,9 +4474,13 @@ createApp({
       editMessage, regenerate, clearMessages, clearAllSessions,
       msgCount, isPinned,
       toggleTool, saveSettings, toggleSidebar,
+      // 会话操作（与 CLI 对齐）
+      undoChat, compactChat, clearChat,
+      // 权限模式（与 CLI /mode 对齐）
+      accessModes,
       copyText, scrollToBottom, onKeydown, onComposerKeydown,
       autoResize, onMessagesScroll, onChatClick, onChatRightClick,
-      renderToolOutput,
+      renderToolOutput, msgHtml, toolOutputHtml,
       // 自定义工具管理
       showCustomTools, ctTab, customTools, ctBusy, ctResult, ctGenDesc,
       ctForm,
@@ -4286,6 +4523,9 @@ createApp({
       netInfo,
       openSettingsModal, openStatsModal, openCronModal, openDreamModal,
       loadNetworkInfo,
+      // 我的模型
+      myModels, myModelsActive, myModelBusy, myModelForm,
+      loadMyModels, addMyModel, switchMyModel, deleteMyModel,
       // 诊断
       showDiagnose, diagnoseLoading, diagnoseData, diagnoseItems,
       diagnoseHealthy, openDiagnose,

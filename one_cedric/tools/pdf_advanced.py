@@ -15,7 +15,7 @@ def _pypdf():
         from pypdf import PdfReader, PdfWriter
         return (PdfReader, PdfWriter), ""
     except ImportError:
-        return None, "ERROR: 需要 pypdf（pip install pypdf）"
+        return (None, None), "ERROR: 需要 pypdf（pip install pypdf）"
 
 
 def pdf_watermark(path: str, out: str = "", text: str = "CONFIDENTIAL",

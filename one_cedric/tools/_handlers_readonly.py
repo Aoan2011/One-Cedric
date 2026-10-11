@@ -492,6 +492,16 @@ def _disk_tree(root: Path, args: dict) -> str:
         top=args.get("top", 30))
 
 
+def _python_check(root: Path, args: dict) -> str:
+    mod = _imp("python_exec")
+    return mod.python_check(args.get("code", ""))
+
+
+def _python_libs(root: Path, args: dict) -> str:
+    mod = _imp("python_exec")
+    return mod.python_libs()
+
+
 # ═══════════════════════════════════════════════════════════════════════ #
 # 注册表
 # ═══════════════════════════════════════════════════════════════════════ #
@@ -547,4 +557,7 @@ HANDLERS = {
     "pip_list":           _pip_list,
     "pip_show":           _pip_show,
     "disk_tree":          _disk_tree,
+    # Python 静态检查
+    "python_check":       _python_check,
+    "python_libs":        _python_libs,
 }

@@ -12,6 +12,22 @@ from ..keys import wait_for_return
 from ..menu import Menu, MenuItem
 
 
+def _fmt_uptime(seconds) -> str:
+    try:
+        seconds = int(seconds)
+    except (TypeError, ValueError):
+        return "—"
+    if seconds < 0:
+        return "—"
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}时{m:02d}分{s:02d}秒"
+    if m:
+        return f"{m}分{s:02d}秒"
+    return f"{s}秒"
+
+
 def run_gateway_screen(console: Console, copilot) -> None:
     from ...gateway import get_gateway, reset_gateway
 
@@ -46,7 +62,7 @@ def run_gateway_screen(console: Console, copilot) -> None:
         if running:
             t.add_row("请求数", str(status.get("requests", 0)))
             t.add_row("错误数", str(status.get("errors", 0)))
-            t.add_row("运行时长", f"{status.get('uptime', 0)}s")
+            t.add_row("运行时长", _fmt_uptime(status.get("uptime", 0)))
         console.print(t)
         console.print()
 

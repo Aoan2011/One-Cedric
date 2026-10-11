@@ -90,7 +90,9 @@ def timezone_convert(time_str: str, from_tz: str, to_tz: str,
         src = ZoneInfo(from_tz)
         dst = ZoneInfo(to_tz)
     except Exception as exc:
-        return f"ERROR: 时区无效: {exc}"
+        return (f"ERROR: 时区无效: {exc}\n"
+                f"（Windows 默认不带 IANA 时区库，"
+                f"请运行 pip install tzdata 后重试）")
     try:
         dt = _dt.datetime.fromisoformat(time_str)
     except ValueError:

@@ -314,6 +314,20 @@ def archive_create_apply(sources, out, compression, root) -> str:
     return f"ERROR: 不支持的格式: {out_p.suffix}"
 
 
+def archive_extract_apply(archive: str, dst: str, root: Path,
+                          overwrite: bool = False) -> str:
+    """解压应用：core 层确认后调用。"""
+    p, err = _resolve_path(root, archive)
+    if err:
+        return err
+    if not p.exists() or not p.is_file():
+        return f"ERROR: 文件不存在: {archive}"
+    dst_p, err = _resolve_path(root, dst or ".")
+    if err:
+        return err
+    return archive_extract(p, dst_p, overwrite=overwrite)
+
+
 def archive_op(root: Path, op: str, archive: str = "",
                dst: str = "", srcs: list | None = None,
                compression: str = "deflate",

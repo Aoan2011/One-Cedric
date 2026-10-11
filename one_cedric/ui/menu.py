@@ -114,10 +114,7 @@ class Menu:
         ))
 
         if has_readchar():
-            hint = (
-                f"  [dim]{t('menu.hint.arrow')}  ·  "
-                f"[accent]Esc / q[/][dim] 退出[/]"
-            )
+            hint = f"  [dim]{t('menu.hint.arrow')}[/]"
         else:
             hint = (
                 f"  [dim]{t('menu.hint.text')}  ·  "
@@ -161,16 +158,7 @@ class Menu:
 
     def _run_fallback(self) -> str | None:
         while True:
-            self._render()
-            self.console.print()
-            for item in self.items:
-                flag = (
-                    "" if item.enabled
-                    else f" [dim]({t('menu.disabled_short')})[/]"
-                )
-                marker = "▸ " if item.key == self.items[self.selected].key else "  "
-                self.console.print(f"  {marker}{item.label}{flag}")
-            self.console.print()
+            self._render_fallback()
             try:
                 s = self.console.input(
                     f"  [dim]{t('menu.select_text')}[/] ").strip().lower()
@@ -184,6 +172,39 @@ class Menu:
             if len(matches) == 1:
                 return matches[0].key
             self.console.print(f"  [dim]{t('menu.invalid')}[/]")
+
+    def _render_fallback(self) -> None:
+        """无 readchar 环境的轻量渲染：标题 + 编号列表（不重复打印面板）。"""
+        self.console.clear()
+        self.console.print()
+
+        title = Text()
+        title.append(" ✦ ", style=f"bold {BRAND}")
+        title.append("ONE CEDRIC", style=f"bold {BRAND}")
+        title.append(f"   /   {self.title}", style="bold white")
+        self.console.print(Align.center(title))
+        if self.subtitle:
+            self.console.print(Align.center(
+                Text(self.subtitle, style="dim")))
+        self.console.print(Rule(style=DIM_C, characters="─"))
+        for i, item in enumerate(self.items):
+            flag = (
+                "" if item.enabled
+                else f" [dim]({t('menu.disabled_short')})[/]"
+            )
+            if not item.enabled:
+                line = Text(f"  {i + 1}. {item.label}{flag}",
+                            style="dim")
+            else:
+                line = Text()
+                line.append(f"  {i + 1}. ", style=f"bold {BRAND}")
+                line.append(item.label, style="bold")
+                line.append(flag)
+                if item.desc:
+                    line.append(f"   {item.desc}", style="dim")
+            self.console.print(line)
+        self.console.print(Rule(style=DIM_C, characters="─"))
+        self.console.print()
 
 
 def select_menu(console: Console, title: str, items: list[MenuItem],

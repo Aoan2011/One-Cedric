@@ -25,6 +25,51 @@ def _git_available(root: Path) -> bool:
     return code == 0
 
 
+# git 子命令的写/只读分类（与 schema 的 git 工具语义一致）
+GIT_WRITE_SUBS = {
+    "add", "commit", "commit-amend", "push", "pull", "merge", "rebase",
+    "reset", "checkout", "switch", "restore", "rm", "mv", "tag",
+    "branch", "stash", "cherry-pick", "revert", "clean", "fetch",
+    "init", "apply", "am", "gc", "remote", "submodule", "worktree",
+    "config", "config-set",
+}
+
+GIT_ALIASES = {
+    "commit-amend": ["commit", "--amend"],
+    "branch-list": ["branch", "-a"],
+    "tag-list": ["tag", "-l"],
+    "remote-list": ["remote", "-v"],
+    "config-set": ["config"],
+}
+
+
+def git_tool(root: Path, sub: str, extra: list) -> tuple:
+    """git 工具统一入口。返回 (预览, 是否写操作, 错误)。"""
+    sub = (sub or "").strip().lower()
+    if not sub:
+        return "", False, ("ERROR: 需要 subcommand，"
+                           "如 status / log / diff / add / commit ...")
+    is_write = sub in GIT_WRITE_SUBS
+    args = GIT_ALIASES.get(sub, [sub])
+    cmd_display = f"git {' '.join(args + list(extra))}".strip()
+    if is_write:
+        return (f"将执行: {cmd_display}\n"
+                f"（写操作，确认后执行）", True, "")
+    return cmd_display, False, ""
+
+
+def _format_git_result(root: Path, sub: str, extra: list,
+                       code: int, out: str, errout: str) -> str:
+    """把 _run_git 的结果格式化为展示文本。"""
+    body = "\n".join(
+        s.rstrip() for s in (out, errout) if s.strip()).strip()
+    cmd = f"git {sub} {' '.join(extra)}".strip()
+    if code != 0:
+        return (f"{cmd} 失败 (rc={code})\n"
+                f"{body or '(无输出)'}")
+    return f"{cmd} ✓ (rc=0)\n{body or '(无输出)'}"
+
+
 def git_make_snapshot(root: Path) -> dict | None:
     """创建快照。
 

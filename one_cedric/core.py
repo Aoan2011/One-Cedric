@@ -87,6 +87,24 @@ def _md_with_cursor(text: str):
     )
 
 
+def _msg_text(content) -> str:
+    """把消息 content（str 或 OpenAI 多模态 list）规整为纯文本。"""
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict):
+                if part.get("type") == "text":
+                    parts.append(str(part.get("text") or ""))
+                elif part.get("type") == "image_url":
+                    parts.append("［图片］")
+        return "\n".join(parts).strip()
+    return str(content or "").strip()
+
+
 def _default_editor() -> str:
     for key in ("EDITOR", "VISUAL"):
         v = os.environ.get(key)
@@ -391,7 +409,9 @@ class OneCedric:
                  think_level: str = DEFAULT_THINK_LEVEL,
                  access_mode: str = DEFAULT_ACCESS_MODE,
                  sandbox_terminal: bool | None = None):
-        self.console = Console(theme=THEME, highlight=False)
+        from .winvt import enable_vt_terminal, ClearConsole
+        enable_vt_terminal()
+        self.console = ClearConsole(theme=THEME, highlight=False)
         self.model = model
         self.host = host
         self.root = root
@@ -615,6 +635,45 @@ class OneCedric:
             think_level=self.think_level,
             access_mode=self.access_mode,
         )
+
+    def _rerender_chat(self) -> None:
+        """清屏后重绘 banner + 对话摘要。
+
+        从 /model、/sessions、/tools 等全屏子界面返回 REPL 时调用，
+        替代“再打印一遍 banner”，避免对话界面被残留帧污染。
+        """
+        try:
+            self.console.clear()
+        except Exception:
+            pass
+        self.banner()
+        shown = 0
+        for msg in self.messages:
+            role = msg.get("role")
+            if role in ("system", "tool"):
+                continue
+            if role == "user":
+                content = _msg_text(msg.get("content"))
+                if not content:
+                    continue
+                first = content.splitlines()[0]
+                self.console.print(
+                    f"  [bold {USER_C}]you[/] › "
+                    f"{escape(first[:220])}")
+                shown += 1
+            elif role == "assistant":
+                text = _msg_text(msg.get("content"))
+                for tc in msg.get("tool_calls") or []:
+                    fn = tc.get("function") or {}
+                    self.console.print(
+                        f"  [dim]⚙ {escape(fn.get('name', '?'))}[/]")
+                if text:
+                    self.console.print(
+                        Markdown(text[:1600], code_theme="monokai"))
+                shown += 1
+        if not shown:
+            self.console.print("  [dim]（新会话）[/]")
+        self.console.print()
 
     @staticmethod
     def _shorten(s: str, limit: int = 48) -> str:
@@ -1017,11 +1076,79 @@ class OneCedric:
             return p, old_text, new_text, False, ""
         return None, "", "", False, f"ERROR: 未知写工具 {name}"
 
-    def _ask_write_action(self, name: str) -> str:
-        if name != "python_exec" and self.access_mode in (
-                "workspaceyolo", "fullaccess"):
-            self.console.print("  [dim]· 当前模式自动确认[/]")
+    def _judge_permission(self, name: str, detail: str = "") -> str:
+        """AI 辅助判定（assisted 模式）：由另一个模型判断放行方式。
+
+        返回 "allow"（自动放行）/ "deny"（拒绝）/ "ask"（需用户确认）。
+        判定模型不可用、超时或输出非法时一律回退 "ask"（安全优先）。
+        """
+        d_cfg = self.config.setdefault("default", {})
+        judge_model = d_cfg.get("assisted_model") or self.model
+        judge_host = d_cfg.get("assisted_host") or self.host
+        judge_key = d_cfg.get("assisted_api_key") or self.api_key
+        try:
+            base = (judge_host or "").rstrip("/")
+            if not base:
+                return "ask"
+            if base.endswith("/v1"):
+                url = f"{base}/chat/completions"
+            elif base.endswith("/chat/completions"):
+                url = base
+            else:
+                url = f"{base}/v1/chat/completions"
+            prompt = (
+                "你是 One Cedric 的安全策略判定模型。"
+                "根据即将执行的工具调用，判断应如何放行。\n"
+                f"工具: {name}\n"
+                f"目标/详情: {detail[:500]}\n"
+                '只输出 JSON：{"verdict":"allow"|"deny"|"ask"}\n'
+                "规则：只读或明确无害的操作→allow；"
+                "明显危险/破坏性/不可逆操作→deny；"
+                "无法确定时→ask（交给用户确认）。"
+            )
+            headers = {"Content-Type": "application/json"}
+            if judge_key:
+                headers["Authorization"] = f"Bearer {judge_key}"
+            resp = requests.post(
+                url,
+                json={
+                    "model": judge_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0,
+                    "max_tokens": 60,
+                    "stream": False,
+                },
+                headers=headers,
+                timeout=(10, 30),
+            )
+            if resp.status_code >= 400:
+                return "ask"
+            body = resp.json()
+            text = ((body.get("choices") or [{}])[0]
+                    .get("message", {}).get("content") or "")
+            m = re.search(r'"verdict"\s*:\s*"(\w+)"', text)
+            verdict = m.group(1) if m else ""
+            if verdict in ("allow", "deny", "ask"):
+                self._audit("permission", "judge",
+                            f"{name} → {verdict}", detail=detail[:200])
+                return verdict
+            return "ask"
+        except Exception:
+            return "ask"
+
+    def _ask_write_action(self, name: str, detail: str = "") -> str:
+        if self.access_mode == "allow":
+            self.console.print("  [dim]· 全部允许模式，自动确认[/]")
             return "y"
+        if self.access_mode == "assisted":
+            verdict = self._judge_permission(name, detail)
+            if verdict == "allow":
+                self.console.print("  [dim]· AI 判定安全，自动放行[/]")
+                return "y"
+            if verdict == "deny":
+                self.console.print("  [warn]· AI 判定危险，已拒绝[/]")
+                return "n"
+            # verdict == "ask" → 继续走下面的用户确认
         if name != "python_exec" and self.auto_yes:
             self.console.print("  [dim]· auto-yes，已自动确认[/]")
             return "y"
@@ -1082,8 +1209,8 @@ class OneCedric:
 
     def _ask_shell_action(self, command: str, base_cmd: str,
                           level: str, extra_warn: str = "") -> str:
-        if self.access_mode == "fullaccess":
-            self.console.print("  [dim]· fullaccess，已自动确认[/]")
+        if self.access_mode in ("allow", "fullaccess"):
+            self.console.print("  [dim]· 全部允许模式，已自动确认[/]")
             return "yes"
         try:
             from .ui.confirm import confirm_5, ConfirmResult
@@ -1158,7 +1285,7 @@ class OneCedric:
         while True:
             self._render_diff(rel, old_text, new_text,
                               is_new=is_new, tool=name)
-            action = self._ask_write_action(name)
+            action = self._ask_write_action(name, rel)
             if action == "n":
                 result = ("用户拒绝执行该写操作，未做任何修改。"
                           "请不要重复相同的编辑。")
@@ -1517,17 +1644,28 @@ class OneCedric:
         need_confirm = False
         extra_warn = ""
 
-        if self.access_mode == "fullaccess":
-            self.console.print("  [dim]· fullaccess，直接执行[/]")
-        elif level == "whitelist":
-            if self.access_mode == "workspacesafe":
+        if self.access_mode in ("allow", "fullaccess"):
+            self.console.print("  [dim]· 全部允许模式，直接执行[/]")
+        elif self.access_mode == "assisted":
+            verdict = self._judge_permission("bash", command)
+            if verdict == "allow":
+                self.console.print("  [dim]· AI 判定安全，直接执行[/]")
+            elif verdict == "deny":
+                msg = "AI 判定该命令危险，已拒绝执行。"
+                self._log_tool("bash", target, msg)
+                self.messages.append({"role": "tool",
+                                       "tool_call_id": tc["id"],
+                                       "content": msg})
+                self._audit("bash", "blocked",
+                            f"{base_cmd}（AI 判定拒绝）", command=command)
+                return
+            else:
                 need_confirm = True
-            elif self.preset_tag == "SAFE":
+        elif level == "whitelist":
+            if self.preset_tag == "SAFE":
                 need_confirm = True
         elif level == "known":
-            if self.access_mode == "workspaceyolo":
-                pass
-            elif base_cmd in self.session_allowed_cmds:
+            if base_cmd in self.session_allowed_cmds:
                 pass
             elif self.auto_yes:
                 pass
@@ -1539,7 +1677,7 @@ class OneCedric:
                     f"ERROR: 命令 '{base_cmd}' 不在白名单中，"
                     f"且未开启任意命令模式。\n"
                     f"如需使用：\n"
-                    f"  1. /mode fullaccess 切到完全访问\n"
+                    f"  1. /mode allow 切到全部允许\n"
                     f"  2. 或在设置中开启 'allow_arbitrary_shell'\n"
                     f"  3. 或临时用 /shell on 开启本会话\n"
                     f"如果只是想读文件/搜索/列目录，"
@@ -1714,7 +1852,8 @@ class OneCedric:
                                    "tool_call_id": tc["id"],
                                    "content": msg})
             return
-        if self.access_mode != "fullaccess" and not self.auto_yes:
+        if self.access_mode not in ("allow", "fullaccess") and \
+                not self.auto_yes:
             if not confirm_yes_no(self.console,
                                    "允许后台执行？",
                                    body=f"命令: {command[:120]}",
@@ -1769,7 +1908,7 @@ class OneCedric:
                                "content": result})
 
     def _handle_git_tool(self, tc: dict) -> None:
-        from .tools.dev import git_tool, _run_git, _format_git_result
+        from .git_snap import git_tool, _run_git, _format_git_result
         args = json.loads(tc["function"]["arguments"] or "{}")
         sub = str(args.get("subcommand", "")).strip()
         extra = args.get("args") or []
@@ -1941,14 +2080,10 @@ class OneCedric:
                                "content": result})
 
     def _handle_archive_tool(self, tc: dict) -> None:
-        try:
-            from .tools.archive import (
-                archive_op_v2, archive_extract_apply,
-                archive_create_apply,
-            )
-        except ImportError:
-            from .tools.dev import archive_op, _archive_do
-            return self._handle_archive_tool_legacy(tc)
+        from .tools.archive import (
+            archive_op, archive_extract_apply,
+            archive_create_apply,
+        )
         args = json.loads(tc["function"]["arguments"] or "{}")
         op = str(args.get("op", "")).strip().lower()
         archive = str(args.get("archive", ""))
@@ -1957,7 +2092,7 @@ class OneCedric:
         compression = str(args.get("compression", "") or "")
         overwrite = bool(args.get("overwrite", False))
         target = f"{op}  {archive}"
-        preview, is_write, err = archive_op_v2(
+        preview, is_write, err = archive_op(
             self.root, op=op, archive=archive, dst=dst,
             srcs=srcs, compression=compression, overwrite=overwrite,
         )
@@ -1994,7 +2129,7 @@ class OneCedric:
                     archive, dst, self.root, overwrite=overwrite)
             elif op == "create":
                 result = archive_create_apply(
-                    archive, srcs, self.root, compression=compression)
+                    srcs, archive, compression, self.root)
             else:
                 result = f"ERROR: 未知写 op: {op}"
         self.tool_cache.clear()
@@ -2007,7 +2142,7 @@ class OneCedric:
                                "content": result})
 
     def _handle_archive_tool_legacy(self, tc: dict) -> None:
-        from .tools.dev import archive_op, _archive_do
+        from .tools.archive import archive_op
         args = json.loads(tc["function"]["arguments"] or "{}")
         op = str(args.get("op", "")).strip().lower()
         archive = str(args.get("archive", ""))
@@ -2031,8 +2166,16 @@ class OneCedric:
                 return
             self._ensure_snapshot()
             with ui.ToolStatus(self.console, "archive", target):
-                result = _archive_do(self.root, op, archive,
-                                      dst=dst, srcs=srcs)
+                from .tools.archive import (
+                    archive_extract_apply, archive_create_apply)
+                if op == "extract":
+                    result = archive_extract_apply(
+                        archive, dst, self.root)
+                elif op == "create":
+                    result = archive_create_apply(
+                        srcs, archive, "", self.root)
+                else:
+                    result = f"ERROR: 未知写 op: {op}"
         else:
             result = preview
         self._log_tool("archive", target, result)
@@ -2332,10 +2475,20 @@ class OneCedric:
     # ================================================================== #
 
     def _computer_confirm(self, prompt: str, extra: bool = False) -> bool:
-        if self.access_mode == "fullaccess":
+        if self.access_mode in ("allow", "fullaccess"):
             self.console.print(
-                f"  [dim]· fullaccess，自动确认：{prompt}[/]")
+                f"  [dim]· 全部允许模式，自动确认：{prompt}[/]")
             return True
+        if self.access_mode == "assisted":
+            verdict = self._judge_permission("computer", prompt)
+            if verdict == "allow":
+                self.console.print(
+                    f"  [dim]· AI 判定安全：{prompt}[/]")
+                return True
+            if verdict == "deny":
+                self.console.print(
+                    f"  [warn]· AI 判定危险，已拒绝：{prompt}[/]")
+                return False
         if extra:
             self.console.print(
                 f"  [bold {WARN_C}]⚠ 高危动作[/] {prompt}")
@@ -3207,7 +3360,7 @@ class OneCedric:
     # ================================================================== #
 
     def _handle_qrcode_advanced(self, tc: dict) -> None:
-        from .tools import (
+        from .tools.qrcode_advanced import (
             qrcode_styled, qrcode_styled_apply,
             qrcode_batch, qrcode_batch_apply,
             qrcode_wifi, qrcode_vcard, qrcode_email,
@@ -3487,7 +3640,7 @@ class OneCedric:
             border_style=WARN_C, box=box.ROUNDED,
             padding=(0, 1), expand=False,
         ))
-        if self._ask_write_action("python_exec") != "y":
+        if self._ask_write_action("python_exec", work_dir) != "y":
             result = "用户拒绝执行 Python 代码。"
             self.console.print("  [warn]⊘ 已取消[/]")
             self.messages.append({"role": "tool",
@@ -4144,7 +4297,7 @@ class OneCedric:
     # ================================================================== #
 
     def _handle_file_attrs_tool(self, tc: dict) -> None:
-        from .tools import (
+        from .tools.fileattrs import (
             file_attrs_preview, file_attrs_apply,
             file_perms_preview, file_perms_apply,
             file_owner_preview, file_owner_apply,
@@ -4152,7 +4305,16 @@ class OneCedric:
         args = json.loads(tc["function"]["arguments"] or "{}")
         op = str(args.get("op", "")).lower()
         path = args.get("path", "")
-        if op == "attrs":
+        if op == "get":
+            from .tools.fileattrs import file_attrs_get
+            result = file_attrs_get(path=path, root=self.root)
+        elif op == "bulk":
+            from .tools.fileattrs import file_attrs_bulk
+            result = file_attrs_bulk(
+                path=path, root=self.root,
+                filter=args.get("filter", ""),
+                max_items=args.get("max_items", 100))
+        elif op == "attrs":
             preview, _, err = file_attrs_preview(
                 path=path, action=args.get("action", ""),
                 attrs=args.get("attrs") or [], root=self.root,
@@ -4570,6 +4732,7 @@ class OneCedric:
             try:
                 from .ui.screens.tools import run_tools_screen
                 run_tools_screen(self.console, self)
+                self._rerender_chat()
             except Exception as exc:
                 self.console.print(
                     f"[err]✗ 工具界面失败: {escape(str(exc))}[/]")
@@ -4962,11 +5125,8 @@ class OneCedric:
             self._handle_email_write_tool(tc)
             return
         if name == "file_attrs":
-            op = str(args.get("op", "")).lower()
-            if op not in ("get", "bulk"):
-                self._bump_tool("file_attrs")
-                self._handle_file_attrs_tool(tc)
-                return
+            self._handle_file_attrs_tool(tc)
+            return
         if name == "python_exec":
             self._bump_tool("python_exec")
             self._handle_python_exec(tc)
@@ -6726,6 +6886,10 @@ class OneCedric:
         answer = ""
         try:
             answer = self.agent_turn(prompt)
+        except SystemExit as exc:
+            # SystemExit 是 BaseException：_stream_chat 在 API 错误时抛它，
+            # 不捕获会让 WebUI 流在工具调用后得到空白回答。
+            answer = f"ERROR: {exc}"
         except Exception as exc:
             answer = f"ERROR: {exc}"
         finally:
@@ -6769,6 +6933,8 @@ class OneCedric:
                 r = self.ask_no_ui(prompt, auto_approve=auto_approve)
                 result_box["answer"] = r.get("answer", "")
                 result_box["duration"] = round(time.time() - t0, 2)
+            except SystemExit as exc:
+                result_box["error"] = str(exc)
             except Exception as exc:
                 result_box["error"] = str(exc)
             finally:
@@ -7115,6 +7281,7 @@ class OneCedric:
                 try:
                     from .ui.screens.sessions import run_sessions_screen
                     run_sessions_screen(self.console, self)
+                    self._rerender_chat()
                 except Exception as exc:
                     self.console.print(
                         f"[err]✗ 会话界面失败: {escape(str(exc))}[/]")
@@ -7152,7 +7319,7 @@ class OneCedric:
                 try:
                     from .ui.screens.models import run_models_screen
                     run_models_screen(self.console, self)
-                    self.banner()
+                    self._rerender_chat()
                 except Exception as exc:
                     self.console.print(
                         f"[err]✗ 模型界面失败: {escape(str(exc))}[/]")

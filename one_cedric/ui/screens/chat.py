@@ -23,12 +23,13 @@ def configure_new_session(console, copilot) -> bool:
     ]
     mode = Menu(
         console, "New session · Access mode", modes,
-        subtitle="Choose the workspace access policy",
+        subtitle="Choose the access policy",
     ).run()
     if mode is None:
         return False
 
-    if mode in ("workspaceyolo", "fullaccess"):
+    # allow → 全部允许；ask / assisted → 询问确认方式
+    if mode == "allow":
         confirm = "auto"
     else:
         confirm = Menu(
