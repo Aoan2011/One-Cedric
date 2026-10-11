@@ -561,6 +561,10 @@ class OneCedric:
             [t.get("id", 0) for t in self.todos] + [0]) + 1
         self.bg_jobs: dict = {}
 
+        # 底部常驻输入框（鼠标 / 行编辑 / 回合中途排队与插队）。
+        # 由 CLI 的 REPL 在 TTY 下创建并挂到这里；网关等非交互场景保持 None。
+        self.repl_ui = None
+
     # ================================================================== #
     # 通用
     # ================================================================== #
@@ -6262,6 +6266,13 @@ class OneCedric:
                         if turn_first_token_at is None:
                             turn_first_token_at = time.time()
 
+                        # 回合中途的输入：不阻塞地收键；若用户选择「插队」，
+                        # 立刻停下当前流式输出，把消息插到模型下一轮之前。
+                        if self.repl_ui is not None:
+                            self.repl_ui.poll_during_turn()
+                            if self.repl_ui.interject:
+                                break
+
                         if kind == "reasoning":
                             reasoning_buf.append(data)
                             if self.show_reasoning and phase == "reasoning":
@@ -6339,6 +6350,19 @@ class OneCedric:
                                 ))
                             else:
                                 live.update(Text(""))
+
+                if self.repl_ui is not None and self.repl_ui.interject:
+                    text = self.repl_ui.take_interject()
+                    partial = "".join(content_buf).strip()
+                    if partial:
+                        # 保留已经输出的部分回答，避免上下文断裂
+                        self.messages.append(
+                            {"role": "assistant", "content": partial})
+                    self.messages.append({"role": "user", "content": text})
+                    api_messages = list(self.messages)
+                    self.console.print(
+                        f"\n[accent]⤵ 已插队，模型将立刻处理：[/]{text}\n")
+                    continue
 
                 if (self.show_reasoning and reasoning_buf
                         and not reasoning_frozen and phase == "reasoning"):
@@ -7205,11 +7229,25 @@ class OneCedric:
     # REPL 主循环
     # ================================================================== #
 
+    def _init_repl_ui(self) -> None:
+        """TTY 下启用底部常驻输入框（鼠标 + 行编辑 + 中途排队/插队）。"""
+        try:
+            from .ui.live_input import ReplInputSession
+            session = ReplInputSession(self.console)
+            if not session.enabled:
+                return
+            session.model = self.model
+            session.start()
+            self.repl_ui = session
+        except Exception:
+            self.repl_ui = None
+
     def run(self, in_menu: bool = False) -> None:
         from .ui.input_box import ask_with_box
         from .pricing import compute_cost
 
         self.banner()
+        self._init_repl_ui()
         while True:
             ctx_used = _estimate_tokens(self.messages)
             ctx_max = getattr(self, "context_limit", 128000)
@@ -7223,15 +7261,22 @@ class OneCedric:
             dog_state = ("confirm" if self._pending_confirm
                          else "idle")
             try:
-                line = ask_with_box(
-                    self.console,
-                    state=dog_state, model=self.model,
-                    turn=turns, steps=steps,
-                    ctx_used=ctx_used, ctx_max=ctx_max,
-                    cost=cost,
-                    cached_tok=cached_tok,
-                    total_in=total_in, total_out=total_out,
-                ).strip()
+                if self.repl_ui is not None:
+                    line = self.repl_ui.read_line()
+                    if line is None:
+                        self.console.print("\n[dim]再见！[/]")
+                        return
+                    line = line.strip()
+                else:
+                    line = ask_with_box(
+                        self.console,
+                        state=dog_state, model=self.model,
+                        turn=turns, steps=steps,
+                        ctx_used=ctx_used, ctx_max=ctx_max,
+                        cost=cost,
+                        cached_tok=cached_tok,
+                        total_in=total_in, total_out=total_out,
+                    ).strip()
             except (EOFError, KeyboardInterrupt):
                 self.console.print("\n[dim]再见！[/]")
                 return
@@ -7996,9 +8041,18 @@ class OneCedric:
                     line = expanded
 
             self.console.print()
+            if self.repl_ui is not None:
+                self.repl_ui.begin_turn()
             try:
                 self.agent_turn(line)
                 self._maybe_auto_compact()
+                # 回合中途选择「排队」的消息，在回合结束后立刻接着处理
+                if self.repl_ui is not None:
+                    for queued in self.repl_ui.take_queued():
+                        self.console.print(
+                            f"\n[accent]▶ 处理排队消息：[/]{queued}")
+                        self.agent_turn(queued)
+                        self._maybe_auto_compact()
             except SystemExit as exc:
                 self.console.print(
                     f"[err]{escape(str(exc))}[/]")
@@ -8008,6 +8062,9 @@ class OneCedric:
                 self.console.print(
                     "\n[dim](已中断本轮对话)[/]")
                 continue
+            finally:
+                if self.repl_ui is not None:
+                    self.repl_ui.end_turn()
             self.console.print()
 
     # ================================================================== #

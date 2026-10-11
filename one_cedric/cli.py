@@ -22,8 +22,26 @@ from .storage import (
 from .tools.shell import merge_bash_prefixes
 
 
+def _ensure_utf8_stdio() -> None:
+    """把标准输出/错误切到 UTF-8，避免中文 Windows（GBK 代码页）下
+    框线字符、破折号、emoji 触发 UnicodeEncodeError 或变成乱码。
+
+    真正连在控制台上时 Python 已经是 UTF-8，这里主要覆盖重定向到文件 /
+    管道的场景；``errors="replace"`` 保证无论如何都不会因为一个字符崩掉。
+    """
+    import sys
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            enc = (getattr(stream, "encoding", "") or "").lower()
+            if enc.replace("-", "").replace("_", "") != "utf8":
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main() -> None:
     from .winvt import enable_vt_terminal
+    _ensure_utf8_stdio()
     enable_vt_terminal()
 
     parser = argparse.ArgumentParser(
