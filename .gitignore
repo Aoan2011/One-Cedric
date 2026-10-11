@@ -216,3 +216,34 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------------------------------------------------------------------------
+# One Cedric project-specific ignores
+# ---------------------------------------------------------------------------
+
+# Vendored JS dependencies (the test scripts themselves stay tracked)
+_jsdom_test/node_modules/
+node_modules/
+
+# Locally vendored Python packages installed with `pip install --target .pylibs`
+.pylibs/
+
+# Runtime scratch / generated artifacts
+.cedric_artifacts/
+.cedric_uploads/
+*.bundle
+
+# Test / lint caches and reports
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+junit*.xml
+report*.json
+_acl_report/
+acl-report-*.jsonl
+acl-backup-*.json
+acl-backup-*.ps1
+
+# Local agent-tooling state (machine specific)
+.refact/

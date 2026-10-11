@@ -1,0 +1,53 @@
+# Normalize line endings across platforms.
+# Source files are stored with LF in the repository; binaries are never touched.
+*.py            text eol=lf
+*.pyi           text eol=lf
+*.js            text eol=lf
+*.mjs           text eol=lf
+*.cjs           text eol=lf
+*.ts            text eol=lf
+*.css           text eol=lf
+*.html          text eol=lf
+*.json          text eol=lf
+*.toml          text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.md            text eol=lf
+*.txt           text eol=lf
+*.sh            text eol=lf
+*.ps1           text eol=lf
+*.cfg           text eol=lf
+*.ini           text eol=lf
+
+# Windows-only batch/command files keep CRLF.
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# Binary assets — never diff, never convert.
+*.ico           binary
+*.png           binary
+*.PNG           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.webp          binary
+*.pdf           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.otf           binary
+*.mp4           binary
+*.wav           binary
+*.mp3           binary
+*.zip           binary
+*.7z            binary
+*.gz            binary
+*.pyc           binary
+*.so            binary
+*.dll           binary
+*.exe           binary
+
+# Keep generated lockfiles out of language statistics.
+_jsdom_test/package-lock.json linguist-generated=true
+one_cedric/gateway/webui/*.min.js linguist-generated=true
+one_cedric/gateway/webui/vue.min.js linguist-vendored=true
