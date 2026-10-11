@@ -1,43 +1,65 @@
+# One Cedric — runtime dependencies
+#
+# Install with:      pip install -r requirements.txt
+# Everything else:   pip install -r requirements-optional.txt
+# Development tools: pip install -r requirements-dev.txt
+# Or install every extra at once:  pip install -e ".[all]"
+#
+# Versions below are the ones the project is developed and tested against.
+# Missing optional packages are not fatal: the in-app Diagnose panel lists
+# exactly what is missing and the pip command that fixes it.
+
+# ── Core runtime (required) ────────────────────────────────────────────────
 requests==2.34.2
-rich
+rich==15.0.0
 readchar==4.2.2
+alive-progress==3.3.0
+
+# ── Gateway / WebUI (required for `--gateway`) ─────────────────────────────
 fastapi==0.142.2
 uvicorn==0.52.4
-pyyaml
-pypdf==6.19.0
+
+# ── Configuration & validation ─────────────────────────────────────────────
+PyYAML==6.0.2
 jsonschema==4.26.0
-psutil==7.2.2
-bs4==4.15.0
+
+# ── Web fetching & extraction ──────────────────────────────────────────────
+beautifulsoup4==4.15.0
 lxml==6.1.3
 trafilatura==2.2.0
-readability==0.9
-docx==1.2.0
-pptx==1.0.2
+readability-lxml==0.9
+
+# ── Office documents & PDF ─────────────────────────────────────────────────
+# NOTE: the distribution is `python-docx` (import name `docx`).
+# The unrelated legacy PyPI distribution `docx` must NEVER be installed
+# alongside it — it ships a conflicting `docx` module.
+python-docx==1.2.0
+# NOTE: the distribution is `python-pptx` (import name `pptx`).
+python-pptx==1.0.2
 openpyxl==3.1.5
-msoffcrypto
+pypdf==6.19.0
+msoffcrypto-tool>=5.0
+
+# ── Imaging, data & maths ──────────────────────────────────────────────────
 pillow==12.3.0
-qrcode
-opencv-python==4.10.0
+qrcode==8.2
 numpy==2.3.5
 pandas==3.0.3
 matplotlib==3.11.2
-sympy
-jieba
-opencc
+# cv2 is provided by opencv-contrib-python; installing `opencv-python` too
+# would drop a second, conflicting cv2 into site-packages.
+opencv-contrib-python==4.10.0.84
+
+# ── Crypto ─────────────────────────────────────────────────────────────────
 cryptography==50.0.1
-pyzbar
-pytesseract==0.3.13
-pyautogui==0.9.54
+
+# ── System metrics ─────────────────────────────────────────────────────────
+psutil==7.2.2
+
+# ── Desktop automation (computer-use tools) ────────────────────────────────
+PyAutoGUI==0.9.54
 pyperclip==1.11.0
-pygetwindow==0.0.9
-psycopg2
-pymysql
-pymongo
-py7zr
-rarfile
-zstandard
-lz4
-brotli
-ruff
-mypy
-black==26.5.1
+PyGetWindow==0.0.9
+
+# ── OCR (also needs the `tesseract` binary on PATH) ────────────────────────
+pytesseract==0.3.13

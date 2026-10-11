@@ -1,0 +1,23 @@
+# One Cedric — development dependencies
+#
+# Install with:  pip install -r requirements-dev.txt
+#
+# These are build/lint/test tools and must NOT be shipped as runtime
+# dependencies (they were previously mixed into requirements.txt).
+
+# Testing
+pytest>=8.0
+pytest-cov>=5.0
+
+# Linting & formatting
+ruff>=0.6
+black==26.5.1
+
+# Static typing
+mypy>=1.11
+types-requests
+types-PyYAML
+
+# Packaging
+build>=1.2
+twine>=5.0

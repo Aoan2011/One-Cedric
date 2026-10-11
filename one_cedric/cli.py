@@ -11,6 +11,7 @@ from .config import (
     ACCESS_MODES, ACCESS_MODE_ALIASES, DEFAULT_ACCESS_MODE,
     BETA_VERSION, PROJECT_NAME, PROJECT_AUTHOR, PROJECT_REPO,
     PROJECT_LICENSE, PROJECT_LICENSE_NOTICE,
+    PROJECT_VERSION, RELEASE_NAME,
 )
 from .core import OneCedric
 from .storage import (
@@ -86,7 +87,7 @@ def main() -> None:
         return
 
     if args.version:
-        print(f"{PROJECT_NAME} {BETA_VERSION}")
+        print(f"{PROJECT_NAME} {PROJECT_VERSION} ({RELEASE_NAME})")
         print(f"An AI agent for beginners — built by {PROJECT_AUTHOR}.")
         print(f"Repository: {PROJECT_REPO}")
         print(f"License: {PROJECT_LICENSE}")

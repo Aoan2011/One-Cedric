@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "one-cedric"
-version = "0.17.0"
+# Single source of truth: one_cedric/__init__.py::__version__
+dynamic = ["version"]
 description = "One Cedric —— An AI agent for beginners（由 Aoan2011 主持开发，CLI + WebUI）"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -35,6 +36,16 @@ schema    = ["jsonschema>=4.0"]
 metrics   = ["psutil>=5.9"]
 search    = ["beautifulsoup4>=4.12", "lxml>=5.0"]
 extract   = ["trafilatura>=1.8", "readability-lxml>=0.8.1"]
+db        = ["psycopg2-binary>=2.9", "PyMySQL>=1.1", "pymongo>=4.6"]
+archive   = ["py7zr>=0.20", "rarfile>=4.1", "zstandard>=0.22", "lz4>=4.3", "brotli>=1.1"]
+barcode   = ["pyzbar>=0.1.9"]
+nlp       = ["jieba>=0.42", "OpenCC>=1.1"]
+math      = ["sympy>=1.12"]
+ocr       = ["pytesseract>=0.3.13", "Pillow>=10.0"]
+data      = ["numpy>=1.26", "pandas>=2.0", "matplotlib>=3.8"]
+dev       = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6", "black>=24.0",
+             "mypy>=1.11", "types-requests", "types-PyYAML",
+             "build>=1.2", "twine>=5.0"]
 computer  = ["pyautogui>=0.9.54", "Pillow>=10.0",
              "pygetwindow>=0.0.9", "pyperclip>=1.8"]
 computer-full = ["pyautogui>=0.9.54", "Pillow>=10.0",
@@ -75,10 +86,38 @@ all = [
     "msoffcrypto-tool>=5.0",
     "fastapi>=0.110",
     "uvicorn>=0.29",
+    "Pillow>=10.0",
+    "qrcode>=7.4",
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "matplotlib>=3.8",
+    "opencv-contrib-python>=4.8",
+    "cryptography>=42.0",
+    "pyautogui>=0.9.54",
+    "pyperclip>=1.8",
+    "pygetwindow>=0.0.9",
+    "pytesseract>=0.3.10",
+    "psycopg2-binary>=2.9",
+    "PyMySQL>=1.1",
+    "pymongo>=4.6",
+    "py7zr>=0.20",
+    "rarfile>=4.1",
+    "zstandard>=0.22",
+    "lz4>=4.3",
+    "brotli>=1.1",
+    "jieba>=0.42",
+    "OpenCC>=1.1",
+    "sympy>=1.12",
 ]
 
 [project.scripts]
 one-cedric = "one_cedric:main"
+
+# ---------------------------------------------------------------------------
+# Packaging metadata
+# ---------------------------------------------------------------------------
+[tool.setuptools.dynamic]
+version = { attr = "one_cedric._version.__version__" }
 
 [tool.setuptools]
 packages = [
@@ -96,3 +135,78 @@ packages = [
 
 [tool.setuptools.package-data]
 "one_cedric.gateway.webui" = ["*.html", "*.js", "*.css"]
+
+# ---------------------------------------------------------------------------
+# Tooling
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+filterwarnings = [
+    "ignore::DeprecationWarning:websockets.*",
+]
+markers = [
+    "smoke: fast, dependency-free import and wiring checks",
+    "tools: exercises the tool registry, schemas and dispatcher",
+    "e2e: really invokes local tools against temporary files (slower)",
+    "slow: tests that take more than a couple of seconds",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [
+    ".pylibs",
+    "_jsdom_test",
+    "build",
+    "dist",
+    "promo",
+    "one_cedric/gateway/webui",
+]
+
+[tool.ruff.lint]
+# The existing code base predates any linting; start with the high-signal
+# rules that catch real bugs and keep the style rules advisory for now.
+select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",   # long lines: line-length is enforced by the formatter, not lint
+    "B008",   # function call in default argument (used by FastAPI deps)
+    "SIM105", # contextlib.suppress: verbose for the many tiny try/except blocks
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+"one_cedric/tools/schema.py" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+extend-exclude = '''
+/(\.pylibs|_jsdom_test|build|dist|promo|webui)/
+'''
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+follow_untyped_imports = true
+warn_unused_ignores = false
+warn_redundant_casts = true
+no_implicit_optional = true
+exclude = '''(\.pylibs|_jsdom_test|build|dist|promo)/'''
+
+[tool.coverage.run]
+source = ["one_cedric"]
+omit = ["one_cedric/gateway/webui/*", "*/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

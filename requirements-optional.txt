@@ -1,0 +1,31 @@
+# One Cedric — optional dependencies
+#
+# These power specific tool packs. They are intentionally kept out of
+# requirements.txt because they either need system libraries / native
+# build tools, or are only used by a handful of tools.
+#
+# Install with:  pip install -r requirements-optional.txt
+# Each group is independent — install only the lines you need.
+
+# ── Databases ──────────────────────────────────────────────────────────────
+# pre-built wheels; no compiler needed
+psycopg2-binary>=2.9
+PyMySQL>=1.1
+pymongo>=4.6
+
+# ── Archives & compression ─────────────────────────────────────────────────
+py7zr>=0.20
+rarfile>=4.1          # also needs the `unrar`/`7z` binary on PATH
+zstandard>=0.22
+lz4>=4.3
+brotli>=1.1
+
+# ── Barcodes / QR decoding ─────────────────────────────────────────────────
+pyzbar>=0.1.9         # needs libzbar (on Windows the DLL ships with the wheel)
+
+# ── Chinese text processing ────────────────────────────────────────────────
+jieba>=0.42
+OpenCC>=1.1           # import name: opencc
+
+# ── Symbolic maths ─────────────────────────────────────────────────────────
+sympy>=1.12

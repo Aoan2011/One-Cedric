@@ -5,7 +5,19 @@ import os
 
 from rich.theme import Theme
 
-BETA_VERSION = "Public Beta I"
+from ._version import __release_name__, __version__
+
+#: PEP 440 version, re-exported from the single source of truth.
+PROJECT_VERSION = __version__
+
+#: Human-facing release name, e.g. "Public Beta I".
+RELEASE_NAME = __release_name__
+
+#: Legacy alias kept for the many call sites that render the release name.
+BETA_VERSION = RELEASE_NAME
+
+#: "0.17.0 · Public Beta I" — for banners that want both.
+VERSION_DISPLAY = f"{PROJECT_VERSION} · {RELEASE_NAME}"
 
 # ── 项目元信息（自我描述 / 关于 / --license 共用） ──────────────
 PROJECT_NAME = "One Cedric"
