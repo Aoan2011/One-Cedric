@@ -1,7 +1,7 @@
 requests==2.34.2
 rich
 readchar==4.2.2
-fastapi==0.142.2
+fastapi==0.143.0
 uvicorn==0.54.0
 pyyaml
 pypdf==6.19.0
