@@ -40,4 +40,4 @@ lz4
 brotli
 ruff
 mypy
-black==26.10.0
+black==26.10.1
