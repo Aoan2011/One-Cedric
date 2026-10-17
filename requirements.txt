@@ -4,7 +4,7 @@ readchar==4.2.2
 fastapi==0.142.2
 uvicorn==0.54.0
 pyyaml
-pypdf==6.19.0
+pypdf==6.20.1
 jsonschema==4.26.0
 psutil==7.2.2
 bs4==4.15.0
