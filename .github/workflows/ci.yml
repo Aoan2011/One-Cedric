@@ -86,17 +86,18 @@ jobs:
       - name: Assert the version comes from the package
         run: |
           python - <<'PY'
-          import pathlib, subprocess, sys, tarfile, tomllib, zipfile
+          import email.parser, pathlib, subprocess, sys, zipfile
           expected = subprocess.run(
               [sys.executable, "-c",
                "import one_cedric._version as v; print(v.__version__)"],
               capture_output=True, text=True, check=True).stdout.strip()
           wheels = list(pathlib.Path("dist").glob("*.whl"))
           assert wheels, "no wheel produced"
-          meta = tomllib.loads(
-              zipfile.ZipFile(wheels[0]).read(
-                  [n for n in zipfile.ZipFile(wheels[0]).namelist()
-                   if n.endswith("METADATA")][0]).decode())
-          assert meta["version"] == expected, (meta["version"], expected)
+          whl = zipfile.ZipFile(wheels[0])
+          meta_name = [n for n in whl.namelist() if n.endswith("METADATA")][0]
+          # Wheel METADATA is RFC-822 header text, not TOML - tomllib only
+          # ever "worked" here because the build step used to fail first.
+          meta = email.parser.Parser().parsestr(whl.read(meta_name).decode())
+          assert meta["Version"] == expected, (meta["Version"], expected)
           print("version ok:", expected)
           PY
