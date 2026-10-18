@@ -3,10 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-try:
-    import tomllib
-except ImportError:
-    tomllib = None
+from .._toml import tomllib
 
 from ..config import SESSION_DIRNAME
 

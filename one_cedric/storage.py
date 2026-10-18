@@ -9,10 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-try:
-    import tomllib
-except ImportError:
-    tomllib = None
+from ._toml import tomllib
 
 from .config import (
     CONFIG_FILENAME,

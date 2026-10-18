@@ -74,8 +74,9 @@ def _load_config_file() -> dict:
     p = _email_config_path()
     if not p.exists():
         return {}
+    from .._toml import tomllib
+
     try:
-        import tomllib
         return tomllib.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return {}

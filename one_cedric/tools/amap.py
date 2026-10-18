@@ -40,7 +40,7 @@ def _load_amap_key() -> str:
         return key
 
     try:
-        import tomllib
+        from .._toml import tomllib
 
         from ..config import AMAP_CONFIG_FILENAME  # noqa: F401
         from ..storage import default_config_path, project_config_path

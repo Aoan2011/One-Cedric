@@ -40,10 +40,7 @@ def _fmt_value(v):
 def load() -> dict:
     """返回 {"active": str, "profiles": {name: profile}}。"""
     empty = {"active": "", "profiles": {}}
-    try:
-        import tomllib
-    except ImportError:
-        return empty
+    from ._toml import tomllib
     if not MY_MODELS_PATH.exists():
         return empty
     try:

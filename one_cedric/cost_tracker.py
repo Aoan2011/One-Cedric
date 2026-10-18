@@ -180,8 +180,9 @@ def load_budget() -> dict:
     p = BUDGET_PATH
     if not p.exists():
         return {"daily": 0.0, "weekly": 0.0, "monthly": 0.0}
+    from ._toml import tomllib
+
     try:
-        import tomllib
         raw = tomllib.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return {"daily": 0.0, "weekly": 0.0, "monthly": 0.0}

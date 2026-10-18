@@ -22,10 +22,7 @@ OVERRIDE_PATH = Path.home() / ".one-cedric" / "model_overrides.toml"
 
 
 def _load_overrides() -> dict:
-    try:
-        import tomllib
-    except ImportError:
-        return {}
+    from ..._toml import tomllib
     if not OVERRIDE_PATH.exists():
         return {}
     try:

@@ -8,10 +8,7 @@ import secrets
 import time
 from pathlib import Path
 
-try:
-    import tomllib
-except ImportError:
-    tomllib = None
+from ._toml import tomllib
 
 
 MEMORY_PATH = Path.home() / ".one-cedric" / "memory.toml"

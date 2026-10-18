@@ -13,10 +13,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-try:
-    import tomllib
-except ImportError:
-    tomllib = None
+from ._toml import tomllib
 
 
 PRICING_PATH = Path.home() / ".one-cedric" / "pricing.toml"

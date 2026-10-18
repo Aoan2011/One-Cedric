@@ -12,10 +12,7 @@ import threading
 import time
 from pathlib import Path
 
-try:
-    import tomllib
-except ImportError:
-    tomllib = None
+from ._toml import tomllib
 
 
 CRON_DIR = Path.home() / ".one-cedric"
