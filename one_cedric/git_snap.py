@@ -25,6 +25,47 @@ def _git_available(root: Path) -> bool:
     return code == 0
 
 
+def git_brief_status(root: Path, run=None) -> dict | None:
+    """一次 ``git status --porcelain --branch`` 拿到底栏摘要。
+
+    返回 ``{"branch", "ahead", "behind", "changed", "detached"}``；
+    不是 git 仓库（或 git 不可用）时返回 None。
+    """
+    runner = run or _run_git
+    code, out, _ = runner(
+        root, ["status", "--porcelain=v1", "--branch"], timeout=5)
+    if code != 0:
+        return None
+
+    info = {"branch": "", "ahead": 0, "behind": 0,
+            "changed": 0, "detached": False}
+    lines = (out or "").splitlines()
+    info["changed"] = len([line for line in lines[1:] if line.strip()])
+    if not lines or not lines[0].startswith("## "):
+        return info
+
+    head = lines[0][3:].strip()
+    if head.startswith("No commits yet on "):
+        info["branch"] = head[len("No commits yet on "):].strip()
+        return info
+    if head.startswith("HEAD (no branch)"):
+        info["detached"] = True
+        info["branch"] = "detached"
+        return info
+
+    info["branch"] = head.split("...")[0].split(" ")[0]
+    if "[" in head and "]" in head:
+        for token in head[head.index("[") + 1:head.index("]")].split(","):
+            token = token.strip()
+            for prefix, key in (("ahead ", "ahead"), ("behind ", "behind")):
+                if token.startswith(prefix):
+                    try:
+                        info[key] = int(token[len(prefix):])
+                    except ValueError:
+                        pass
+    return info
+
+
 # git 子命令的写/只读分类（与 schema 的 git 工具语义一致）
 GIT_WRITE_SUBS = {
     "add", "commit", "commit-amend", "push", "pull", "merge", "rebase",

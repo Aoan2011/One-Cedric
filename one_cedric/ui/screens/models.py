@@ -89,7 +89,7 @@ FIELDS = [
 ]
 
 
-THINK_LEVELS = ["minimal", "low", "medium", "max", "xhigh", "ultra"]
+THINK_LEVELS = ["minimal", "low", "medium", "high", "max", "xhigh", "ultra"]
 
 
 def run_models_screen(console, copilot) -> None:
@@ -506,7 +506,7 @@ def _edit_model_params(console, copilot, model: str):
     overrides = _load_overrides()
     params = dict(overrides.get(model, {}))
     selected = 0
-    field_count = len(FIELDS) + 1
+    field_count = len(FIELDS) + 2
 
     while True:
         console.clear()
@@ -538,6 +538,16 @@ def _edit_model_params(console, copilot, model: str):
             tl,
             copilot.think_level or "medium",
             "思考模式",
+        )
+        d_cfg = (getattr(copilot, "config", None) or {}).get("default", {})
+        rm_default = str(d_cfg.get("reasoning_model", "auto") or "auto")
+        rm = str(params.get("reasoning_model", rm_default))
+        tbl.add_row(
+            f"[{BRAND}]▸[/]" if selected == len(FIELDS) + 1 else "",
+            "reasoning_model",
+            rm,
+            rm_default,
+            "是否推理模型：auto/on/off（on 时真正发送推理参数）",
         )
         console.print(tbl)
         console.print(selection_progress(selected, field_count))
@@ -590,7 +600,8 @@ def _edit_model_params(console, copilot, model: str):
             continue
 
         if ans not in ("edit", "enter", "select"):
-            field_names = [field[0] for field in FIELDS] + ["think_level"]
+            field_names = ([field[0] for field in FIELDS]
+                           + ["think_level", "reasoning_model"])
             if ans not in field_names:
                 console.print("  [err]✗ 未知字段[/]")
                 continue
@@ -628,4 +639,26 @@ def _edit_model_params(console, copilot, model: str):
                 params.pop("think_level", None)
             else:
                 console.print("  [err]✗ 无效档位[/]")
+            continue
+
+        if selected == len(FIELDS) + 1:
+            console.print(
+                "  [dim]可选：[/][accent]auto[/][dim]（按模型名判断）· "
+                "[/][accent]on[/][dim]（是推理模型）· "
+                "[/][accent]off[/][dim]（不是）[/]")
+            try:
+                raw = console.input(
+                    "  [dim]reasoning_model =[/] ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                continue
+            if raw in ("auto", "on", "off"):
+                params["reasoning_model"] = raw
+            elif raw in ("true", "1", "yes"):
+                params["reasoning_model"] = "on"
+            elif raw in ("false", "0", "no"):
+                params["reasoning_model"] = "off"
+            elif not raw:
+                params.pop("reasoning_model", None)
+            else:
+                console.print("  [err]✗ 无效取值[/]")
             continue

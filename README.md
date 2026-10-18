@@ -194,6 +194,7 @@ model = "deepseek-flash"         # model name
 host = "http://localhost:11434"  # Ollama by default; or https://api.deepseek.com
 api_key = ""                     # leave empty for Ollama
 think_level = "medium"           # minimal | low | medium | high | xhigh | max | ultra
+reasoning_model = "auto"         # auto | on | off — pass reasoning_effort?
 mode = "workspace"               # workspace | fullaccess | ask
 sandbox_terminal = true          # sandbox the shell tool (recommended)
 allow_arbitrary_shell = false    # require whitelist for bash
@@ -212,6 +213,22 @@ Key settings:
   environment variables are scrubbed before any command runs.
 
 * **think\_level** — how much reasoning effort the model spends.
+
+* **reasoning\_model** — tell the CLI whether the model is a reasoning model:
+  `auto` (default, guess from the model name), `on` (always), `off` (never).
+  With `on`, the request really carries `reasoning_effort` (Claude gets a
+  `thinking` budget instead); `off` suppresses every reasoning parameter.
+  Set it globally under `[default]`, per-model in `/model` → params, or with
+  `ONE_CEDRIC_REASONING_MODEL=on|off|auto`.
+
+* **ui.nerd\_font** — Nerd Font icons across the CLI and TUI (on by default).
+  Set `nerd_font = false` under `[ui]`, or `ONE_CEDRIC_NERD_FONT=0`, to fall
+  back to plain Unicode / ASCII glyphs.
+
+* **ui.mouse** — click-to-position in the REPL input box (off by default).
+  Mouse reporting steals the wheel from the terminal, so leave it off for
+  normal scrolling; enable with `mouse = true` under `[ui]` or
+  `ONE_CEDRIC_MOUSE=1` if you want click positioning.
 
 You can also change most settings from inside the app: `/model`, `/think`, `/mode`
 
@@ -255,6 +272,40 @@ scrolls above it, and it supports:
 
 * **Mouse** — click anywhere in the line to move the cursor there.
 * **Editing** — arrows, Home/End, Delete, Ctrl+W-style word movement.
+* **Echo** — what you submit is printed back above the box (like any shell),
+  so the conversation always shows your side of it.
+* **Status bar** — the last row of the box is permanent and colour-coded:
+  context usage (`ctx used/limit %`, teal, turning yellow at 70% and red at
+  90%), turn/step counters (`轮3 步12`), the session cost (`$0.0123`, plus a
+  `谷 ×0.25` / `峰` tag when peak pricing applies to the model), the git
+  branch / ahead-behind / dirty count when you are inside a repository
+  (dirty count in yellow), and the repo's toolchain (`py3.13 venv`,
+  `node22 pnpm`, …; active venv in green). The bar drops sections from the
+  right on narrow terminals instead of wrapping.
+* **Powerline look** — with Nerd Fonts on (the default) the status bar renders
+  as coloured powerline segments joined by ``  `` arrows, like an
+  oh-my-posh / vim-airline bar; disable `[ui].nerd_font` to fall back to
+  plain ` · `-separated text.
+* **Peak / off-peak pricing** — `~/.one-cedric/pricing.toml` accepts a
+  `[peak]` section describing "off-peak" (谷价) time windows such as
+  DeepSeek's official discount (谷价 UTC 16:30–00:30, `deepseek-chat` ×0.5,
+  `deepseek-reasoner` ×0.25). Costs computed for the status bar, `/cost`
+  history and budgets automatically use the discount in effect at each turn.
+  Manage it with `/peak` (`/peak preset deepseek`, `/peak windows 16:30-00:30`,
+  `/peak tz +8`, `/peak discount my-model 0.5`, `/peak off`).
+
+  ```toml
+  # ~/.one-cedric/pricing.toml
+  [peak]
+  enabled = true                 # master switch
+  windows = "16:30-00:30"        # off-peak windows (multiple: "10:00-12:00, 22:00-23:00")
+  tz      = "UTC"                # UTC | local | +8 | -5:30
+  default_discount = 1.0         # fallback multiplier for unlisted models
+
+  [peak.discounts]               # model substring → off-peak multiplier
+  deepseek-chat     = 0.5        # 5 折
+  deepseek-reasoner = 0.25       # 2.5 折
+  ```
 * **Talking mid-turn** — while the agent is still working you can type and
   press Enter; you are then asked how to deliver it:
   * **queue** (Enter) — the message runs immediately after the current turn;
@@ -285,6 +336,7 @@ scrolls above it, and it supports:
 | `/diff [n]`                                                | Show a colorized diff (green/red/yellow with highlighted lines) |
 | `/history` `/tag` `/untag`                                 | File history & tags                                             |
 | `/stats` `/audit` `/cost`                                  | Statistics & costs                                              |
+| `/pricing` `/peak`                                         | Model prices & peak/off-peak (谷价) windows                     |
 | `/mem` `/cron` `/asks`                                     | Memory, cron jobs, ask threads                                  |
 | `/config` `/save-config` `/profile` `/lang`                | Configuration & language                                        |
 

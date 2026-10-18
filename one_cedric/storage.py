@@ -21,6 +21,7 @@ from .config import (
     PROJECTS_SUBDIR,
     SESSION_DIRNAME,
     SESSION_SUBDIR,
+    normalize_reasoning_mode,
 )
 
 
@@ -137,6 +138,8 @@ def _fresh_config() -> dict:
             "think_level": "medium",
             "particle_hue1": 220,
             "particle_hue2": 270,
+            "nerd_font": True,
+            "mouse": False,
         },
     }
 
@@ -186,6 +189,12 @@ def _apply_config(cfg: dict, raw: dict) -> None:
         if isinstance(d.get(k), bool):
             cfg["default"][k] = d[k]
 
+    # 推理模型开关：接受字符串（auto/on/off）或布尔值（true=on / false=off）
+    rm = d.get("reasoning_model")
+    if isinstance(rm, (str, bool)) and (
+            not isinstance(rm, str) or rm.strip()):
+        cfg["default"]["reasoning_model"] = normalize_reasoning_mode(rm)
+
     b = raw.get("bash") or {}
     for key in ("extra_prefixes", "extra_blacklist"):
         extra = b.get(key)
@@ -217,6 +226,10 @@ def _apply_config(cfg: dict, raw: dict) -> None:
             v = ui.get(k)
             if isinstance(v, str) and v.strip():
                 d_ui[k] = v.strip()
+        if isinstance(ui.get("nerd_font"), bool):
+            d_ui["nerd_font"] = ui["nerd_font"]
+        if isinstance(ui.get("mouse"), bool):
+            d_ui["mouse"] = ui["mouse"]
         for k in ("particle_hue1", "particle_hue2"):
             v = ui.get(k)
             if isinstance(v, int) and 0 <= v <= 360:
@@ -257,6 +270,9 @@ def dump_config_toml(cfg: dict, root: Path | None = None) -> str:
         lines.append(f"api_key = {_toml_quote(str(d['api_key']))}")
     if "think_level" in d:
         lines.append(f"think_level = {_toml_quote(str(d['think_level']))}")
+    if "reasoning_model" in d:
+        lines.append(f"reasoning_model = "
+                     f"{_toml_quote(str(d['reasoning_model']))}")
     if "language" in d:
         lines.append(f"language = {_toml_quote(str(d['language']))}")
     if "mode" in d:
@@ -305,6 +321,10 @@ def dump_config_toml(cfg: dict, root: Path | None = None) -> str:
     lines.append(f"theme = {_toml_quote(str(ui.get('theme', 'dark')))}")
     lines.append(f"acrylic = {_toml_quote(str(ui.get('acrylic', 'medium')))}")
     lines.append(f"think_level = {_toml_quote(str(ui.get('think_level', 'medium')))}")
+    lines.append(f"nerd_font = "
+                 f"{'true' if ui.get('nerd_font', True) else 'false'}")
+    lines.append(f"mouse = "
+                 f"{'true' if ui.get('mouse', False) else 'false'}")
     lines.append(f"particle_hue1 = {int(ui.get('particle_hue1', 220))}")
     lines.append(f"particle_hue2 = {int(ui.get('particle_hue2', 270))}")
     lines.append("")

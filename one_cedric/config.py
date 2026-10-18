@@ -91,8 +91,8 @@ DEFAULT_API_KEY = (
 )
 
 REASONING_MODEL_KEYWORDS = (
-    "r1", "qwq", "thinking", "reasoning", "o1", "o3",
-    "deepseek-v4", "deepseek-reasoner", "gpt-oss",
+    "r1", "qwq", "thinking", "reasoning", "o1", "o3", "o4", "gpt-5",
+    "deepseek-v4", "deepseek-reasoner", "gpt-oss", "claude", "anthropic",
 )
 
 DEEPSEEK_BUGGY_MODEL_KEYWORDS = (
@@ -137,6 +137,31 @@ THINK_PROMPT_HINTS = {
 }
 
 DEFAULT_THINK_LEVEL = "medium"
+
+REASONING_MODES = ("auto", "on", "off")
+
+
+def normalize_reasoning_mode(value) -> str:
+    """把用户写的「是否推理模型」开关归一化为 auto / on / off。
+
+    - ``True`` / ``"on"`` / ``"true"`` / ``"1"`` → ``"on"``
+    - ``False`` / ``"off"`` / ``"false"`` / ``"0"`` → ``"off"``
+    - 其它（含空值、``"auto"``）→ ``"auto"``（按模型名自动判断）
+    """
+    if isinstance(value, bool):
+        return "on" if value else "off"
+    text = str(value or "").strip().lower()
+    if text in ("on", "true", "1", "yes", "y", "enable", "enabled"):
+        return "on"
+    if text in ("off", "false", "0", "no", "n", "disable", "disabled"):
+        return "off"
+    return "auto"
+
+
+def is_reasoning_model_name(name: str) -> bool:
+    """auto 模式下按模型名判断是否推理模型。"""
+    m = (name or "").lower()
+    return any(k in m for k in REASONING_MODEL_KEYWORDS)
 
 MAX_BYTES = 200_000
 MAX_LINES = 2_000
@@ -325,6 +350,7 @@ DEFAULT_CONFIG: dict = {
         "auto_compact_threshold": 0,
         "show_reasoning": True,
         "think_level": "medium",
+        "reasoning_model": "auto",
         "enable_computer_use": False,
         "enable_vision": False,
         "allow_arbitrary_shell": False,

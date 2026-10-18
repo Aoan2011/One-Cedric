@@ -24,6 +24,7 @@ from ..config import (
     TOOL_C,
     WARN_C,
 )
+from . import icons
 from .keys import (
     KEY_DOWN,
     KEY_ENTER,
@@ -139,16 +140,17 @@ def _select_options(console, title: str, body: str,
             content.append(_render_body(body))
 
         for i, (key, label, color, is_def) in enumerate(options):
-            marker = "▸ " if i == selected else "  "
+            marker = icons.glyph("collapse") + " " if i == selected else "  "
             prefix_style = f"bold {BRAND}" if i == selected else color
             label_style = "bold" if i == selected else ""
-            def_tag = " [dim]★[/]" if is_def and i != selected else ""
+            def_tag = (" [dim]" + icons.glyph("star_filled") + "[/]"
+                       if is_def and i != selected else "")
 
             line = Text()
             line.append(marker, style=prefix_style)
             line.append(label, style=label_style)
             if def_tag:
-                line.append("  ★", style="dim")
+                line.append("  " + icons.glyph("star_filled"), style="dim")
             content.append(line)
             if is_def and i == selected:
                 content.append(Text("  当前默认", style="dim"))
@@ -249,7 +251,7 @@ def confirm_yes_no(console: Console, title: str, body: str = "",
         ]
         default_idx = 0
 
-    extra = "⚠ 危险操作" if danger else ""
+    extra = icons.glyph("warn") + " 危险操作" if danger else ""
 
     result = _select_options(console, title, body, options,
                               extra_warn=extra, default_index=default_idx,
@@ -373,7 +375,7 @@ def confirm_dangerous(console: Console, title: str, body: str,
         elapsed = time.time() - hold_start if hold_start else 0
         remain = max(0, countdown - elapsed)
         for i, (key, label, color, is_def) in enumerate(options):
-            marker = "▸ " if i == selected else "  "
+            marker = icons.glyph("collapse") + " " if i == selected else "  "
             prefix_style = f"bold {BRAND}" if i == selected else color
             line = Text()
             line.append(marker, style=prefix_style)
@@ -477,9 +479,10 @@ def confirm_multi(console: Console, title: str, items: list,
             is_cur = i == cur
             is_sel = key in selected_keys
             line = Text()
-            line.append("▸ " if is_cur else "  ",
+            line.append(icons.glyph("collapse") + " " if is_cur else "  ",
                         style=f"bold {BRAND}" if is_cur else "")
-            line.append("◉" if is_sel else "○",
+            line.append(icons.glyph("radio_on") if is_sel
+                        else icons.glyph("dot_outline"),
                         style="bold green" if is_sel else "dim")
             line.append(" ")
             line.append(label, style=f"bold {BRAND}" if is_cur else
@@ -589,7 +592,7 @@ def _fallback_multi(console, title, items, preselect, min_select) -> list:
 def multi_delete(console: Console, title: str, items: list,
                  body: str = "",
                  danger: bool = True) -> list:
-    warn = "⚠ 删除操作不可撤销" if danger else ""
+    warn = icons.glyph("warn") + " 删除操作不可撤销" if danger else ""
     real_body = (body + "\n\n" if body else "") + warn
     return confirm_multi(console, title, items,
                           body=real_body, min_select=1)

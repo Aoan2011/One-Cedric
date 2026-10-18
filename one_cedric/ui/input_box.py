@@ -10,6 +10,7 @@ from rich.progress_bar import ProgressBar
 from rich.text import Text
 
 from ..config import ACCENT, BRAND, OK_C, WARN_C
+from . import icons
 from .dog import dog_inline
 
 
@@ -84,12 +85,13 @@ def ask_with_box(console: Console, *, state: str, model: str,
     )
 
     status = {
-        "idle": ("Ready", OK_C, "✓"),
-        "busy": ("Working", ACCENT, "⟳"),
-        "confirm": ("Needs your choice", WARN_C, "✋"),
-        "error": ("Last action failed", WARN_C, "⚠"),
+        "idle": ("Ready", OK_C, "ok", "✓"),
+        "busy": ("Working", ACCENT, "running", "⟳"),
+        "confirm": ("Needs your choice", WARN_C, "hand", "✋"),
+        "error": ("Last action failed", WARN_C, "warn", "⚠"),
     }
-    label, color, icon = status.get(state, status["idle"])
+    label, color, icon_key, icon_fb = status.get(state, status["idle"])
+    icon = icons.glyph(icon_key, icon_fb)
     panel_content = [
         Text(f"{_plain_dog(state)}  {icon}  {label}",
              style=f"bold {color}")]
@@ -115,7 +117,7 @@ def ask_with_box(console: Console, *, state: str, model: str,
         padding=(0, 1),
         expand=False,
     ))
-    prompt = Text("  ❯ ", style=f"bold {BRAND}")
+    prompt = Text(f"  {icons.glyph('prompt')} ", style=f"bold {BRAND}")
 
     try:
         line = console.input(prompt, markup=False)

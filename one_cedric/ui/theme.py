@@ -23,6 +23,7 @@ from ..config import (
     USER_C,
     WARN_C,
 )
+from . import icons
 
 # ── Panel 语义类型 ────────────────────────────────────────────────────
 
@@ -170,6 +171,8 @@ def text_brand(s: str) -> Text:
 
 # ── 状态图标 ─────────────────────────────────────────────────────────
 
+#: (颜色, 回退字形)；实际字形在 ``status_icon`` / ``status_line`` 里由
+#: ``icons.glyph`` 解析（Nerd Font 打开时换成对应码点）。
 STATUS_ICONS = {
     "ok":      (OK_C, "✓"),
     "success": (OK_C, "✓"),
@@ -181,16 +184,24 @@ STATUS_ICONS = {
     "running": (ACCENT, "⟳"),
 }
 
+_STATUS_KEYS = {
+    "ok": "ok", "success": "ok", "warn": "warn",
+    "error": "error", "err": "error", "info": "info",
+    "skip": "skip", "running": "running",
+}
+
 
 def status_icon(kind: str) -> str:
     """返回带颜色的状态图标 markup。"""
-    color, icon = STATUS_ICONS.get(kind, (DIM_C, "·"))
+    color, fallback = STATUS_ICONS.get(kind, (DIM_C, "·"))
+    icon = icons.glyph(_STATUS_KEYS.get(kind, ""), fallback)
     return f"[bold {color}]{icon}[/]"
 
 
 def status_line(kind: str, message: str) -> Text:
     """'✓ 消息' 这类状态行。"""
-    color, icon = STATUS_ICONS.get(kind, (DIM_C, "·"))
+    color, fallback = STATUS_ICONS.get(kind, (DIM_C, "·"))
+    icon = icons.glyph(_STATUS_KEYS.get(kind, ""), fallback)
     t = Text()
     t.append(f"  {icon} ", style=f"bold {color}")
     t.append(message)

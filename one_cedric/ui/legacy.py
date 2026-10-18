@@ -35,6 +35,7 @@ from ..config import (
 from ..i18n import t
 from ..tools.schema import TOOLS
 from ..tools.shell import _shell_allow_display
+from . import icons
 from .accessibility import motion_enabled
 
 # ═══════════════════════════════════════════════════════════════════════ #
@@ -366,6 +367,15 @@ TOOL_GLYPHS = {
     "find_replace": "↻", "todo": "☷", "spawn_agent": "◇",
 }
 
+#: 工具名 -> 图标语义键的别名（其余按同名查 ``icons.CATALOG``）
+_TOOL_ICON_ALIASES = {"bash_bg": "bash"}
+
+
+def _tool_glyph(name: str) -> str:
+    """工具图标：Nerd Font 打开时用图标目录，否则回退旧单字符。"""
+    fallback = TOOL_GLYPHS.get(name, "◇")
+    return icons.glyph(_TOOL_ICON_ALIASES.get(name, name), fallback)
+
 
 def _icon_for(name: str) -> dict:
     if name in TOOL_SPINNERS:
@@ -381,7 +391,8 @@ def get_spinner(name: str) -> Spinner:
     spec = _icon_for(name)
     frames = spec.get("frames", ["⚙️ "])
     icon = "▐●ᴥ●▌" if name == "_thinking" else (
-        frames[0].strip() if frames else "⚙"
+        icons.replace_emoji(frames[0].strip()) if frames
+        else icons.glyph("cog", "⚙")
     )
     label = "正在等待模型响应" if name == "_thinking" else "正在处理"
     return Spinner(
@@ -428,7 +439,7 @@ class ToolStatus:
 
     def __enter__(self):
         self._animate = motion_enabled(self.console)
-        self.icon = TOOL_GLYPHS.get(self.name, "◇")
+        self.icon = _tool_glyph(self.name)
         self.label = TOOL_VERBS.get(self.name, self.name.replace("_", " "))
         self._start = time.time()
 
@@ -494,7 +505,8 @@ class ToolStatus:
 
         if final is not None:
             color = OK_C if final else ERR_C
-            mark = "✓" if final else "✗"
+            mark = icons.glyph("ok", "✓") if final else icons.glyph(
+                "error", "✗")
             line = Text()
             line.append("  ")
             line.append("▐●ᴥ●▌ ", style=f"bold {color}")
@@ -554,9 +566,9 @@ def render_banner(console, *, model: str, host: str, root: Path, session_id: str
 
     # ── 标题行 ──
     title = Text()
-    title.append(" ✦ ", style=f"bold {BRAND}")
+    title.append(" " + icons.glyph("star", "✦") + " ", style=f"bold {BRAND}")
     title.append("One Cedric", style=f"bold {BRAND}")
-    title.append(" ✦", style=f"bold {BRAND}")
+    title.append(" " + icons.glyph("star", "✦"), style=f"bold {BRAND}")
     title.append(f"   {BETA_VERSION}", style="dim")
     title = Align.center(title)
 
@@ -632,7 +644,8 @@ def render_diff(console, rel_path: str, old: str, new: str,
                 is_new: bool = False, tool: str | None = None) -> None:
     """显示 diff。"""
     header = Text()
-    header.append("  ◆ ", style=f"bold {WARN_C}")
+    header.append("  " + icons.glyph("diamond_filled") + " ",
+                  style=f"bold {WARN_C}")
     header.append(escape(rel_path), style=f"bold {WARN_C}")
     if is_new:
         header.append("  (新文件)", style="dim")
@@ -978,7 +991,7 @@ def render_tool_line(console, *, name: str, target: str,
                      result: str = "") -> None:
     """Render a compact tool result card with a readable output preview."""
     color = ERR_C if status in ("error", "blocked", "rejected") else OK_C
-    glyph = TOOL_GLYPHS.get(name, "◇")
+    glyph = _tool_glyph(name)
     title = Text()
     title.append(f"{glyph}  {name}", style=f"bold {TOOL_C}")
     if target:
@@ -1077,7 +1090,7 @@ def render_plan_panel(console, items: list) -> None:
         body.append(f"{item}\n")
     panel = Panel(
         body,
-        title=f"[bold {PLAN_C}]◆ 计划[/]",
+        title=f"[bold {PLAN_C}]{icons.glyph('diamond_filled')} 计划[/]",
         title_align="left",
         border_style=PLAN_C,
         box=box.ROUNDED,
@@ -1220,15 +1233,15 @@ def allow_table(console) -> None:
 # ═══════════════════════════════════════════════════════════════════════ #
 
 def print_error(console, msg: str) -> None:
-    console.print(f"[err]✗ {escape(msg)}[/]")
+    console.print(f"[err]{icons.glyph('error')} {escape(msg)}[/]")
 
 
 def print_warn(console, msg: str) -> None:
-    console.print(f"[warn]⚠ {escape(msg)}[/]")
+    console.print(f"[warn]{icons.glyph('warn')} {escape(msg)}[/]")
 
 
 def print_ok(console, msg: str) -> None:
-    console.print(f"[ok]✓ {escape(msg)}[/]")
+    console.print(f"[ok]{icons.glyph('ok')} {escape(msg)}[/]")
 
 
 def print_info(console, msg: str) -> None:

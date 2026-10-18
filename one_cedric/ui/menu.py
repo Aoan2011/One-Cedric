@@ -11,6 +11,7 @@ from rich.text import Text
 
 from ..config import ACCENT, BRAND, DIM_C
 from ..i18n import t
+from . import icons
 from .keys import (
     KEY_DOWN,
     KEY_ENTER,
@@ -47,9 +48,16 @@ class MenuItem:
 
 class Menu:
     _ICONS = {
-        "chat": "◇", "cli-chat": "◇", "gateway": "⌁", "tools": "⌘",
-        "models": "◈", "mcp": "⟡", "hooks": "⟲", "settings": "⚙",
-        "language": "文", "about": "i", "exit": "×", "quit": "×",
+        "chat": "chat", "cli-chat": "chat", "gateway": "gateway",
+        "tools": "tools", "models": "models", "mcp": "mcp",
+        "hooks": "hooks", "settings": "settings", "language": "language",
+        "about": "about", "exit": "exit", "quit": "exit",
+    }
+    #: 语义键 -> 回退字形（键不在 icons.CATALOG 时兜底）
+    _FALLBACK = {
+        "chat": "◇", "gateway": "⌁", "tools": "⌘", "models": "◈",
+        "mcp": "⟡", "hooks": "⟲", "settings": "⚙", "language": "文",
+        "about": "i", "exit": "×",
     }
 
     def __init__(self, console: Console, title: str, items: list[MenuItem],
@@ -62,7 +70,8 @@ class Menu:
         self.selected = 0
 
     def _icon_for(self, key: str) -> str:
-        return self._ICONS.get(key, "·")
+        key = self._ICONS.get(key, "")
+        return icons.glyph(key, self._FALLBACK.get(key, "·"))
 
     def _render(self) -> None:
         self.console.clear()
@@ -81,20 +90,23 @@ class Menu:
             line = Text()
             line.append("  ")
             if selected:
-                line.append("▸ ", style=f"bold {BRAND}")
+                line.append(icons.glyph("collapse") + " ",
+                            style=f"bold {BRAND}")
             else:
                 line.append("  ")
             line.append(f"{self._icon_for(item.key)} ",
                         style=f"bold {BRAND}" if selected else DIM_C)
             line.append(item.label, style=style)
             if selected:
-                line.append(" ◂", style=f"bold {BRAND}")
+                line.append(" " + icons.glyph("collapse_left"),
+                            style=f"bold {BRAND}")
             if item.desc:
                 line.append(f"   {item.desc}", style="dim")
             rows.append(line)
 
         title = Text()
-        title.append(" ✦ ", style=f"bold {BRAND}")
+        title.append(" " + icons.glyph("star") + " ",
+                     style=f"bold {BRAND}")
         title.append("ONE CEDRIC", style=f"bold {BRAND}")
         title.append(f"   /   {self.title}", style="bold white")
         title = Align.center(title)
@@ -184,7 +196,8 @@ class Menu:
         self.console.print()
 
         title = Text()
-        title.append(" ✦ ", style=f"bold {BRAND}")
+        title.append(" " + icons.glyph("star") + " ",
+                     style=f"bold {BRAND}")
         title.append("ONE CEDRIC", style=f"bold {BRAND}")
         title.append(f"   /   {self.title}", style="bold white")
         self.console.print(Align.center(title))

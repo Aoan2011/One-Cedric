@@ -57,6 +57,8 @@ from .config import (
     TOOL_C,
     USER_C,
     WARN_C,
+    is_reasoning_model_name,
+    normalize_reasoning_mode,
 )
 from .git_snap import _git_available, git_make_snapshot, git_rollback
 from .storage import (
@@ -120,6 +122,52 @@ def _md_with_cursor(text: str):
         Markdown(text, code_theme="monokai"),
         Text("  " + CURSOR_MARK, style=CURSOR_STYLE),
     )
+
+
+class _StreamView:
+    """回合内的流式输出视图。
+
+    关键点：REPL 的底部输入框自己就是一个常驻 ``rich.Live``。如果回合里
+    再开一个 ``Live``，Rich 会把它判定为 **嵌套**（``console._live_stack``）——
+    嵌套的 Live 不启动刷新线程，``update()`` 也不会重绘，于是流式输出看
+    起来「没有流式」，直到回合结束一次性打印全文。
+
+    所以 REPL 在场时，把预览交给输入框的 Live 统一渲染：预览在上、输入框
+    贴底、超高只显示尾部；非 REPL 场景（``--prompt`` 一次性运行等）仍然
+    用原来的 ``Live``。
+    """
+
+    def __init__(self, console, repl_ui, initial):
+        self._console = console
+        self._repl = repl_ui
+        self._initial = initial
+        self._live = None
+
+    @property
+    def console(self):
+        return self._console
+
+    def __enter__(self):
+        if self._repl is not None:
+            self._repl.set_preview(self._initial)
+        else:
+            self._live = Live(self._initial, console=self._console,
+                              refresh_per_second=20, transient=True)
+            self._live.__enter__()
+        return self
+
+    def update(self, renderable, *, refresh: bool = False):
+        if self._repl is not None:
+            self._repl.set_preview(renderable)
+        else:
+            self._live.update(renderable, refresh=refresh)
+
+    def __exit__(self, *exc):
+        if self._live is not None:
+            self._live.__exit__(*exc)
+        elif self._repl is not None:
+            self._repl.clear_preview()
+        return False
 
 
 def _msg_text(content) -> str:
@@ -444,9 +492,10 @@ class OneCedric:
                  think_level: str = DEFAULT_THINK_LEVEL,
                  access_mode: str = DEFAULT_ACCESS_MODE,
                  sandbox_terminal: bool | None = None):
-        from .winvt import ClearConsole, enable_vt_terminal
+        from .ui.console import CedricConsole
+        from .winvt import enable_vt_terminal
         enable_vt_terminal()
-        self.console = ClearConsole(theme=THEME, highlight=False)
+        self.console = CedricConsole(theme=THEME, highlight=False)
         self.model = model
         self.host = host
         self.root = root
@@ -479,6 +528,13 @@ class OneCedric:
         self.project_config_path = (project_config_path
                                      or _project_config_path(root))
         self.tool_cache = ToolCache()
+
+        # Nerd Font 开关：环境变量 > 配置 [ui].nerd_font > 默认开启
+        try:
+            from .ui import icons as _icons
+            _icons.configure_from_config(self.config)
+        except Exception:
+            pass
 
         d_cfg = self.config.get("default", {})
         self.compact_keep_turns = int(d_cfg.get("compact_keep_turns", 4))
@@ -820,12 +876,61 @@ class OneCedric:
             h["Authorization"] = f"Bearer {self.api_key}"
         return h
 
-    def _think_params(self) -> dict:
+    def _model_override(self) -> dict:
+        """读取当前模型的参数覆盖（``~/.one-cedric/model_overrides.toml``）。"""
         try:
             from .ui.screens.models import get_model_override
-            ov = get_model_override(self.model)
+            return get_model_override(self.model) or {}
         except Exception:
-            ov = {}
+            return {}
+
+    def _ctx_limit(self) -> int:
+        """上下文上限：模型覆盖 > 实例属性 > 128K。"""
+        value = self._model_override().get("context_limit")
+        if isinstance(value, (int, float)) and value > 0:
+            return int(value)
+        return int(getattr(self, "context_limit", 128000) or 128000)
+
+    def _reasoning_mode(self, override: dict | None = None) -> str:
+        """推理模型开关：环境变量 > 模型覆盖 > [default].reasoning_model。
+
+        取值 ``auto``（按模型名判断）/ ``on``（强制按推理模型发参数）/
+        ``off``（不发任何推理参数）。
+        """
+        env = os.environ.get("ONE_CEDRIC_REASONING_MODEL")
+        if env is not None and env.strip():
+            return normalize_reasoning_mode(env)
+        ov = self._model_override() if override is None else override
+        if "reasoning_model" in ov:
+            return normalize_reasoning_mode(ov.get("reasoning_model"))
+        cfg = getattr(self, "config", None) or {}
+        default = (cfg.get("default") or {}).get("reasoning_model", "auto")
+        return normalize_reasoning_mode(default)
+
+    def _reasoning_is_active(self, mode: str | None = None) -> bool:
+        mode = mode or self._reasoning_mode()
+        if mode == "on":
+            return True
+        if mode == "off":
+            return False
+        return is_reasoning_model_name(self.model)
+
+    def _reasoning_summary(self) -> str:
+        """给 ``/think`` 用的一行说明：到底会发什么推理参数。"""
+        mode = self._reasoning_mode()
+        if not self._reasoning_is_active(mode):
+            return f"[accent]{mode}[/][dim]（不发送推理参数）[/]"
+        m = self.model.lower()
+        if "claude" in m or "anthropic" in m:
+            budget = THINK_TO_BUDGET.get(self.think_level, 8192)
+            return (f"[accent]{mode}[/][dim]（thinking 预算 "
+                    f"{budget}）[/]")
+        effort = THINK_TO_REASONING_EFFORT.get(self.think_level, "medium")
+        return (f"[accent]{mode}[/][dim]（发送 "
+                f"reasoning_effort={effort}）[/]")
+
+    def _think_params(self) -> dict:
+        ov = self._model_override()
 
         out: dict = {}
         for k in ("temperature", "top_p", "max_tokens",
@@ -835,15 +940,20 @@ class OneCedric:
 
         m = self.model.lower()
         tl = ov.get("think_level", self.think_level)
-        if any(k in m for k in ("o1", "o3", "o4", "gpt-5")):
-            out["reasoning_effort"] = THINK_TO_REASONING_EFFORT.get(
-                tl, "medium")
-        elif "claude" in m or "anthropic" in m:
+        mode = self._reasoning_mode(ov)
+        if mode == "off":
+            return out
+        if mode == "auto" and not is_reasoning_model_name(m):
+            return out
+        if "claude" in m or "anthropic" in m:
             if tl != "minimal":
                 out["thinking"] = {
                     "type": "enabled",
                     "budget_tokens": THINK_TO_BUDGET.get(tl, 8192),
                 }
+        else:
+            out["reasoning_effort"] = THINK_TO_REASONING_EFFORT.get(
+                tl, "medium")
         return out
 
     def _system_with_think(self, base_prompt: str) -> str:
@@ -906,11 +1016,7 @@ class OneCedric:
                 ]
         self._current_tool_schemas = tools_list
 
-        try:
-            from .ui.screens.models import get_model_override
-            ov = get_model_override(self.model)
-        except Exception:
-            ov = {}
+        ov = self._model_override()
 
         payload = {
             "model": self.model, "messages": patched_messages,
@@ -5651,6 +5757,10 @@ class OneCedric:
             self.stats.get("total_cached_tokens", 0) + cached_tok)
         from .pricing import compute_cost
         turn_cost = compute_cost(self.model, in_tok, out_tok, cached_tok)
+        # 会话累计费用：按每轮结算时的峰谷费率累加（跨时段也准确），
+        # 底栏状态行的费用用它而不是拿总 token 重新估算。
+        self.stats["total_cost"] = (
+            self.stats.get("total_cost", 0.0) + turn_cost)
         if turn_cost > 0:
             parts.append(f"[dim]本轮[/] [accent]${turn_cost:.5f}[/]")
         self.console.print(
@@ -6328,10 +6438,8 @@ class OneCedric:
 
                 api_messages = self._inject_images(api_messages)
 
-                with Live(ui.get_spinner("_thinking"),
-                          console=self.console,
-                          refresh_per_second=20,
-                          transient=True) as live:
+                with _StreamView(self.console, self.repl_ui,
+                                 ui.get_spinner("_thinking")) as live:
                     for kind, data in self._stream_chat(api_messages):
                         if turn_first_token_at is None:
                             turn_first_token_at = time.time()
@@ -7114,6 +7222,7 @@ class OneCedric:
         f"  [bold {BRAND}]/dream[/] [dim][run|list|read|stats|cron][/]  梦境回顾\n"
         f"  [bold {BRAND}]/asks[/] [dim][export [md|json|csv]|clear][/]  问答历史\n"
         f"  [bold {BRAND}]/pricing[/] [dim][list|grouped|set|rm|import|preset|show|stats|export|import-json][/]  模型价格\n"
+        f"  [bold {BRAND}]/peak[/] [dim][on|off|preset|tz|windows|discount][/]  峰谷价格\n"
         f"  [bold {BRAND}]/cost[/] [dim][today|week|month|all|chart|hourly|anomaly|forecast|export|clear][/]  成本\n"
         f"  [bold {BRAND}]/budget[/] [dim][show|set <period> <amt>|clear|reset][/]  预算\n"
         f"  [bold {BRAND}]/dog[/] [dim][show|reload|edit|export|preview][/]  小狗帧配置\n"
@@ -7171,6 +7280,7 @@ class OneCedric:
         f"  [bold {BRAND}]/dream[/] [dim][run|list|read|stats|cron][/]\n"
         f"  [bold {BRAND}]/asks[/] [dim][export [md|json|csv]|clear][/]\n"
         f"  [bold {BRAND}]/pricing[/] [dim][list|grouped|set|rm|import|preset|show|stats|export|import-json][/]\n"
+        f"  [bold {BRAND}]/peak[/] [dim][on|off|preset|tz|windows|discount][/]  Peak/off-peak pricing\n"
         f"  [bold {BRAND}]/cost[/] [dim][today|week|month|all|chart|hourly|anomaly|forecast|export|clear][/]\n"
         f"  [bold {BRAND}]/budget[/] [dim][show|set <period> <amt>|clear|reset][/]\n"
         f"  [bold {BRAND}]/dog[/] [dim][show|reload|edit|export|preview][/]\n"
@@ -7304,8 +7414,12 @@ class OneCedric:
     def _init_repl_ui(self) -> None:
         """TTY 下启用底部常驻输入框（鼠标 + 行编辑 + 中途排队/插队）。"""
         try:
-            from .ui.live_input import ReplInputSession
-            session = ReplInputSession(self.console)
+            from .ui.live_input import ReplInputSession, mouse_tracking_enabled
+            session = ReplInputSession(
+                self.console,
+                mouse=mouse_tracking_enabled(getattr(self, "config", None)),
+                root=self.root,
+            )
             if not session.enabled:
                 return
             session.model = self.model
@@ -7322,16 +7436,31 @@ class OneCedric:
         self._init_repl_ui()
         while True:
             ctx_used = _estimate_tokens(self.messages)
-            ctx_max = getattr(self, "context_limit", 128000)
+            ctx_max = self._ctx_limit()
             total_in = self.stats.get("total_input_tokens", 0)
             total_out = self.stats.get("total_output_tokens", 0)
             cached_tok = self.stats.get("total_cached_tokens", 0)
-            cost = compute_cost(self.model, total_in, total_out,
-                                 cached_tok)
             turns = self.stats.get("turns", 0)
             steps = sum(self.stats.get("tool_calls", {}).values())
+            # 优先用逐轮累加值（含峰谷折扣，跨时段准确）；旧会话回退重算
+            total_cost = self.stats.get("total_cost")
+            if total_cost is None:
+                total_cost = compute_cost(self.model, total_in, total_out,
+                                          cached_tok)
+            peak = None
+            try:
+                from .pricing import peak_state
+                candidate = peak_state(self.model)
+                if candidate.get("supported"):
+                    peak = candidate
+            except Exception:
+                peak = None
             dog_state = ("confirm" if self._pending_confirm
                          else "idle")
+            if self.repl_ui is not None:
+                self.repl_ui.set_status(
+                    ctx_used=ctx_used, ctx_max=ctx_max, turns=turns,
+                    steps=steps, cost=total_cost, peak=peak)
             try:
                 if self.repl_ui is not None:
                     line = self.repl_ui.read_line()
@@ -7345,7 +7474,7 @@ class OneCedric:
                         state=dog_state, model=self.model,
                         turn=turns, steps=steps,
                         ctx_used=ctx_used, ctx_max=ctx_max,
-                        cost=cost,
+                        cost=total_cost,
                         cached_tok=cached_tok,
                         total_in=total_in, total_out=total_out,
                     ).strip()
@@ -7464,6 +7593,8 @@ class OneCedric:
                     self.console.print(
                         f"[dim]当前思考模式：[/][accent]{cur}[/]"
                         f"  [dim]（{desc}）[/]")
+                    self.console.print(
+                        f"[dim]推理模型参数：[/]{self._reasoning_summary()}")
                     self.console.print(
                         "[dim]可选项：[/]"
                         + "  ".join(
@@ -8073,6 +8204,11 @@ class OneCedric:
                 self._handle_pricing_command(line)
                 continue
 
+            # ── /peak 峰谷价格 ──
+            if line.startswith("/peak"):
+                self._handle_peak_command(line)
+                continue
+
             # ── /cost ──
             if line.startswith("/cost"):
                 self._handle_cost_command(line)
@@ -8116,13 +8252,19 @@ class OneCedric:
             try:
                 self.agent_turn(line)
                 self._maybe_auto_compact()
-                # 回合中途选择「排队」的消息，在回合结束后立刻接着处理
+                # 回合中途选择「排队」的消息，在回合结束后立刻接着处理；
+                # 处理排队消息时又排的队也要接着跑（否则会静静挂在队列里，
+                # 看起来就像「按了 Enter 没反应」）。
                 if self.repl_ui is not None:
-                    for queued in self.repl_ui.take_queued():
-                        self.console.print(
-                            f"\n[accent]▶ 处理排队消息：[/]{queued}")
-                        self.agent_turn(queued)
-                        self._maybe_auto_compact()
+                    while True:
+                        queued_batch = self.repl_ui.take_queued()
+                        if not queued_batch:
+                            break
+                        for queued in queued_batch:
+                            self.console.print(
+                                f"\n[accent]▶ 处理排队消息：[/]{queued}")
+                            self.agent_turn(queued)
+                            self._maybe_auto_compact()
             except SystemExit as exc:
                 self.console.print(
                     f"[err]{escape(str(exc))}[/]")
@@ -8631,6 +8773,167 @@ class OneCedric:
             "[dim]用法：/pricing [list|grouped|set|rm|import|"
             "preset|show|stats|export [file|builtin]|"
             "import-json <file> [--replace]][/]")
+
+    # ── /peak 峰谷价格 ─────────────────────────────────────────────── #
+    def _handle_peak_command(self, line: str) -> None:
+        from . import pricing as _pricing
+
+        tokens = line.split()
+        sub = tokens[1].lower() if len(tokens) >= 2 else ""
+        cfg = _pricing.load_peak_config()
+
+        if sub in ("", "status", "show"):
+            self._print_peak_report(cfg)
+            return
+        if sub in ("on", "off"):
+            cfg["enabled"] = (sub == "on")
+            if _pricing.save_peak_config(cfg):
+                word = "启用" if sub == "on" else "关闭"
+                self.console.print(f"[ok]✓ 峰谷价格已{word}[/]")
+            else:
+                self.console.print("[err]✗ 保存失败[/]")
+            return
+        if sub == "preset":
+            name = tokens[2] if len(tokens) >= 3 else "deepseek"
+            ok, msg = _pricing.apply_peak_preset(name)
+            tag = "[ok]✓" if ok else "[err]✗"
+            self.console.print(f"{tag} {escape(msg)}[/]")
+            return
+        if sub == "tz":
+            if len(tokens) < 3:
+                self.console.print("[err]✗ 用法：/peak tz <UTC|local|+8>[/]")
+                return
+            spec = tokens[2]
+            if spec.lower() != "local" and _pricing.parse_tz(spec) is None:
+                self.console.print(
+                    f"[err]✗ 无法识别的时区: {escape(spec)}"
+                    "  [dim]（UTC | local | +8 | -5:30）[/]")
+                return
+            cfg["tz"] = spec
+            if _pricing.save_peak_config(cfg):
+                self.console.print(
+                    f"[ok]✓ 谷价时段时区已设为 {escape(spec)}[/]")
+            else:
+                self.console.print("[err]✗ 保存失败[/]")
+            return
+        if sub == "windows":
+            if len(tokens) < 3:
+                self.console.print(
+                    "[err]✗ 用法：/peak windows <16:30-00:30>"
+                    "[dim]（可多个，逗号/空格分隔）[/]")
+                return
+            spec = " ".join(tokens[2:])
+            if not _pricing.parse_windows(spec):
+                self.console.print(
+                    "[err]✗ 格式应为 HH:MM-HH:MM，如 "
+                    "16:30-00:30[/]")
+                return
+            cfg["windows"] = spec
+            if _pricing.save_peak_config(cfg):
+                self.console.print(
+                    f"[ok]✓ 谷价时段已设为 {escape(spec)}[/]")
+            else:
+                self.console.print("[err]✗ 保存失败[/]")
+            return
+        if sub == "discount":
+            if len(tokens) < 4:
+                self.console.print(
+                    "[err]✗ 用法：/peak discount <模型> <倍率>"
+                    "[dim]（1 = 无折扣，0.25 = 2.5 折）[/]")
+                return
+            pattern = tokens[2]
+            try:
+                mult = float(tokens[3])
+            except ValueError:
+                self.console.print(
+                    f"[err]✗ 倍率必须是数字: {escape(tokens[3])}[/]")
+                return
+            if mult <= 0:
+                self.console.print("[err]✗ 倍率需大于 0[/]")
+                return
+            discounts = dict(cfg.get("discounts") or {})
+            discounts[pattern] = mult
+            cfg["discounts"] = discounts
+            if _pricing.save_peak_config(cfg):
+                note = "（无折扣）" if mult == 1 else f"（{mult * 10:g} 折）"
+                self.console.print(
+                    f"[ok]✓ {escape(pattern)} 谷价倍率 = "
+                    f"{mult:g}{note}[/]")
+            else:
+                self.console.print("[err]✗ 保存失败[/]")
+            return
+        self.console.print(
+            "[dim]用法：/peak "
+            "\\[on|off|preset deepseek|off|"
+            "tz <UTC|local|+8>|windows <16:30-00:30>|"
+            "discount <模型> <倍率>][/]")
+
+    def _print_peak_report(self, cfg: dict) -> None:
+        from . import pricing as _pricing
+
+        state = _pricing.peak_state(self.model)
+        windows = state.get("windows") or []
+        self.console.print()
+        flag = "[ok]已启用[/]" if cfg.get("enabled") else "[dim]已关闭[/]"
+        self.console.print(f"[bold {BRAND}]峰谷价格[/]  {flag}")
+        tz = str(cfg.get("tz") or "UTC")
+        if windows:
+            line = (f"  [dim]谷价时段[/]  "
+                    f"[accent]{_pricing.windows_text(windows)}[/]"
+                    f" [dim]（{escape(tz)}）[/]")
+            local = _pricing.local_windows_text(windows, tz)
+            if local:
+                line += f" [dim]· 本地[/] [accent]{local}[/]"
+            self.console.print(line)
+        else:
+            self.console.print("  [dim]谷价时段[/]  [err]未配置[/]")
+        if cfg.get("enabled") and windows:
+            left = _pricing.format_duration(state.get("seconds_to_change"))
+            if state.get("offpeak"):
+                now = f"[ok]谷价[/] [dim]（距切换 {left}）[/]"
+            else:
+                now = f"[warn]峰价[/] [dim]（距谷价 {left}）[/]"
+            self.console.print(f"  [dim]当前状态[/]  {now}")
+        model_name = escape(str(self.model))
+        rate = float(state.get("rate") or 1.0)
+        if state.get("supported"):
+            self.console.print(
+                f"  [dim]当前模型[/]  [accent]{model_name}[/]"
+                f" [dim]谷价 ×{rate:g}[/]")
+            ic, i, o = _pricing.pricing_for(self.model)
+            if ic or i or o:
+                self.console.print(
+                    "  [dim]谷价实价[/]  "
+                    f"[accent]cached {_pricing.human_price(ic * rate)} / "
+                    f"input {_pricing.human_price(i * rate)} / "
+                    f"output {_pricing.human_price(o * rate)}[/] "
+                    f"[dim]（$/1M tokens）[/]")
+        else:
+            self.console.print(
+                f"  [dim]当前模型[/]  [accent]{model_name}[/]"
+                " [dim]无谷价差价[/]")
+        discounts = (cfg.get("discounts") or {})
+        pairs = []
+        for key in sorted(discounts.keys(), key=str):
+            try:
+                value = float(discounts[key])
+            except (TypeError, ValueError):
+                continue
+            if value != 1.0:
+                pairs.append(f"{escape(str(key))} ×{value:g}")
+        if pairs:
+            self.console.print(
+                f"  [dim]折扣表  [/]  [accent]{' · '.join(pairs)}[/]")
+        self.console.print(
+            f"  [dim]配置[/]      "
+            f"[path]{escape(str(_pricing.PRICING_PATH))}[/]"
+            f" [dim]→ \\[peak][/]")
+        self.console.print()
+        self.console.print(
+            "[dim]用法：/peak "
+            "\\[on|off|preset deepseek|off|"
+            "tz <UTC|local|+8>|windows <16:30-00:30>|"
+            "discount <模型> <倍率>][/]")
 
     def _handle_cost_command(self, line: str) -> None:
         from . import cost_tracker as _ct

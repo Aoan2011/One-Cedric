@@ -20,13 +20,25 @@ from one_cedric.ui.live_input import (
     KEY_ENTER,
     KEY_ESC,
     KEY_HOME,
+    KEY_INTERRUPT,
+    KEY_KILL_END,
+    KEY_KILL_START,
+    KEY_KILL_WORD,
     KEY_LEFT,
+    KEY_PAGE_DOWN,
+    KEY_PAGE_UP,
+    KEY_TAB,
+    KEY_UP,
+    KEY_DOWN,
+    KEY_WORD_LEFT,
+    KEY_WORD_RIGHT,
     KeyPoller,
     LineEditor,
     MidTurnQueue,
     ReplInputSession,
     apply_key,
     parse_sgr_mouse,
+    mouse_tracking_enabled,
     render_prompt,
 )
 
@@ -234,6 +246,70 @@ def test_apply_key_maps_editing_keys():
     assert apply_key(ed, KEY_ESC) == "escape"
 
 
+def test_apply_key_never_inserts_named_keys_as_text():
+    """旧版把 "UP" / "TAB" 字面写进输入框，这里钉死不再发生。"""
+    ed = LineEditor()
+    for key in (KEY_TAB, "F5", "UNKNOWN", "PAGE_UP"):
+        assert apply_key(ed, key) == "noop"
+    assert ed.buffer == ""
+    assert ed.cursor == 0
+
+
+def test_apply_key_handles_readline_shortcuts():
+    ed = LineEditor(buffer="echo hello world", cursor=16)
+    assert apply_key(ed, KEY_KILL_WORD) == "edit"
+    assert ed.buffer == "echo hello "
+    assert ed.cursor == 11
+    assert apply_key(ed, KEY_KILL_START) == "edit"
+    assert ed.buffer == ""
+    ed = LineEditor(buffer="abcdef", cursor=3)
+    assert apply_key(ed, KEY_KILL_END) == "edit"
+    assert ed.buffer == "abc"
+
+
+def test_apply_key_word_movement():
+    ed = LineEditor(buffer="read the file now", cursor=17)
+    assert apply_key(ed, KEY_WORD_LEFT) == "edit"
+    assert ed.cursor == 14
+    assert apply_key(ed, KEY_WORD_RIGHT) == "edit"
+    assert ed.cursor == 17
+
+
+def test_ctrl_chars_map_to_editing_keys():
+    p = _poller_with("\x01\x05\x0b\x15\x17")
+    assert [p.pop_key() for _ in range(5)] == [
+        KEY_HOME, KEY_END, KEY_KILL_END, KEY_KILL_START, KEY_KILL_WORD]
+
+
+def test_word_move_and_page_csi_sequences():
+    p = _poller_with("\x1b[1;5D\x1b[1;5C\x1b[5~\x1b[6~")
+    assert [p.pop_key() for _ in range(4)] == [
+        KEY_WORD_LEFT, KEY_WORD_RIGHT, KEY_PAGE_UP, KEY_PAGE_DOWN]
+
+
+def test_crlf_collapses_into_one_enter():
+    p = _poller_with("a\r\nb")
+    assert [p.pop_key() for _ in range(3)] == ["a", KEY_ENTER, "b"]
+
+
+def test_unknown_csi_sequence_is_consumed_as_noop():
+    p = _poller_with("\x1b[99~x")
+    assert p.pop_key() == "noop"
+    assert p.pop_key() == "x"
+
+
+def test_poller_wait_uses_injected_fn_and_skips_when_input_ready():
+    calls = []
+    quiet = KeyPoller(read_char=lambda: "", has_input=lambda: False,
+                      wait=calls.append)
+    quiet.wait(0.25)
+    assert calls == [0.25]
+    ready = KeyPoller(read_char=lambda: "", has_input=lambda: True,
+                      wait=calls.append)
+    ready.wait(0.25)
+    assert calls == [0.25]          # 有输入时不进入等待
+
+
 # --------------------------------------------------------------------------- #
 # MidTurnQueue
 # --------------------------------------------------------------------------- #
@@ -341,8 +417,118 @@ def test_decision_cancel_keeps_nothing():
     assert s.interject == ""
 
 
+def test_decision_typing_restores_draft_instead_of_eating_keys():
+    """待决策时继续打字：取消决策、原稿放回输入框，绝不吞键。"""
+    s = _HeadlessSession()
+    s.begin_turn()
+    for ch in "hello":
+        s.handle_key(ch)
+    s.handle_key(KEY_ENTER)
+    assert s.pending_decision is True
+    assert s.handle_key("w") is None
+    assert s.pending_decision is False
+    assert s.editor.buffer == "hellow"
+
+
+def test_end_turn_restores_unanswered_decision_message():
+    """回合结束还没作答：消息回到输入框，而不是静默留在决策模式。"""
+    s = _HeadlessSession()
+    s.begin_turn()
+    for ch in "draft":
+        s.handle_key(ch)
+    s.handle_key(KEY_ENTER)
+    assert s.pending_decision is True
+    s.end_turn()
+    assert s.pending_decision is False
+    assert s.state == "idle"
+    assert s.editor.buffer == "draft"
+    assert s.take_queued() == []
+
+
 def test_decision_constants_are_distinct():
     assert len({DECISION_QUEUE, DECISION_INTERJECT, DECISION_CANCEL}) == 3
+
+
+# --------------------------------------------------------------------------- #
+# Batch key handling / history（还是无终端）
+# --------------------------------------------------------------------------- #
+
+def test_handle_keys_processes_batch_and_keeps_after_enter():
+    """同一批里 Enter 之后的按键不再被丢掉。"""
+    s = _HeadlessSession()
+    assert s.handle_keys(list("ab") + [KEY_ENTER] + list("cd")) == "ab"
+    assert s.editor.buffer == "cd"
+
+
+def test_handle_keys_returns_first_submission_of_the_batch():
+    s = _HeadlessSession()
+    assert s.handle_keys(["x", KEY_ENTER, "y", KEY_ENTER]) == "x"
+    assert s.next_line() == "y"          # 第二行排队，不丢
+    assert s.next_line() is None
+    assert s.editor.buffer == ""
+
+
+def test_handle_keys_interrupt_wins_over_batch():
+    s = _HeadlessSession()
+    assert s.handle_keys(["x", KEY_INTERRUPT]) == "\x03"
+
+
+def test_history_up_down_and_draft_restore():
+    s = _HeadlessSession()
+    for text in ("one", "two"):
+        s.handle_keys(list(text) + [KEY_ENTER])
+    s.handle_key(KEY_UP)
+    assert s.editor.buffer == "two"
+    s.handle_key(KEY_UP)
+    assert s.editor.buffer == "one"
+    s.handle_key(KEY_DOWN)
+    assert s.editor.buffer == "two"
+    s.handle_key(KEY_DOWN)
+    assert s.editor.buffer == ""
+    assert s.editor.cursor == 0
+
+
+def test_history_restores_unsubmitted_draft():
+    s = _HeadlessSession()
+    s.handle_keys(list("saved") + [KEY_ENTER])
+    for ch in "dra":
+        s.handle_key(ch)
+    s.handle_key(KEY_UP)
+    assert s.editor.buffer == "saved"
+    s.handle_key(KEY_DOWN)
+    assert s.editor.buffer == "dra"
+    assert s.editor.cursor == 3
+
+
+def test_submit_is_recorded_in_history_but_blank_is_not():
+    s = _HeadlessSession()
+    s.handle_keys(list("hey") + [KEY_ENTER])
+    s.handle_key(KEY_ENTER)
+    assert s.history == ["hey"]
+
+
+def test_history_ignores_duplicate_consecutive_entries():
+    s = _HeadlessSession()
+    for _ in range(2):
+        s.handle_keys(list("same") + [KEY_ENTER])
+    assert s.history == ["same"]
+
+
+def test_old_up_tab_bug_no_longer_inserts_literal_text():
+    s = _HeadlessSession()
+    s.handle_key(KEY_TAB)
+    s.handle_key("UP")          # 旧版会插入字面 "UP"
+    s.handle_key("F5")
+    assert s.editor.buffer == ""
+
+
+def test_page_up_page_down_browse_history():
+    s = _HeadlessSession()
+    s.handle_keys(list("old") + [KEY_ENTER])
+    s.handle_key(KEY_PAGE_UP)
+    assert s.editor.buffer == "old"
+    s.handle_key(KEY_PAGE_DOWN)
+    assert s.editor.buffer == ""
 
 
 # --------------------------------------------------------------------------- #
@@ -370,3 +556,274 @@ def test_render_prompt_shows_decision_hint():
     console = Console(file=io.StringIO(), width=100, record=True)
     console.print(render_prompt(ed, state="busy", pending_decision=True))
     assert "排队" in console.export_text()
+
+
+
+# --------------------------------------------------------------------------- #
+# 回合流式预览（输入框上方的区域）
+# --------------------------------------------------------------------------- #
+
+def _render_session(session, height=24):
+    import io
+
+    from rich.console import Console
+
+    console = Console(file=io.StringIO(), width=80, height=height,
+                      record=True)
+    console.print(session.render())
+    text = console.export_text()
+    lines = text.splitlines()
+    return text, lines
+
+
+def test_preview_renders_above_the_input_box_and_clears():
+    from rich.text import Text
+
+    s = _HeadlessSession()
+    assert not s.has_preview
+    s.set_preview(Text("STREAM-BODY"))
+    out, lines = _render_session(s)
+    assert "STREAM-BODY" in out
+    assert out.index("STREAM-BODY") < out.index("One Cedric")
+    # 输入框顶边框必须独立成行：Group 不会自动补换行，
+    # _TailView 漏了结尾换行时边框会跟预览末行挤在一起。
+    assert any(line.lstrip().startswith("┌") for line in lines)
+    assert not any("STREAM-BODY" in line and "┌" in line for line in lines)
+    s.clear_preview()
+    assert not s.has_preview
+    out2, _ = _render_session(s)
+    assert "STREAM-BODY" not in out2
+
+
+def test_preview_keeps_the_tail_when_taller_than_the_screen():
+    from rich.text import Text
+
+    s = _HeadlessSession()
+    s.set_preview(Text("\n".join(f"line-{i:03d}" for i in range(200))))
+    out, lines = _render_session(s, height=24)
+    assert "line-199" in out            # 最新内容可见
+    assert "line-000" not in out        # 开头被裁掉，而不是结尾
+    assert len(lines) <= 24             # 整帧（预览 + 输入框）不超屏
+    assert any(line.lstrip().startswith("┌") for line in lines)
+
+
+def test_mouse_tracking_defaults_off_and_can_be_enabled(monkeypatch):
+    monkeypatch.delenv("ONE_CEDRIC_MOUSE", raising=False)
+    assert mouse_tracking_enabled(None) is False
+    assert mouse_tracking_enabled({}) is False
+    assert mouse_tracking_enabled({"ui": {}}) is False
+    assert mouse_tracking_enabled({"ui": {"mouse": True}}) is True
+    monkeypatch.setenv("ONE_CEDRIC_MOUSE", "1")
+    assert mouse_tracking_enabled({"ui": {"mouse": False}}) is True
+    monkeypatch.setenv("ONE_CEDRIC_MOUSE", "0")
+    assert mouse_tracking_enabled({"ui": {"mouse": True}}) is False
+
+
+def test_session_does_not_enable_mouse_by_default():
+    s = ReplInputSession(console=None)
+    assert s.mouse is False
+
+
+# --------------------------------------------------------------------------- #
+# 提交回显（输入框被清空后用户还能看到自己发了什么）
+# --------------------------------------------------------------------------- #
+
+class _RecordingConsole:
+    def __init__(self):
+        self.printed = []
+
+    def print(self, obj):
+        self.printed.append(obj)
+
+
+def test_read_line_echoes_submitted_text():
+    s = _HeadlessSession()
+    s.console = _RecordingConsole()
+    s.poller.feed("hello\r")
+    assert s.read_line() == "hello"
+    assert len(s.console.printed) == 1
+    assert "hello" in s.console.printed[0].plain
+
+
+def test_read_line_echoes_pasted_batch_lines_in_order():
+    s = _HeadlessSession()
+    s.console = _RecordingConsole()
+    s.poller.feed("one\rtwo\r")
+    assert s.read_line() == "one"
+    assert s.read_line() == "two"
+    echoed = [obj.plain for obj in s.console.printed]
+    assert "one" in echoed[0] and "two" in echoed[1]
+
+
+def test_read_line_does_not_echo_empty_submit():
+    s = _HeadlessSession()
+    s.console = _RecordingConsole()
+    s.poller.feed("\r")
+    assert s.read_line() == ""
+    assert s.console.printed == []
+
+
+def _scripted_session(batches):
+    """把 poller 换成按批次喂键的假实现（供 read_line 用）。"""
+    s = _HeadlessSession()
+    pending = [list(batch) for batch in batches]
+
+    class _Poller:
+        def poll(self):
+            return pending.pop(0) if pending else []
+
+        def wait(self, timeout):
+            pass
+
+    s.poller = _Poller()
+    return s
+
+
+def test_read_line_ctrl_c_clears_but_does_not_exit():
+    s = _scripted_session([["\x03"], ["o", "k", KEY_ENTER]])
+    s.console = _RecordingConsole()
+    assert s.read_line() == "ok"
+    assert s.editor.buffer == ""
+
+
+def test_read_line_keyboard_interrupt_clears_and_continues():
+    s = _scripted_session([])
+    s.console = _RecordingConsole()
+    calls = {"n": 0}
+
+    class _Poller:
+        def poll(self):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise KeyboardInterrupt
+            return ["x", KEY_ENTER]
+
+        def wait(self, timeout):
+            pass
+
+    s.poller = _Poller()
+    assert s.read_line() == "x"
+
+
+def test_read_line_returns_none_on_eof():
+    s = _scripted_session([])
+    s.console = _RecordingConsole()
+
+    class _Poller:
+        def poll(self):
+            raise EOFError
+
+        def wait(self, timeout):
+            pass
+
+    s.poller = _Poller()
+    assert s.read_line() is None
+
+
+def test_submitted_line_keeps_plain_markup_characters():
+    from one_cedric.ui.live_input import submitted_line
+
+    line = submitted_line("[bold]not markup[/] @file")
+    assert "[bold]not markup[/] @file" in line.plain
+
+
+# --------------------------------------------------------------------------- #
+# 底栏状态（上下文占用 / git / 环境）
+# --------------------------------------------------------------------------- #
+
+def test_set_status_renders_ctx_line():
+    s = _HeadlessSession()
+    s.set_status(ctx_used=12345, ctx_max=128000)
+    out, _ = _render_session(s)
+    assert "ctx" in out and "128K" in out and "10%" in out
+
+
+def test_status_signature_changes_with_ctx():
+    s = _HeadlessSession()
+    before = s._signature()
+    s.set_status(ctx_used=10, ctx_max=100)
+    assert s._signature() != before
+
+
+def test_render_shows_git_and_env_parts():
+    s = _HeadlessSession()
+    s._git = {"branch": "main", "ahead": 0, "behind": 0,
+              "changed": 2, "detached": False}
+    s._env = "py3.13 venv"
+    s.set_status(ctx_used=5, ctx_max=100)
+    out, _ = _render_session(s)
+    assert "main" in out and "±2" in out and "py3.13 venv" in out
+
+
+def test_set_status_renders_turns_steps_cost_and_peak():
+    s = _HeadlessSession()
+    s.set_status(ctx_used=10, ctx_max=100, turns=3, steps=12,
+                 cost=0.01234,
+                 peak={"supported": True, "offpeak": True, "rate": 0.25})
+    out, _ = _render_session(s)
+    assert "轮3" in out and "步12" in out
+    assert "$0.0123" in out and "谷" in out and "×0.25" in out
+
+
+def test_status_signature_changes_with_cost_and_peak():
+    s = _HeadlessSession()
+    s.set_status(cost=0.1)
+    before = s._signature()
+    s.set_status(cost=0.2)
+    assert s._signature() != before
+    s.set_status(peak={"supported": True, "offpeak": True, "rate": 0.25})
+    assert s._signature() != before
+
+
+def test_set_status_peak_none_clears_the_tag():
+    """模型切到没有峰谷差价的模型时，显式传 None 要把「谷/峰」摘掉。"""
+    s = _HeadlessSession()
+    s.set_status(ctx_used=10, ctx_max=100, turns=1, steps=2, cost=0.02,
+                 peak={"supported": True, "offpeak": True, "rate": 0.25})
+    out, _ = _render_session(s)
+    assert "谷" in out
+    s.set_status(peak=None)
+    out, _ = _render_session(s)
+    assert "谷" not in out and "峰" not in out
+    # 没传的字段保持原值
+    assert "轮1" in out and "步2" in out
+
+
+def test_status_row_keeps_preview_frame_within_height():
+    from rich.text import Text
+
+    s = _HeadlessSession()
+    s.set_status(ctx_used=1, ctx_max=1000)
+    s.set_preview(Text("\n".join(f"line-{i:03d}" for i in range(200))))
+    out, lines = _render_session(s, height=24)
+    assert len(lines) <= 24
+    assert "line-199" in out
+    assert "ctx" in out
+
+
+# --------------------------------------------------------------------------- #
+# _StreamView：REPL 在场时把流式预览交给输入框的 Live
+# --------------------------------------------------------------------------- #
+
+def test_stream_view_delegates_to_repl_session():
+    from one_cedric.core import _StreamView
+
+    class _Repl:
+        def __init__(self):
+            self.preview = None
+            self.cleared = False
+
+        def set_preview(self, renderable):
+            self.preview = renderable
+
+        def clear_preview(self):
+            self.cleared = True
+            self.preview = None
+
+    repl = _Repl()
+    with _StreamView(None, repl, "thinking") as view:
+        assert repl.preview == "thinking"
+        view.update("body")
+        assert repl.preview == "body"
+    assert repl.cleared is True
+    assert repl.preview is None
