@@ -247,3 +247,12 @@ acl-backup-*.ps1
 
 # Local agent-tooling state (machine specific)
 .refact/
+
+# Local debugging scratch (root-level diagnostics, kept out of the tree)
+.capture.py
+.conpty_probe.py
+.diag*.py
+.probe*.py
+.plan_notes.md
+.pytest_tmp/
+.shots/
