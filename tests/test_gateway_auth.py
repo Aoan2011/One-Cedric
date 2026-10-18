@@ -22,7 +22,7 @@ from one_cedric.gateway.server import Gateway
 TOKEN = "s3cr3t-test-token"
 
 #: Routes that are intentionally reachable without a token.
-PUBLIC_PATHS = {"/", "/favicon.ico", "/health", "/static/{name}"}
+PUBLIC_PATHS = {"/", "/favicon.ico", "/health", "/static/{name:path}"}
 
 
 @pytest.fixture()
@@ -133,3 +133,25 @@ def test_api_key_is_never_served_to_the_browser(client):
         resp = client.get(path, headers={"Authorization": f"Bearer {TOKEN}"})
         body = resp.text
         assert "api_key" not in body or "***" in body or len(body) < 4_000
+
+
+def test_static_serves_vendored_subdirectories(client):
+    """KaTeX lives under /static/vendor/…; the route must allow sub-paths."""
+    resp = client.get("/static/vendor/katex/katex.min.js")
+    assert resp.status_code == 200
+    assert "javascript" in resp.headers.get("content-type", "")
+    resp = client.get("/static/vendor/katex/fonts/KaTeX_Main-Regular.woff2")
+    assert resp.status_code == 200
+    assert resp.headers.get("content-type") == "font/woff2"
+
+
+@pytest.mark.parametrize("path", [
+    "/static/%2e%2e/config.py",
+    "/static/..%2fconfig.py",
+    "/static/vendor/../../server.py",
+    "/static/%2e%2e%5cconfig.py",
+])
+def test_static_route_never_escapes_the_webui_directory(client, path):
+    """Path traversal must 404, not read files outside gateway/webui."""
+    resp = client.get(path)
+    assert resp.status_code == 404, f"{path} answered {resp.status_code}"

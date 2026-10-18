@@ -45,6 +45,54 @@ def test_package_data_covers_the_new_assets():
         assert suffix in patterns, f"{name} would not be packaged"
 
 
+def test_katex_is_vendored_and_wired_offline():
+    """LaTeX support must work offline: KaTeX is vendored next to app.js.
+
+    The script order matters — ``cedric-md.js`` registers the marked
+    extensions and hydrates the placeholders, so it must load before app.js
+    runs its first ``renderMarkdown``.
+    """
+    vendor = WEBUI / "vendor" / "katex"
+    assert (vendor / "katex.min.js").is_file(), "katex.min.js missing"
+    assert (vendor / "katex.min.css").is_file(), "katex.min.css missing"
+    fonts = sorted((vendor / "fonts").glob("*.woff2"))
+    assert len(fonts) >= 10, "KaTeX fonts were not vendored"
+    assert "vendor/katex/katex.min.css" in INDEX
+    assert "vendor/katex/katex.min.js" in INDEX
+    assert "cedric-md.js" in INDEX, "the markdown extension layer is not loaded"
+    assert INDEX.find("cedric-md.js") < INDEX.find("app.js"), (
+        "cedric-md.js must load before app.js uses the extensions")
+    md_js = (WEBUI / "cedric-md.js").read_text(encoding="utf-8")
+    assert "setLabels" in md_js and "'md.keyTitle'" in APP_JS, (
+        "the !!!...!!! tooltip should follow the UI language")
+
+
+def test_math_placeholders_survive_the_whitelist_then_hydrate():
+    """KaTeX output must never pass through the sanitisers.
+
+    ``core/render.js`` uses an allow-list, so the placeholder attributes have
+    to be allowed; the actual KaTeX DOM (with its inline styles) is injected
+    afterwards by ``CedricMD.hydrate``.
+    """
+    render = (WEBUI / "core" / "render.js").read_text(encoding="utf-8")
+    for attr in ("data-tex", "data-display", "data-math"):
+        assert f"'{attr}'" in render, f"{attr} would be stripped by render.js"
+    assert "window.CedricMD.hydrate(safe)" in render, (
+        "render.js must hydrate formulas after sanitising")
+    assert "html = window.CedricMD.hydrate(html)" in APP_JS, (
+        "app.js must hydrate formulas after sanitising")
+
+
+def test_critical_marks_css_only_targets_cedric_markup():
+    """The !!!...!!! and ==...== styles live in style.css (not polish.css)."""
+    css = (WEBUI / "style.css").read_text(encoding="utf-8")
+    assert ".cedric-key" in css
+    assert ".theme-light .cedric-key" in css, "light theme needs its own stroke"
+    assert ".md-math-block" in css and ".md-math-raw" in css
+    polish = (WEBUI / "polish.css").read_text(encoding="utf-8")
+    assert ".cedric-key" not in polish
+
+
 def test_stylesheets_are_linked_in_layered_order():
     positions = [INDEX.find(name) for name in STYLE_ORDER]
     assert all(p >= 0 for p in positions), (

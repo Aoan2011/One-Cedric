@@ -18,7 +18,6 @@ import requests
 from rich import box
 from rich.console import Group
 from rich.live import Live
-from rich.markdown import Markdown
 from rich.markup import escape
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -61,6 +60,7 @@ from .config import (
     normalize_reasoning_mode,
 )
 from .git_snap import _git_available, git_make_snapshot, git_rollback
+from .mdterm import CedricMarkdown
 from .storage import (
     PROFILE_NAME_RE,
     _fresh_config,
@@ -119,7 +119,7 @@ def _sandbox_env() -> dict:
 def _md_with_cursor(text: str):
     """Markdown 正文 + 末尾橙色 ✦ 生成光标。"""
     return Group(
-        Markdown(text, code_theme="monokai"),
+        CedricMarkdown(text, code_theme="monokai"),
         Text("  " + CURSOR_MARK, style=CURSOR_STYLE),
     )
 
@@ -765,7 +765,7 @@ class OneCedric:
                         f"  [dim]⚙ {escape(fn.get('name', '?'))}[/]")
                 if text:
                     self.console.print(
-                        Markdown(text[:1600], code_theme="monokai"))
+                        CedricMarkdown(text[:1600], code_theme="monokai"))
                 shown += 1
         if not shown:
             self.console.print("  [dim]（新会话）[/]")
@@ -7051,12 +7051,17 @@ class OneCedric:
         old_write = self._ask_write_action
         old_shell = self._ask_shell_action
         old_log = self._log_tool
+        old_repl_ui = self.repl_ui
 
         buf = StringIO()
         self.console = _Console(
             file=buf, width=120, no_color=True,
             force_terminal=False, soft_wrap=True)
         self.auto_yes = auto_approve
+        # 程序化回合（WebUI 网关、定时任务）不得驱动交互式输入框：
+        # 回合线程会去轮询键盘（与 REPL 主线程抢 getwch 会卡死流式），
+        # 还会把预览画进终端、让 CLI 里敲的字「插队」打断 WebUI 的回合。
+        self.repl_ui = None
 
         tool_calls: list[dict] = []
 
@@ -7105,6 +7110,7 @@ class OneCedric:
             self._ask_write_action = old_write
             self._ask_shell_action = old_shell
             self._log_tool = old_log
+            self.repl_ui = old_repl_ui
 
         log = buf.getvalue()
         if len(log) > 8000:
@@ -7429,11 +7435,31 @@ class OneCedric:
             self.repl_ui = None
 
     def run(self, in_menu: bool = False) -> None:
+        """REPL 主入口：进入对话；离开时收起常驻输入框。"""
+        self.banner()
+        self._init_repl_ui()
+        try:
+            self._run_repl_loop(in_menu)
+        finally:
+            # 不收起的话，回到主菜单后底部会一直挂着对话输入框（它的
+            # Live 还在画），并且网关回合会把它误认为交互界面。
+            self._teardown_repl_ui()
+
+    def _teardown_repl_ui(self) -> None:
+        """停掉常驻输入框并摘除；下次进入对话时重建。"""
+        ui = self.repl_ui
+        self.repl_ui = None
+        if ui is None:
+            return
+        try:
+            ui.stop()
+        except Exception:
+            pass
+
+    def _run_repl_loop(self, in_menu: bool = False) -> None:
         from .pricing import compute_cost
         from .ui.input_box import ask_with_box
 
-        self.banner()
-        self._init_repl_ui()
         while True:
             ctx_used = _estimate_tokens(self.messages)
             ctx_max = self._ctx_limit()

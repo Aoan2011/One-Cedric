@@ -310,6 +310,61 @@ def test_poller_wait_uses_injected_fn_and_skips_when_input_ready():
     assert calls == [0.25]          # 有输入时不进入等待
 
 
+def test_poll_is_mutually_exclusive_across_threads():
+    """两个线程同时 poll 时必须串行：检查与读取之间不能被插队。
+
+    旧缺陷：A 线程在 ``has_input()`` 为真、``read_char()`` 执行前让出，
+    B 线程若挤进同一窗口，双方都会去读输入；默认的 ``msvcrt.getwch``
+    在抢不到字符时**阻塞**，于是整个回合卡死到用户下一次按键（WebUI
+    流式一起停摆的根因）。
+    """
+    import threading
+    import time
+
+    reading = {"on": False}
+    violations: list[str] = []
+    first_read = threading.Event()
+    release_read = threading.Event()
+    calls = {"n": 0}
+
+    def read_char():
+        if reading["on"]:
+            violations.append("read_char 重入")
+        reading["on"] = True
+        calls["n"] += 1
+        if calls["n"] == 1:
+            first_read.set()
+            release_read.wait(timeout=5)
+        reading["on"] = False
+        return "a"
+
+    def has_input():
+        if reading["on"]:
+            violations.append("has_input 与 read_char 并发")
+        return calls["n"] < 6
+
+    p = KeyPoller(read_char=read_char, has_input=has_input)
+    got: dict[str, list[str]] = {}
+
+    t1 = threading.Thread(target=lambda: got.__setitem__("a", p.poll()))
+    t2 = threading.Thread(target=lambda: got.__setitem__("b", p.poll()))
+    t1.start()
+    assert first_read.wait(timeout=5)   # t1 正卡在 read_char「阻塞」中
+    t2.start()
+    time.sleep(0.05)
+    # 持锁时 t2 进不来：一个字符都读不走（旧代码这里会到 2）
+    assert calls["n"] == 1
+
+    release_read.set()
+    t1.join(timeout=5)
+    t2.join(timeout=5)
+    assert not t1.is_alive() and not t2.is_alive()
+    assert violations == []
+    assert calls["n"] == 6
+    assert got["a"] == ["a"] * 6        # 六个字符全归先到的线程
+    assert got["b"] == []               # 后到的线程只拿到空 poll
+
+
 # --------------------------------------------------------------------------- #
 # MidTurnQueue
 # --------------------------------------------------------------------------- #

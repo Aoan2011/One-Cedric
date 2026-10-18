@@ -18,6 +18,7 @@ from textual import events
 from textual.containers import ScrollableContainer
 from textual.widgets import Static
 
+from ...mdterm import iter_segments
 from ...ui import icons
 from ..design import truncate
 from ..state import ChatMessage, SessionState, ToolRun
@@ -31,6 +32,22 @@ _STATUS_STYLE = {"running": COLORS["thought"], "ok": COLORS["ok"],
 #: 状态 -> 图标语义键（回退字形见 icons.CATALOG）
 _STATUS_ICON_KEYS = {"running": "running_half", "ok": "check",
                      "error": "error_thick"}
+#: iter_segments 样式键 -> Textual 样式（math/code 走默认样式）
+_SEG_STYLES = {"key": f"bold black on {COLORS['ok']}", "bold": "bold"}
+
+
+def _split_seg_lines(segs):
+    """把 (文本, 样式) 段按换行拆成「一行一组段」。"""
+    lines: list[list[tuple[str, str]]] = [[]]
+    for text, style in segs:
+        for k, part in enumerate(text.split("\n")):
+            if k:
+                lines.append([])
+            if part:
+                lines[-1].append((part, style))
+    if len(lines) > 1 and not lines[-1]:
+        lines.pop()
+    return lines
 
 
 def is_diff(text: str) -> bool:
@@ -104,10 +121,14 @@ class TranscriptView(Static):
                                style="dim")
         for t_idx, tool in enumerate(msg.tools):
             self._append_tool(out, tool, (idx, t_idx), width)
-        body = msg.text or ("" if msg.done else "\u258c")
-        for raw in (body.splitlines() if msg.text else [body]):
+        if msg.text:
+            for segs in _split_seg_lines(iter_segments(msg.text)):
+                self._bar(out, BAR_ASSIST)
+                self._append_segments(out, segs, width - 2)
+                out.append("\n")
+        elif not msg.done:
             self._bar(out, BAR_ASSIST)
-            out.append(truncate(raw, width - 2) + "\n")
+            out.append("\u258c\n")
         if msg.error:
             self._bar(out, BAR_ASSIST)
             out.append(" " + icons.glyph("error_thick") + " " +
@@ -118,6 +139,18 @@ class TranscriptView(Static):
             out.append(" " + truncate(msg.meta, width - 2) + "\n",
                        style="dim")
         out.append("\n")
+
+    def _append_segments(self, out: Text, segs, width: int) -> None:
+        """按段拼接一行正文，宽度截断与旧版一致（单行预算 width）。"""
+        used = 0
+        for text, style in segs:
+            remain = width - used
+            if remain <= 0:
+                break
+            if len(text) > remain:
+                text = truncate(text, remain)
+            out.append(text, style=_SEG_STYLES.get(style, ""))
+            used += len(text)
 
     def _append_tool(self, out: Text, tool: ToolRun, key, width: int) -> None:
         status_style = _STATUS_STYLE.get(tool.status, "dim")

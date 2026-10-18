@@ -9,10 +9,12 @@
 <title>One Cedric</title>
 <link rel="icon" href="/static/favicon.ico">
 <!-- 样式分层：tokens(设计令牌) → style(基础组件) → hljs(代码高亮) → polish(增强) -->
-<link rel="stylesheet" href="/static/tokens.css?v=20261012a">
-<link rel="stylesheet" href="/static/style.css?v=20261012a">
+<link rel="stylesheet" href="/static/tokens.css?v=20261018a">
+<link rel="stylesheet" href="/static/style.css?v=20261018a">
 <link rel="stylesheet" href="/static/hljs-theme.min.css?v=20261011c">
-<link rel="stylesheet" href="/static/polish.css?v=20261012a">
+<!-- 数学公式（KaTeX）自带样式，本地内置、离线可用 -->
+<link rel="stylesheet" href="/static/vendor/katex/katex.min.css?v=20261018a">
+<link rel="stylesheet" href="/static/polish.css?v=20261018a">
 <!-- 内联兜底：库文件未加载时也保证页面不是黑屏 -->
 <style>
   html, body { background: #0b0b0d; }
@@ -29,6 +31,9 @@
 <script src="/static/vue.min.js?v=20261011c"></script>
 <script src="/static/marked.min.js?v=20261011c"></script>
 <script src="/static/highlight.min.js?v=20261011c"></script>
+<!-- 公式渲染（KaTeX）+ One Cedric 自有的 Markdown 扩展（公式 / ==高亮== / !!!关键!!!） -->
+<script src="/static/vendor/katex/katex.min.js?v=20261018a"></script>
+<script src="/static/cedric-md.js?v=20261018a"></script>
 </head>
 <body>
 
@@ -1963,7 +1968,7 @@
 
 </div>
 
-<script src="/static/app.js?v=20261012a"></script>
+<script src="/static/app.js?v=20261018a"></script>
 <script src="/static/boot.js?v=20261012a"></script>
 </body>
 </html>

@@ -41,6 +41,7 @@ const I18N = {
     'welcome.suggestions': ['这个目录里有什么文件', '读一下 README.md 讲讲项目',
                             '统计一下项目代码量', '帮我搜索一下今天的新闻'],
     'msg.copy': '复制',
+    'md.keyTitle': '关键结论',
     'msg.edit': '编辑并重发',
     'msg.regenerate': '重新生成',
     'msg.reasoning': '思考过程',
@@ -279,6 +280,7 @@ const I18N = {
                             'Count lines of code in the project',
                             "Search for today's news"],
     'msg.copy': 'Copy',
+    'md.keyTitle': 'Key takeaway',
     'msg.edit': 'Edit & resend',
     'msg.regenerate': 'Regenerate',
     'msg.reasoning': 'Reasoning',
@@ -1718,7 +1720,19 @@ createApp({
 
     function renderMarkdown(text) {
       if (!text) return '';
-      try { return sanitizeHtml(marked.parse(text)); }
+      try {
+        /* 先净化再水合：KaTeX 产物（含内联样式）不经过 sanitizeHtml，
+           以免为了公式去放开净化白名单。CedricMD.hydrate 只认
+           data-tex 占位符，输入是已净化的 HTML。 */
+        let html = sanitizeHtml(marked.parse(text));
+        if (window.CedricMD) {
+          if (window.CedricMD.setLabels) {
+            window.CedricMD.setLabels({ keyTitle: t('md.keyTitle') });
+          }
+          if (window.CedricMD.hydrate) html = window.CedricMD.hydrate(html);
+        }
+        return html;
+      }
       catch { return escapeHtml(text); }
     }
 

@@ -483,6 +483,16 @@ Start it with `python -m one_cedric --gateway`.
 
 * **Tool output** — collapsible tool results with syntax highlighting.
 
+* **Rich Markdown** — GFM plus offline KaTeX math (`$x^2$`, `$$…$$`,
+  `\(…\)`, `\[…\]`, and ` ```math ` fences), `==highlight==`, and the
+  reserved `!!!key!!!` markup that renders as a green hand-drawn squiggle —
+  intended for the single conclusion that must not be missed. Everything is
+  hydrated *after* HTML sanitising, so the XSS whitelist stays untouched.
+  (The terminal frontends render the same markup in a degraded form:
+  `!!!…!!!` becomes a bold green pill, `==highlight==` goes bold, math is
+  best-effort converted to Unicode (`x²`, `Σ`), unknown TeX commands stay
+  literal, and code spans/fences are never rewritten.)
+
 * **In-composer think level** — click the ⚡ badge in the input bar to open a
   floating effort window: a wide track with a damped draggable dot across
   Minimal → Low → Medium → High → X-High → Max → Ultra (7 levels, passed
@@ -620,7 +630,7 @@ Copyright (C) 2026 **Aoan2011** · [https://github.com/Aoan2011/One-Cedric](http
 ```bash
 pip install -r requirements-dev.txt
 
-python -m pytest -q              # 247 tests
+python -m pytest -q              # 441 tests
 python -m ruff check .           # lint (bug-level rules are enforced in CI)
 python -m compileall -q one_cedric
 ```

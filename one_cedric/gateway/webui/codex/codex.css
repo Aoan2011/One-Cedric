@@ -264,6 +264,34 @@ svg { display: block; }
 }
 .cx-msg-body hr { border: none; border-top: 1px solid var(--c-border); margin: 1.2em 0; }
 
+/* Markdown 扩展（cedric-md.js）：公式 / ==高亮== / !!!关键结论!!! */
+.md-math .katex { font-size: 1.06em; }
+.md-math-block {
+  display: block; margin: .8em 0; padding: .2em 0;
+  overflow-x: auto; text-align: center;
+}
+.md-math-block .katex-display { margin: 0; }
+.md-math-raw {
+  font-family: var(--font-mono, monospace);
+  font-size: .9em; color: var(--c-text-dim);
+}
+.cx-msg-body mark {
+  background: color-mix(in srgb, var(--c-warn) 28%, transparent);
+  color: inherit; padding: 1px 4px; border-radius: 4px;
+}
+.cedric-key {
+  background-color: color-mix(in srgb, var(--c-ok) 20%, transparent);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='5' viewBox='0 0 14 5'%3E%3Cpath d='M0 3.4 C1.1 2.3 2.3 1.4 3.6 2 C4.8 2.6 5.4 3.6 6.8 3 C8.2 2.4 8.7 1.3 10.1 1.8 C11.4 2.3 12.6 3.2 14 2.7' fill='none' stroke='%234ec98a' stroke-width='1.1' stroke-linecap='round'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='5' viewBox='0 0 19 5'%3E%3Cpath d='M0 2.6 C1.6 3.5 2.6 1.6 4.2 2.1 C5.8 2.6 6.6 3.7 8.1 3.1 C9.7 2.5 10.6 1.5 12.2 1.9 C13.8 2.3 15 3.4 16.7 2.8 C17.6 2.5 18.3 2.2 19 2.4' fill='none' stroke='%234ec98a' stroke-width='1' stroke-linecap='round' opacity='0.5'/%3E%3C/svg%3E");
+  background-repeat: repeat-x, repeat-x;
+  background-position: 0 calc(100% - 1px), 2px 100%;
+  background-size: 14px 5px, 19px 5px;
+  padding: 1px 5px 3px; border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 /* 思考过程 */
 .cx-thought {
   margin: 0 0 .6em;

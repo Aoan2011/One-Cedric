@@ -81,6 +81,8 @@ THEME = Theme({
     "diff.del":  ERR_C,
     "diff.ctx":  DIM_C,
     "diff.hunk": "#7aa2f7",
+    # !!!关键结论!!! → <kbd>：终端没有 KaTeX，用绿底黑字对齐 WebUI 的 --ok
+    "markdown.kbd": f"bold black on {OK_C}",
 })
 
 DEFAULT_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
@@ -434,6 +436,13 @@ SYSTEM_PROMPT = r"""你是 One Cedric，An AI agent for beginners，一个可以
 
 - 使用简体中文。
 - 使用 Markdown：代码块标语言，重要结论加粗。
+- 数学公式用 LaTeX：行内 `$x^2$`（或 `\(x^2\)`），独立公式用 `$$…$$`
+  （或 `\[…\]`、```math 围栏）。
+- 普通强调用 `==文字==` 高亮。
+- `!!!内容!!!` 会把内容渲染成绿色打底 + 手写波浪线，是留给"极其关键、
+  必须一眼看到"的结论的专用标记：整段回复最多用一次，只在结论关乎数据
+  安全、不可逆操作、用户必须立刻注意的场合使用；日常回答、解释、寒暄
+  一律不用。
 - 简短直接，不要客套，不要重复工具返回值。
 - 任务完成时给出一句话总结。
 

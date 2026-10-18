@@ -31,6 +31,7 @@ from __future__ import annotations
 import os
 import select
 import sys
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -367,6 +368,11 @@ class KeyPoller:
         self._has_input = has_input or self._default_has_input
         self._wait = wait or self._default_wait
         self._pending = ""
+        # 可重入锁：poll() 内会调用 pop_key()，同一把锁把「检查有输入」
+        # 和「读一个字符」绑成临界区 —— 否则两个线程同时 poll（REPL 主
+        # 线程 + 回合线程）时，后到的一方会阻塞在 getwch() 里直到下一次
+        # 按键：表现就是整个回合卡死、按键才恢复。
+        self._lock = threading.RLock()
 
     # ── 后端 ──────────────────────────────────────────────────────────── #
     @staticmethod
@@ -433,10 +439,15 @@ class KeyPoller:
     # ── 解析 ──────────────────────────────────────────────────────────── #
     def feed(self, chunk: str) -> None:
         """把已读到的字符追加进缓冲区（测试用）。"""
-        self._pending += chunk
+        with self._lock:
+            self._pending += chunk
 
     def pop_key(self) -> str | None:
         """从缓冲区取出一个按键；缓冲区不足以判定时返回 None。"""
+        with self._lock:
+            return self._pop_key_locked()
+
+    def _pop_key_locked(self) -> str | None:
         buf = self._pending
         if not buf:
             return None
@@ -500,21 +511,27 @@ class KeyPoller:
         return ch if ch.isprintable() else "noop"
 
     def poll(self) -> list[str]:
-        """取走当前所有可用按键（不阻塞）。"""
-        keys = []
-        guard = 0
-        while self._has_input() and guard < 512:
-            guard += 1
-            try:
-                self._pending += self._read_char()
-            except Exception:
-                break
-        while True:
-            key = self.pop_key()
-            if key is None:
-                break
-            keys.append(key)
-        return keys
+        """取走当前所有可用按键（不阻塞）。
+
+        锁的意义：``msvcrt.getwch``（``_default_read_char``）在输入被
+        别的线程抢走时会**阻塞**。把「查 kbhit → 读一个字符」绑成临界
+        区后，检查到有输入的一方一定读得到，不会挂在 getwch 上。
+        """
+        with self._lock:
+            keys = []
+            guard = 0
+            while self._has_input() and guard < 512:
+                guard += 1
+                try:
+                    self._pending += self._read_char()
+                except Exception:
+                    break
+            while True:
+                key = self._pop_key_locked()
+                if key is None:
+                    break
+                keys.append(key)
+            return keys
 
 
 # ═══════════════════════════════════════════════════════════════════════ #

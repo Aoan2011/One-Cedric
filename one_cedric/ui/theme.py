@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from rich import box
 from rich.console import Group
-from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -23,6 +22,7 @@ from ..config import (
     USER_C,
     WARN_C,
 )
+from ..mdterm import CedricMarkdown
 from . import icons
 
 # ── Panel 语义类型 ────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ def panel_markdown(md_text: str, title: str = "", kind: str = "info"):
     """Markdown 内容的 Panel。"""
     spec = PANEL_KINDS.get(kind, PANEL_KINDS["info"])
     return Panel(
-        Markdown(md_text, code_theme="monokai"),
+        CedricMarkdown(md_text, code_theme="monokai"),
         title=f"[{spec['title_style']}]{title}[/]" if title else "",
         title_align="left",
         border_style=spec["border"],

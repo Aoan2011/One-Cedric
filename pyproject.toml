@@ -134,7 +134,11 @@ packages = [
 ]
 
 [tool.setuptools.package-data]
-"one_cedric.gateway.webui" = ["*.html", "*.js", "*.css"]
+"one_cedric.gateway.webui" = [
+    "*.html", "*.js", "*.css", "*.ico",
+    "codex/*", "core/*", "design/*",
+    "vendor/katex/*", "vendor/katex/fonts/*",
+]
 
 # ---------------------------------------------------------------------------
 # Tooling

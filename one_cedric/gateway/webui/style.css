@@ -928,6 +928,60 @@ html.acrylic-high .app-bg::before { opacity: 1; }
 /* 任务列表 */
 .msg-content input[type="checkbox"] { margin-right: 6px; accent-color: var(--brand); }
 
+/* ── Markdown 扩展（cedric-md.js）─────────────────────────────────────
+   公式 KaTeX（净化后水合）、==高亮==、!!!关键结论!!! 的呈现。 */
+
+/* 行内公式 */
+.md-math { padding: 0 1px; }
+.md-math .katex { font-size: 1.06em; }
+
+/* 独立公式：居中显示；超宽时横向滚动，不撑破气泡宽度 */
+.md-math-block {
+  display: block;
+  margin: 12px 0;
+  padding: 6px 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
+}
+.md-math-block .katex-display { margin: 0; }
+/* KaTeX 未加载时的降级：原样显示 TeX 源码 */
+.md-math-raw {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--text-soft);
+}
+
+/* ==高亮==：暖黄打底，不改变文字颜色 */
+.msg-content mark {
+  background: color-mix(in srgb, var(--warn) 28%, transparent);
+  color: inherit;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+/* !!!关键结论!!!：绿色打底 + 手绘波浪线。
+   波浪线是两层错位的内联 SVG（同一数据源、不同相位与透明度），
+   叠出笔迹感；box-decoration-break 保证换行后每行都有打底和波浪线。 */
+.cedric-key {
+  background-color: color-mix(in srgb, var(--ok) 22%, transparent);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='5' viewBox='0 0 14 5'%3E%3Cpath d='M0 3.4 C1.1 2.3 2.3 1.4 3.6 2 C4.8 2.6 5.4 3.6 6.8 3 C8.2 2.4 8.7 1.3 10.1 1.8 C11.4 2.3 12.6 3.2 14 2.7' fill='none' stroke='%239ece6a' stroke-width='1.1' stroke-linecap='round'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='5' viewBox='0 0 19 5'%3E%3Cpath d='M0 2.6 C1.6 3.5 2.6 1.6 4.2 2.1 C5.8 2.6 6.6 3.7 8.1 3.1 C9.7 2.5 10.6 1.5 12.2 1.9 C13.8 2.3 15 3.4 16.7 2.8 C17.6 2.5 18.3 2.2 19 2.4' fill='none' stroke='%239ece6a' stroke-width='1' stroke-linecap='round' opacity='0.5'/%3E%3C/svg%3E");
+  background-repeat: repeat-x, repeat-x;
+  background-position: 0 calc(100% - 1px), 2px 100%;
+  background-size: 14px 5px, 19px 5px;
+  padding: 1px 5px 3px;
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.theme-light .cedric-key {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='5' viewBox='0 0 14 5'%3E%3Cpath d='M0 3.4 C1.1 2.3 2.3 1.4 3.6 2 C4.8 2.6 5.4 3.6 6.8 3 C8.2 2.4 8.7 1.3 10.1 1.8 C11.4 2.3 12.6 3.2 14 2.7' fill='none' stroke='%234d7c2f' stroke-width='1.1' stroke-linecap='round'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='5' viewBox='0 0 19 5'%3E%3Cpath d='M0 2.6 C1.6 3.5 2.6 1.6 4.2 2.1 C5.8 2.6 6.6 3.7 8.1 3.1 C9.7 2.5 10.6 1.5 12.2 1.9 C13.8 2.3 15 3.4 16.7 2.8 C17.6 2.5 18.3 2.2 19 2.4' fill='none' stroke='%234d7c2f' stroke-width='1' stroke-linecap='round' opacity='0.5'/%3E%3C/svg%3E");
+}
+
 /* ── 代码块 ──────────────────────────────────────────────── */
 .code-block {
   margin: 14px 0;

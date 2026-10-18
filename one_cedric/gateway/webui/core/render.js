@@ -16,6 +16,8 @@ const ALLOWED_ATTRS = new Set([
   'href', 'title', 'alt', 'src', 'class', 'colspan', 'rowspan', 'start',
   'lang', 'type', 'checked', 'disabled', 'data-lang', 'data-line',
   'loading', 'width', 'height', 'target', 'rel',
+  // KaTeX 占位符（cedric-md.js 产出，hydrate 前需要保留）
+  'data-tex', 'data-display', 'data-math',
 ]);
 
 const SAFE_URL = /^(https?:|mailto:|#|\/|\.\/|\.\.\/|data:image\/)/i;
@@ -80,7 +82,12 @@ export function renderMarkdown(text) {
   if (!window.marked) return escapeHtml(src).replace(/\n/g, '<br>');
   try {
     const html = window.marked.parse(src, { gfm: true, breaks: true });
-    return sanitizeHtml(html);
+    const safe = sanitizeHtml(html);
+    // 公式水合放在净化之后：KaTeX 的内联样式不进净化白名单
+    if (window.CedricMD && window.CedricMD.hydrate) {
+      return window.CedricMD.hydrate(safe);
+    }
+    return safe;
   } catch (err) {
     return escapeHtml(src).replace(/\n/g, '<br>');
   }

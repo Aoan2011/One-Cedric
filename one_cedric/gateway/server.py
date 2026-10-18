@@ -478,12 +478,18 @@ class Gateway:
                 raise HTTPException(404, "stats.html not found")
             return HTMLResponse(f.read_text(encoding="utf-8"))
 
-        @app.get("/static/{name}")
+        @app.get("/static/{name:path}")
         async def static_file(name: str):
-            if "/" in name or "\\" in name or ".." in name:
-                raise HTTPException(400, "invalid filename")
-            f = webui_dir / name
-            if not f.exists() or not f.is_file():
+            # 允许子路径（vendor/katex/fonts/… 都是 woff2）。解析后必须仍
+            # 落在 webui 目录里，`..`/符号链接越界一律 404，不给目录穿越
+            # 留缝（与旧实现拒绝任何 "/" 等价，只是不再一刀切）。
+            base = webui_dir.resolve()
+            try:
+                f = (base / name).resolve(strict=False)
+                f.relative_to(base)
+            except (ValueError, OSError):
+                raise HTTPException(404, "not found")
+            if not f.is_file():
                 raise HTTPException(404, "not found")
             media = {
                 ".js": "application/javascript",
@@ -492,6 +498,11 @@ class Gateway:
                 ".png": "image/png",
                 ".ico": "image/x-icon",
                 ".html": "text/html",
+                ".woff2": "font/woff2",
+                ".woff": "font/woff",
+                ".ttf": "font/ttf",
+                ".json": "application/json",
+                ".map": "application/json",
             }.get(f.suffix.lower(), "application/octet-stream")
             return FileResponse(str(f), media_type=media)
 
