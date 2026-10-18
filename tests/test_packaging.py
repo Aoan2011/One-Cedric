@@ -12,7 +12,11 @@ import sys
 from pathlib import Path
 
 import pytest
-import tomllib
+
+try:  # Python 3.10 has no stdlib tomllib (pytest pulls tomli there)
+    import tomllib
+except ImportError:  # pragma: no cover - py<3.11
+    tomllib = pytest.importorskip("tomli")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

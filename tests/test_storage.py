@@ -78,7 +78,12 @@ def test_dump_config_toml_quotes_paths_and_values(isolated_home):
     text = storage.dump_config_toml(cfg)
     assert '"' in text
     # The dump must be re-parsable.
-    import tomllib
+    try:
+        import tomllib
+    except ImportError:  # pragma: no cover - py<3.11
+        import pytest
+
+        tomllib = pytest.importorskip("tomli")
 
     parsed = tomllib.loads(text)
     assert parsed["default"]["model"] == 'weird "quoted" \\ value'

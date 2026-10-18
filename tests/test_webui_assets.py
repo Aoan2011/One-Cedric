@@ -31,7 +31,10 @@ def test_webui_asset_exists(name):
 
 def test_package_data_covers_the_new_assets():
     """A new .css/.js in webui/ must be shipped in the wheel."""
-    import tomllib
+    try:
+        import tomllib
+    except ImportError:  # pragma: no cover - py<3.11
+        tomllib = pytest.importorskip("tomli")
 
     pyproject = tomllib.loads(
         (WEBUI.parents[2] / "pyproject.toml").read_text(encoding="utf-8"))

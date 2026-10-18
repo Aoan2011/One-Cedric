@@ -10,7 +10,10 @@ from one_cedric import pricing
 try:
     import tomllib
 except ImportError:  # pragma: no cover - py<3.11
-    tomllib = None
+    try:
+        import tomli as tomllib      # pytest pulls tomli on Python 3.10
+    except ImportError:
+        tomllib = None
 
 
 def _cfg(**kw):
