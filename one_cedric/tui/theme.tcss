@@ -1,0 +1,167 @@
+
+/* semantic tokens (must match theme.COLORS) */
+$bg: #0f0f16;
+$bg-elev: #16161f;
+$bg-sunken: #0a0a10;
+$border: #262631;
+$border-strong: #3d3c4d;
+$text: #e6e6ee;
+$text-dim: #8f8b9d;
+$text-faint: #5d5a6a;
+$accent: #8b7cf6;
+$accent-deep: #5b4bdd;
+$thought: #d9a05f;
+$model: #e8a25c;
+$pill: #2b2440;
+$band: #2c3a57;
+$danger: #ff6b6b;
+$ok: #4ec98a;
+
+Screen {
+    background: $bg;
+    color: $text;
+}
+
+/* top tab bar */
+TabBar {
+    height: 1;
+    dock: top;
+    background: $bg-elev;
+    color: $text;
+}
+
+/* body: sidebar | transcript+composer | context */
+#cx-body { height: 1fr; }
+
+#cx-sidebar {
+    width: 30;
+    background: $bg-sunken;
+    border-right: solid $border;
+    padding: 0 1;
+}
+#cx-sidebar.hidden { display: none; }
+
+#cx-transcript {
+    width: 1fr;
+    padding: 0 1;
+    background: $bg;
+}
+
+#cx-middle { width: 1fr; height: 1fr; }
+
+/* composer: rounded dark box; the violet left bar is drawn by the widget */
+#cx-composer {
+    height: 4;
+    margin: 0 1 1 1;
+    border: round $border-strong;
+    background: $bg-elev;
+    padding: 0 1;
+}
+
+/* right column: context panel + getting started card */
+#cx-right {
+    width: 34;
+    background: $bg-elev;
+    border-left: solid $border;
+    padding: 1 1;
+    overflow-y: auto;
+}
+#cx-right.hidden { display: none; }
+
+#cx-context { width: 1fr; height: auto; background: $bg-elev; }
+
+#getting-started {
+    width: 1fr;
+    height: auto;
+    margin-top: 1;
+    border: round $border-strong;
+    background: $bg;
+    padding: 0 1;
+}
+#getting-started.hidden { display: none; }
+
+/* home screen (no session yet) */
+#cx-home {
+    width: 1fr;
+    height: 1fr;
+    align: center middle;
+}
+
+/* status bar: line 1 = context hints, line 2 = menu strip (OpenCode footer) */
+#cx-statusbar {
+    height: 2;
+    dock: bottom;
+    background: $bg-sunken;
+    color: $text-dim;
+    padding: 0 1;
+}
+
+/* command palette (ctrl+p): inside .modal-layer so it centers */
+CommandPalette {
+    width: 66;
+    height: auto;
+    max-height: 22;
+    border: round $border-strong;
+    background: $bg-elev;
+    padding: 0 1;
+}
+
+/* interactive settings overlay */
+SettingsPanel {
+    width: 58;
+    height: auto;
+    max-height: 26;
+    border: round $border-strong;
+    background: $bg-elev;
+    padding: 1 2;
+    overflow-y: auto;
+}
+
+/* generic centered overlay (help / kernel reports) */
+.modal-layer {
+    layer: overlay;
+    width: 1fr;
+    height: 1fr;
+    align: center middle;
+}
+.modal-box {
+    width: 62;
+    height: auto;
+    max-height: 30;
+    border: round $border-strong;
+    background: $bg-elev;
+    padding: 1 2;
+}
+
+/* kernel command output (reports are wide, need scrolling) */
+.modal-box.modal-wide {
+    width: 96;
+    max-height: 28;
+    overflow-y: auto;
+}
+
+/* full-screen panels (stats) */
+.fs-panel {
+    width: 100%;
+    height: 100%;
+    background: $bg;
+}
+
+/* responsive: hide context panel on narrow screens */
+Screen.narrow #cx-right { display: none; }
+Screen.narrower #cx-sidebar { display: none; }
+
+/* home vs session view */
+Screen.session #cx-home { display: none; }
+Screen.home #cx-sidebar { display: none; }
+Screen.home #cx-right { display: none; }
+Screen.home #cx-transcript { display: none; }
+
+/* light mode (toggle theme command) */
+.light-mode Screen { background: #f7f8fb; color: #1b1f2a; }
+.light-mode TabBar { background: #eceff6; color: #1b1f2a; }
+.light-mode #cx-sidebar { background: #f1f3f9; }
+.light-mode #cx-right { background: #f1f3f9; }
+.light-mode #cx-composer { background: #eceff6; }
+.light-mode #cx-statusbar { background: #f1f3f9; color: #5b6478; }
+.light-mode .fs-panel { background: #f7f8fb; }
