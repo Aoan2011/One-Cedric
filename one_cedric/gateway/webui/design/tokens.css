@@ -1,0 +1,119 @@
+/* 由 one_cedric/design/gen_tokens.py 从 tokens.json 生成 —— 请勿手改。
+ *
+ * 重新生成：python -m one_cedric.design.gen_tokens
+ * 校验漂移：python -m one_cedric.design.gen_tokens --check
+ */
+
+:root {
+  /* space */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+  /* radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  /* font */
+  --font-ui: Inter, "Segoe UI", system-ui, -apple-system, "Noto Sans SC", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Noto Sans Mono CJK SC", monospace;
+  /* text */
+}
+
+:root {
+  --fs-base: 14.5px;
+  --fs-xs: 11.5px;
+  --fs-sm: 12.5px;
+  --fs-md: 13.5px;
+  --fs-lg: 15px;
+  --fs-xl: 19px;
+  --fs-2xl: 26px;
+  --fs-3xl: 40px;
+  --fs-scale-xs: 0.786em;
+  --fs-scale-sm: 0.862em;
+  --fs-scale-md: 0.931em;
+  --fs-scale-lg: 1em;
+  --fs-scale-xl: 1.31em;
+  --fs-scale-2xl: 1.793em;
+  --fs-scale-3xl: 2.759em;
+  --fs-scale-4xl: 4.138em;
+  /* motion */
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 260ms;
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+  /* elev */
+  --elev-1: 0 1px 2px rgba(0,0,0,.28);
+  --elev-2: 0 6px 18px -8px rgba(0,0,0,.5);
+  --elev-3: 0 18px 48px -18px rgba(0,0,0,.62);
+  --elev-4: 0 32px 80px -28px rgba(0,0,0,.72);
+  /* z */
+  --z-base: 0;
+  --z-sticky: 20;
+  --z-overlay: 60;
+  --z-modal: 80;
+  --z-palette: 90;
+  --z-toast: 100;
+  /* layout */
+  --layout-topbar: 44px;
+  --layout-sidebar: 268px;
+  --layout-context: 300px;
+  --layout-composer-min: 132px;
+  /* breakpoint */
+  --bp-narrow: 1100px;
+  --bp-compact: 860px;
+  --bp-mobile: 620px;
+}
+
+:root {
+  --c-bg: #0b0d12;
+  --c-bg-elev: #11141b;
+  --c-bg-sunken: #07090d;
+  --c-panel: rgba(20, 24, 33, 0.72);
+  --c-panel-solid: #141821;
+  --c-border: #232936;
+  --c-border-soft: rgba(126, 140, 170, 0.16);
+  --c-text: #e6e9f2;
+  --c-text-dim: #a7b0c4;
+  --c-text-faint: #6b7488;
+  --c-accent: #7c8cff;
+  --c-accent-soft: rgba(124, 140, 255, 0.16);
+  --c-accent-2: #41d1c0;
+  --c-warn: #f0b429;
+  --c-danger: #ff6b6b;
+  --c-ok: #4ade80;
+  --c-user-rail: #8b9cff;
+  --c-assistant-rail: #3d4657;
+  --c-code-bg: #0e1116;
+  color-scheme: dark;
+}
+
+.theme-light {
+  --c-bg: #f6f7fb;
+  --c-bg-elev: #ffffff;
+  --c-bg-sunken: #eceef5;
+  --c-panel: rgba(255, 255, 255, 0.78);
+  --c-panel-solid: #ffffff;
+  --c-border: #d8dced;
+  --c-border-soft: rgba(70, 80, 120, 0.14);
+  --c-text: #1a1f2e;
+  --c-text-dim: #525c74;
+  --c-text-faint: #8b93a8;
+  --c-accent: #4d5ce0;
+  --c-accent-soft: rgba(77, 92, 224, 0.12);
+  --c-accent-2: #0f9e8e;
+  --c-warn: #b57500;
+  --c-danger: #d23c3c;
+  --c-ok: #128a45;
+  --c-user-rail: #4d5ce0;
+  --c-assistant-rail: #c3c9dc;
+  --c-code-bg: #f0f2f8;
+  color-scheme: light;
+}

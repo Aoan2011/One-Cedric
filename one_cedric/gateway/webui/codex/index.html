@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0b0d12">
+  <title>One Cedric</title>
+  <link rel="icon" href="/static/favicon.ico">
+  <link rel="stylesheet" href="/static/design/tokens.css">
+  <link rel="stylesheet" href="/static/hljs-theme.min.css">
+  <link rel="stylesheet" href="/static/codex/codex.css">
+</head>
+<body>
+<div class="cx" id="cx" data-drawer="0">
+  <div class="cx-bg" aria-hidden="true"></div>
+
+  <a class="sr-only" href="#cx-input">跳到输入框</a>
+
+  <!-- ── 顶栏 ────────────────────────────────────────────── -->
+  <header class="cx-topbar">
+    <button class="cx-iconbtn" id="cx-drawer" title="会话栏"
+            aria-label="切换会话栏">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+           stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+        <path d="M2 4h12M2 8h12M2 12h12"/>
+      </svg>
+    </button>
+
+    <div class="cx-tabs" id="cx-tabs" role="tablist"
+         aria-label="打开的会话"></div>
+
+    <button class="cx-btn" id="cx-new" data-variant="ghost"
+            data-i18n-title="action.newSession">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"
+           stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M8 3v10M3 8h10"/>
+      </svg>
+      <span data-i18n="action.newSession">新建会话</span>
+    </button>
+
+    <div class="cx-topbar-right">
+      <button class="cx-chip" id="cx-model" title="模型" aria-haspopup="listbox">
+        <strong id="cx-model-name">—</strong>
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+          <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor"
+                stroke-width="1.3"/>
+        </svg>
+      </button>
+
+      <span class="cx-chip" data-compact-hide="1" title="上下文用量">
+        <span id="cx-ctx-tokens">0</span>
+        <span class="cx-meter"><i id="cx-ctx-bar"></i></span>
+        <span id="cx-ctx-pct">0%</span>
+      </span>
+
+      <span class="cx-chip" id="cx-cost-chip" data-compact-hide="1"
+            title="本次花费">
+        $<span id="cx-cost">0.0000</span>
+      </span>
+
+      <span class="cx-dot" id="cx-status" data-state="idle"
+            title="网关状态" role="status" aria-live="polite"></span>
+      <span class="cx-status-text" id="cx-status-text">空闲</span>
+
+      <button class="cx-iconbtn" id="cx-stats" data-i18n-title="action.stats">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
+             stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+          <path d="M3 13V7M8 13V3M13 13v-4"/>
+        </svg>
+      </button>
+      <button class="cx-iconbtn" id="cx-settings" data-i18n-title="action.settings">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
+             stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+          <circle cx="8" cy="8" r="2.4"/>
+          <path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1"/>
+        </svg>
+      </button>
+      <button class="cx-iconbtn" id="cx-theme" data-i18n-title="action.switchTheme">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
+             stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+          <path d="M13 9.5A5.5 5.5 0 1 1 6.5 3a4.5 4.5 0 0 0 6.5 6.5z"/>
+        </svg>
+      </button>
+      <button class="cx-iconbtn" id="cx-help" data-i18n-title="action.help">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
+             stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+          <circle cx="8" cy="8" r="6"/>
+          <path d="M6.3 6.2a1.8 1.8 0 1 1 2.4 1.7c-.5.2-.7.5-.7 1v.3"/>
+          <circle cx="8" cy="11.6" r=".6" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── 三栏 ────────────────────────────────────────────── -->
+  <main class="cx-shell">
+    <aside class="cx-sidebar" id="cx-sidebar" aria-label="会话列表">
+      <label class="cx-side-search">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+             stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+          <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>
+        </svg>
+        <input id="cx-search" type="search" autocomplete="off"
+               data-i18n-ph="label.searchPlaceholder">
+      </label>
+      <div id="cx-session-list" class="cx-list"></div>
+      <div class="cx-sidebar-foot">
+        <button class="cx-btn" data-block id="cx-new-2" data-variant="primary">
+          <span data-i18n="action.newSession">新建会话</span>
+        </button>
+      </div>
+    </aside>
+
+    <section class="cx-transcript" id="cx-transcript"
+             aria-live="polite" aria-relevant="additions text">
+      <div class="cx-transcript-inner" id="cx-stream"></div>
+    </section>
+
+    <aside class="cx-context" aria-label="上下文与状态">
+      <div class="cx-card">
+        <h3 data-i18n="context.title">Context</h3>
+        <div class="cx-kv">
+          <span data-i18n="context.tokens">tokens</span>
+          <span><b id="cx-c-tokens">0</b> · <b id="cx-c-pct">0%</b>
+            <span data-i18n="context.used">已用</span></span>
+        </div>
+        <div class="cx-context-meter"><i id="cx-c-bar"></i></div>
+        <div class="cx-kv"><span data-i18n="context.model">模型</span>
+          <span id="cx-c-model">—</span></div>
+        <div class="cx-kv"><span data-i18n="context.provider">服务商</span>
+          <span id="cx-c-host">—</span></div>
+        <div class="cx-kv"><span data-i18n="context.cost">成本</span>
+          <span id="cx-c-cost">$0.0000</span></div>
+        <div class="cx-row" style="margin-top:10px">
+          <button class="cx-btn" id="cx-compact"
+                  data-i18n="context.compress">压缩</button>
+          <button class="cx-btn" id="cx-undo" data-i18n="action.undo">撤销</button>
+          <button class="cx-btn" id="cx-clear"
+                  data-i18n="action.clear">清空</button>
+        </div>
+      </div>
+
+      <div class="cx-card">
+        <h3 data-i18n="context.gettingStarted">快速开始</h3>
+        <p class="cx-tip" data-i18n="context.tip">One Cedric 自带本地模型即可开始…</p>
+        <div class="cx-row" style="margin-top:10px">
+          <button class="cx-btn" id="cx-connect"
+                  data-i18n="context.connect">连接服务商</button>
+          <span class="cx-mono cx-dim">/connect</span>
+        </div>
+      </div>
+
+      <div class="cx-card">
+        <h3>快捷键</h3>
+        <div class="cx-kv"><span>命令面板</span><span>Ctrl+P</span></div>
+        <div class="cx-kv"><span>搜索会话</span><span>Ctrl+K</span></div>
+        <div class="cx-kv"><span>切换模式</span><span>Shift+Tab</span></div>
+        <div class="cx-kv"><span>停止生成</span><span>Esc</span></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ── Composer ────────────────────────────────────────── -->
+  <footer class="cx-composer">
+    <div class="cx-composer-inner">
+      <div class="cx-attachments" id="cx-attachments" hidden></div>
+      <div class="cx-composer-box" id="cx-box">
+        <label class="sr-only" for="cx-input">输入消息</label>
+        <textarea id="cx-input" class="cx-input" rows="2"
+                  data-i18n-ph="composer.placeholder"
+                  spellcheck="false"></textarea>
+        <div class="cx-composer-bar">
+          <span class="cx-mode" id="cx-mode">Build</span>
+          <span class="cx-mono cx-dim" id="cx-model-line">—</span>
+          <span class="cx-hints">
+            <span data-i18n="composer.hint.agents">shift+tab 模式</span>
+            <span data-i18n="composer.hint.commands">ctrl+p 命令</span>
+            <span data-i18n="composer.hint.stop">esc 停止</span>
+          </span>
+          <button class="cx-iconbtn" id="cx-attach"
+                  data-i18n-title="composer.attach">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
+                 stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <path d="M9.5 4.5l-4 4a2.1 2.1 0 0 0 3 3l4.2-4.2a3.2 3.2 0 0 0-4.5-4.5L3.6 7.4"/>
+            </svg>
+          </button>
+          <button class="cx-send" id="cx-send" data-i18n-title="action.send">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
+                 stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <path d="M2.5 8h10M8.5 3.8L12.7 8l-4.2 4.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <input type="file" id="cx-file" multiple hidden>
+    </div>
+  </footer>
+</div>
+
+<!-- 覆盖层面板（全部内嵌，不再有独立 HTML 页，从根上消灭孤儿死页） -->
+<div class="cx-overlay" id="cx-overlay" data-open="0" role="dialog"
+     aria-modal="true" aria-labelledby="cx-panel-title">
+  <div class="cx-panel">
+    <div class="cx-panel-head">
+      <h2 id="cx-panel-title">设置</h2>
+      <button class="cx-iconbtn" id="cx-panel-close" aria-label="关闭">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
+             stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M4 4l8 8M12 4l-8 8"/>
+        </svg>
+      </button>
+    </div>
+    <div class="cx-panel-body" id="cx-panel-body"></div>
+  </div>
+</div>
+
+<div class="cx-palette" id="cx-palette" data-open="0" role="dialog"
+     aria-label="命令面板">
+  <input id="cx-palette-input" type="text" autocomplete="off"
+         data-i18n-ph="cmd.placeholder">
+  <div class="cx-palette-list" id="cx-palette-list"></div>
+</div>
+
+<div class="cx-toasts" id="cx-toasts" aria-live="polite"></div>
+
+<script src="/static/marked.min.js"></script>
+<script src="/static/highlight.min.js"></script>
+<script type="module" src="/static/codex/app.js"></script>
+</body>
+</html>
