@@ -20,14 +20,19 @@ fastapi==0.142.2
 uvicorn==0.54.0
 
 # ── Configuration & validation ─────────────────────────────────────────────
-PyYAML==6.0.2
+# 6.0.3 adds cp310-cp314 wheels (6.0.2 stopped at cp313); on 3.15 it falls
+# back to a pure-Python build from the sdist.
+PyYAML==6.0.3
 jsonschema==4.26.0
 
 # ── Web fetching & extraction ──────────────────────────────────────────────
 beautifulsoup4==4.15.0
 lxml==6.1.3
 trafilatura==2.3.1
-readability-lxml==0.9
+readability-lxml==0.9; python_version < "3.15"
+# 0.9 caps requires-python at <3.15 (over-conservative upstream cap grown
+# stale); 0.8.4.1 carries no metadata cap and serves the same use.
+readability-lxml==0.8.4.1; python_version >= "3.15"
 
 # ── Office documents & PDF ─────────────────────────────────────────────────
 # NOTE: the distribution is `python-docx` (import name `docx`).
@@ -43,9 +48,17 @@ msoffcrypto-tool>=5.0
 # ── Imaging, data & maths ──────────────────────────────────────────────────
 pillow==12.3.0
 qrcode==8.2
-numpy==2.3.5
-pandas==3.0.3
-matplotlib==3.11.2
+# cp-tag coverage is not continuous across interpreters; pin per branch so a
+# single file installs on 3.10, 3.11-3.14 and 3.15+ alike (pip evaluates the
+# environment markers against the running interpreter). Sources:
+# numpy 2.3+/pandas 3.x/matplotlib 3.10+ all declare requires-python >= 3.11.
+numpy==2.2.6; python_version < "3.11"
+numpy==2.3.5; python_version >= "3.11" and python_version < "3.15"
+numpy==2.5.4; python_version >= "3.15"
+pandas==2.3.3; python_version < "3.11"
+pandas==3.0.6; python_version >= "3.11"
+matplotlib==3.9.4; python_version < "3.11"
+matplotlib==3.11.2; python_version >= "3.11"
 # cv2 is provided by opencv-contrib-python; installing `opencv-python` too
 # would drop a second, conflicting cv2 into site-packages.
 opencv-contrib-python==5.0.0.93

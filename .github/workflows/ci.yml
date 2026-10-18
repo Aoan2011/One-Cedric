@@ -20,11 +20,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
         include:
-          # The project is primarily developed on Windows; cover it once.
+          # The project is primarily developed on Windows; cover two versions.
           - os: windows-latest
             python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.14"
+          # macOS shares the POSIX code paths but runs a different runner
+          # stack (Apple Silicon, BSD userland tools).
+          - os: macos-latest
+            python-version: "3.13"
 
     steps:
       - uses: actions/checkout@v4

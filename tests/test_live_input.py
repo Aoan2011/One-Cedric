@@ -631,6 +631,13 @@ def _render_session(session, height=24):
     return text, lines
 
 
+# 输入框顶边框的左上角：rich 在 legacy Windows（VT 不可用的管道/控制台，CI 的
+# 输出就是一个管道）会把 ROUNDED 的「╭」替换成方角「┌」
+# （见 rich.box.LEGACY_WINDOWS_SUBSTITUTIONS），纯 ASCII 降级则是「+」。
+# 断言必须三种都接受，Ubuntu 与 Windows CI 才能同时成立。
+_BOX_TOP_LEFT = ("╭", "┌", "+")
+
+
 def test_preview_renders_above_the_input_box_and_clears():
     from rich.text import Text
 
@@ -642,8 +649,12 @@ def test_preview_renders_above_the_input_box_and_clears():
     assert out.index("STREAM-BODY") < out.index("One Cedric")
     # 输入框顶边框必须独立成行：Group 不会自动补换行，
     # _TailView 漏了结尾换行时边框会跟预览末行挤在一起。
-    assert any(line.lstrip().startswith("┌") for line in lines)
-    assert not any("STREAM-BODY" in line and "┌" in line for line in lines)
+    assert any(line.lstrip().startswith(_BOX_TOP_LEFT) for line in lines)
+    body_on_border = any(
+        "STREAM-BODY" in line and any(g in line for g in _BOX_TOP_LEFT)
+        for line in lines
+    )
+    assert not body_on_border
     s.clear_preview()
     assert not s.has_preview
     out2, _ = _render_session(s)
@@ -659,7 +670,7 @@ def test_preview_keeps_the_tail_when_taller_than_the_screen():
     assert "line-199" in out            # 最新内容可见
     assert "line-000" not in out        # 开头被裁掉，而不是结尾
     assert len(lines) <= 24             # 整帧（预览 + 输入框）不超屏
-    assert any(line.lstrip().startswith("┌") for line in lines)
+    assert any(line.lstrip().startswith(_BOX_TOP_LEFT) for line in lines)
 
 
 def test_mouse_tracking_defaults_off_and_can_be_enabled(monkeypatch):
