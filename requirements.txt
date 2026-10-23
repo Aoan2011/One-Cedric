@@ -25,7 +25,7 @@ uvicorn==0.54.0
 PyYAML==6.0.3
 # Python 3.10 lacks stdlib tomllib; one_cedric/_toml.py falls back to this
 # backport so TOML config reads stay real instead of silently no-op'ing.
-tomli==2.4.1; python_version < "3.11"
+tomli==2.5.0; python_version < "3.11"
 jsonschema==4.26.0
 
 # ── Web fetching & extraction ──────────────────────────────────────────────
