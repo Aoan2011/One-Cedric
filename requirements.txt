@@ -45,7 +45,7 @@ python-docx==1.2.0
 # NOTE: the distribution is `python-pptx` (import name `pptx`).
 python-pptx==1.0.2
 openpyxl==3.1.5
-pypdf==6.19.0
+pypdf==6.21.2
 msoffcrypto-tool>=5.0
 
 # ── Imaging, data & maths ──────────────────────────────────────────────────
