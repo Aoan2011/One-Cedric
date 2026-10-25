@@ -60,7 +60,7 @@ numpy==2.3.5; python_version >= "3.11" and python_version < "3.15"
 numpy==2.5.4; python_version >= "3.15"
 pandas==2.3.3; python_version < "3.11"
 pandas==3.0.6; python_version >= "3.11"
-matplotlib==3.9.4; python_version < "3.11"
+matplotlib==3.10.9; python_version < "3.11"
 matplotlib==3.11.2; python_version >= "3.11"
 # cv2 is provided by opencv-contrib-python; installing `opencv-python` too
 # would drop a second, conflicting cv2 into site-packages.
