@@ -64,7 +64,7 @@ matplotlib==3.10.9; python_version < "3.11"
 matplotlib==3.11.2; python_version >= "3.11"
 # cv2 is provided by opencv-contrib-python; installing `opencv-python` too
 # would drop a second, conflicting cv2 into site-packages.
-opencv-contrib-python==5.0.0.93
+opencv-contrib-python==5.1.0.95
 
 # ── Crypto ─────────────────────────────────────────────────────────────────
 cryptography==50.0.2
